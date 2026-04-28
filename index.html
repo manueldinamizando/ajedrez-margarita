@@ -359,7 +359,7 @@
         var historialAvanzar = []; // Memoria para el botón avanzar
 
         $(document).ready(() => {
-            // TABLERO COMBATE
+            // TABLERO COMBATE - Usando la ruta oficial
             boardC = ChessBoard('boardCombat', { 
                 draggable: true, 
                 position: 'start', 
@@ -367,11 +367,11 @@
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' 
             });
 
-            // TABLERO ANÁLISIS
+            // TABLERO ANÁLISIS - HE CAMBIADO LA RUTA AQUÍ TAMBIÉN PARA QUE FUNCIONE
             boardA = ChessBoard('boardAnalysis', { 
                 draggable: true, 
                 position: 'start', 
-                pieceTheme: 'https://chess-board.pages.dev/counts/wikipedia/{piece}.png', 
+                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png', 
                 onDrop: (s, t) => {
                     const m = chessA.move({from: s, to: t, promotion: 'q'});
                     if (m === null) return 'snapback';
