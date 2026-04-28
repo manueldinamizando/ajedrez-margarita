@@ -444,15 +444,20 @@
             const infoDiv = document.getElementById('theoryData');
             if (!infoDiv) return;
         
-            // Solo la posición, sin turnos ni números finales
             const parts = fen.split(' ');
             const fenLimpio = encodeURIComponent(parts[0]); 
             
+            // AQUÍ PONES TU TOKEN DE LICHESS
+            const miToken = "lip_DjMU6lDaf2ROTAwrFr10";
+        
             try {
-                // Añadimos un pequeño retraso para que GitHub no se sature
-                const response = await fetch(`https://explorer.lichess.ovh/lichess?variant=standard&fen=${fenLimpio}&speeds=blitz,rapid,classical&ratings=2000,2200,2500`);
+                const response = await fetch(`https://explorer.lichess.ovh/lichess?variant=standard&fen=${fenLimpio}&speeds=blitz,rapid,classical&ratings=2000,2200,2500`, {
+                    headers: {
+                        'Authorization': `Bearer ${miToken}`
+                    }
+                });
                 
-                if (!response.ok) throw new Error();
+                if (!response.ok) throw new Error("Error " + response.status);
         
                 const data = await response.json();
         
@@ -464,15 +469,15 @@
                         html += `
                             <div style="border-left: 3px solid var(--accent); padding: 5px 10px; background: rgba(255,255,255,0.05);">
                                 <strong style="color:var(--accent); font-size:1.1rem;">${move.san}</strong>
-                                <div style="font-size:0.7rem; color:#aaa;">Éxito: ${winRate}% | Partidas: ${total.toLocaleString()}</div>
+                                <div style="font-size:0.7rem; color:#aaa;">Éxito Bl.: ${winRate}% | Partidas: ${total.toLocaleString()}</div>
                             </div>`;
                     });
                     infoDiv.innerHTML = html + '</div>';
                 } else {
-                    infoDiv.innerHTML = '<div style="color:#8b949e; font-style:italic;">Teoría no disponible.</div>';
+                    infoDiv.innerHTML = '<div style="color:#8b949e; font-style:italic;">Fuera de teoría.</div>';
                 }
             } catch (err) {
-                // Si falla la API, mostramos un mensaje más amable
+                console.error("Error Lichess:", err);
                 infoDiv.innerHTML = '<div style="color:#8b949e; font-size:0.8rem;">Esperando movimiento...</div>';
             }
         }
