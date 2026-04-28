@@ -447,7 +447,16 @@
         // ESTA ES LA LÍNEA CLAVE: Limpiamos el FEN para que Lichess no se líe
         const fenLimpio = encodeURIComponent(fen.split(' ')[0]); 
         
-        const miToken = "lip_DjMU6lDaf2ROTAwrFr10";
+        // Buscamos si ya guardamos el token en tu navegador
+        let miToken = localStorage.getItem('lichess_token');
+        
+        // Si no está guardado, te lo pedimos con un cuadrito
+        if (!miToken || miToken === "null") {
+            miToken = prompt("Margarita necesita tu Token de Lichess para el análisis. Pégalo aquí (lip_...):");
+            if (miToken) {
+                localStorage.setItem('lichess_token', miToken);
+            }
+}
         
         try {
             // Ponemos un mensaje de "Cargando" para saber que el clic ha funcionado
