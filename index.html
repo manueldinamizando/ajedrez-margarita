@@ -442,54 +442,53 @@
         }
         async function consultarLichess(fen) {
             const infoDiv = document.getElementById('theoryData');
-        if (!infoDiv) return;
-        
-        // ESTA ES LA LÍNEA CLAVE: Limpiamos el FEN para que Lichess no se líe
-        const fenLimpio = encodeURIComponent(fen.split(' ')[0]); 
-        
-        // Buscamos si ya guardamos el token en tu navegador
-        let miToken = localStorage.getItem('lichess_token');
-        
-        // Si no está guardado, te lo pedimos con un cuadrito
-        if (!miToken || miToken === "null") {
-            miToken = prompt("Margarita necesita tu Token de Lichess para el análisis. Pégalo aquí (lip_...):");
-            if (miToken) {
-                localStorage.setItem('lichess_token', miToken);
-            }
-}
-        
-        try {
-            // Ponemos un mensaje de "Cargando" para saber que el clic ha funcionado
-            infoDiv.innerHTML = '<div style="color:#aaa; font-size:0.8rem;">Buscando en base de datos...</div>';
+            if (!infoDiv) return;
             
-            const response = await fetch(`https://explorer.lichess.ovh/lichess?variant=standard&fen=${fenLimpio}&speeds=blitz,rapid,classical&ratings=2000,2200,2500`, {
-                headers: {
-                    'Authorization': `Bearer ${miToken}`
-                }
-            });
+            // 1. LIMPIEZA ABSOLUTA DEL FEN
+            // Solo queremos la posición de las piezas, nada más.
+            const fenSoloPosicion = fen.split(' ')[0];
+            const fenUrl = encodeURIComponent(fenSoloPosicion);
+            
+            let miToken = localStorage.getItem('lichess_token');
+            
+            if (!miToken || miToken === "null") {
+                miToken = prompt("Margarita necesita tu Token de Lichess:");
+                if (miToken) localStorage.setItem('lichess_token', miToken);
+            }
+        
+            try {
+                infoDiv.innerHTML = '<div style="color:#aaa;">Consultando...</div>';
                 
-                if (!response.ok) throw new Error("Error " + response.status);
+                // 2. URL SIMPLIFICADA (Sin filtros de ELO para asegurar resultados)
+                const url = `https://explorer.lichess.ovh/lichess?variant=standard&fen=${fenUrl}&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500`;
+                
+                const response = await fetch(url, {
+                    headers: { 'Authorization': `Bearer ${miToken}` }
+                });
+        
+                if (!response.ok) throw new Error("Status: " + response.status);
         
                 const data = await response.json();
         
+                // 3. VERIFICACIÓN DE DATOS
                 if (data.moves && data.moves.length > 0) {
-                    let html = '<div style="display:grid; gap:8px;">';
-                    data.moves.slice(0, 4).forEach(move => {
-                        const total = move.white + move.draws + move.black;
-                        const winRate = Math.round((move.white / total) * 100);
+                    let html = '<div style="display:grid; gap:5px;">';
+                    data.moves.slice(0, 5).forEach(m => {
+                        const total = m.white + m.draws + m.black;
+                        const winRate = Math.round((m.white / total) * 100);
                         html += `
-                            <div style="border-left: 3px solid var(--accent); padding: 5px 10px; background: rgba(255,255,255,0.05);">
-                                <strong style="color:var(--accent); font-size:1.1rem;">${move.san}</strong>
-                                <div style="font-size:0.7rem; color:#aaa;">Éxito Bl.: ${winRate}% | Partidas: ${total.toLocaleString()}</div>
+                            <div style="border-left:3px solid var(--accent); padding:4px 8px; background:rgba(255,255,255,0.05);">
+                                <strong style="color:var(--accent);">${m.san}</strong> 
+                                <span style="font-size:0.7rem; color:#8b949e;">(${winRate}% bl. | ${total.toLocaleString()} part.)</span>
                             </div>`;
                     });
                     infoDiv.innerHTML = html + '</div>';
                 } else {
-                    infoDiv.innerHTML = '<div style="color:#8b949e; font-style:italic;">Fuera de teoría.</div>';
+                    infoDiv.innerHTML = '<div style="color:#8b949e;">Posición no encontrada en Maestros.</div>';
                 }
             } catch (err) {
-                console.error("Error Lichess:", err);
-                infoDiv.innerHTML = '<div style="color:#8b949e; font-size:0.8rem;">Esperando movimiento...</div>';
+                console.error("Error detallado:", err);
+                infoDiv.innerHTML = '<div style="color:#da3633;">Error de conexión.</div>';
             }
         }
             
