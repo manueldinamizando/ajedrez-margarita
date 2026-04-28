@@ -440,18 +440,17 @@
             const infoDiv = document.getElementById('theoryData');
             if (!infoDiv) return;
             
-            // Dentro de consultarLichess...
+            // 1. Limpieza total del FEN para que Lichess no se líe
             const partes = fen.split(' ');
-            // Solo enviamos posición (0) y turno (1). Ignoramos enroques y números de jugada para evitar errores.
-            const fenParaLichess = partes[0] + " " + partes[1];
-            const encodedFen = encodeURIComponent(fenParaLichess);
+            const fenReducido = partes[0] + " " + partes[1];
+            const encodedFen = encodeURIComponent(fenReducido);
             
             let miToken = localStorage.getItem('lichess_token');
             
             try {
-                infoDiv.innerHTML = '<div style="color:#aaa; font-size:0.8rem;">Consultando Lichess.org...</div>';
+                infoDiv.innerHTML = '<div style="color:#aaa; font-size:0.8rem;">Consultando...</div>';
                 
-                // 2. URL OFICIAL (Asegúrate de que pone .org)
+                // 2. URL LIMPIA Y SIN FILTROS (Para que salgan miles de partidas)
                 const url = `https://explorer.lichess.org/lichess?variant=standard&fen=${encodedFen}&speeds=blitz,rapid,classical`;
                 
                 const response = await fetch(url, {
@@ -465,26 +464,26 @@
         
                 const data = await response.json();
         
-                // 3. DIBUJAR RESULTADOS
                 if (data.moves && data.moves.length > 0) {
                     let html = '<div style="display:grid; gap:4px;">';
                     data.moves.slice(0, 5).forEach(m => {
                         const total = m.white + m.draws + m.black;
                         const winRate = Math.round((m.white / total) * 100);
+                        // Ponemos las jugadas en Mayúsculas para que sea más legible
+                        const jugada = m.san.toUpperCase();
                         html += `
-                            <div style="border-left:3px solid var(--accent); padding:2px 8px; background:rgba(255,255,255,0.05); margin-bottom:2px;">
-                                <strong style="color:var(--accent); font-size:0.9rem;">${m.san}</strong> 
+                            <div style="border-left:3px solid var(--accent); padding:2px 8px; background:rgba(255,255,255,0.05);">
+                                <strong style="color:var(--accent); font-size:0.9rem;">${jugada}</strong> 
                                 <span style="font-size:0.7rem; color:#8b949e;">(${winRate}% bl. | ${total.toLocaleString()} part.)</span>
                             </div>`;
                     });
                     infoDiv.innerHTML = html + '</div>';
                 } else {
-                    // Si llega aquí, es que Lichess respondió pero no encontró partidas
-                    infoDiv.innerHTML = '<div style="color:#8b949e; font-size:0.8rem;">Posición no registrada en Maestros.</div>';
+                    infoDiv.innerHTML = '<div style="color:#8b949e; font-size:0.8rem;">Sin datos en Lichess.</div>';
                 }
             } catch (err) {
-                console.error("Error en Margarita:", err);
-                infoDiv.innerHTML = '<div style="color:#da3633; font-size:0.8rem;">Error de conexión (.org)</div>';
+                console.error("Error Margarita:", err);
+                infoDiv.innerHTML = '<div style="color:#da3633; font-size:0.8rem;">Error de conexión.</div>';
             }
         }
     </script>
