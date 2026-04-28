@@ -359,29 +359,25 @@
         $(document).ready(() => {
             boardC = ChessBoard('boardCombat', { draggable: true, position: 'start', onDrop: handleMoveC, pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' });
             boardA = ChessBoard('boardAnalysis', { 
-                draggable: true, 
-                position: 'start', 
-                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png', 
-                onDrop: (s, t) => {
-                // Detectamos qué juego estamos usando (el A o el B)
-                // Si tu tablero de análisis es el A, usamos chessA
+            draggable: true, 
+            position: 'start', 
+            pieceTheme: 'https://chess-board.pages.dev/counts/wikipedia/{piece}.png', 
+            onDrop: (s, t) => {
                 const m = chessA.move({from: s, to: t, promotion: 'q'});
-                
                 if (m === null) return 'snapback';
                 
                 boardA.position(chessA.fen());
-                
-                // Actualiza el panel de jugadas
                 actualizarListaJugadas('moveListAnalysis', chessA);
                 
-                // --- LA CONEXIÓN CRÍTICA ---
-                // Forzamos a que siempre consulte Lichess con la posición actual
-                console.log("Enviando FEN a Lichess:", chessA.fen()); // Esto saldrá en tu consola F12
-                consultarLichess(chessA.fen());
+                // EL TRUCO: Esperamos un suspiro para que el turno cambie bien
+                setTimeout(() => {
+                    console.log("Enviando FEN sincronizado:", chessA.fen());
+                    consultarLichess(chessA.fen());
+                }, 100);
                 
-                terminalLog("Probando variante en análisis: " + m.san);
+                terminalLog("Probando variante: " + m.san);
             }
-            });
+        });
             initSystem();
         });
         var historialAvanzar = []; // Memoria para el botón avanzar
@@ -444,12 +440,11 @@
             const infoDiv = document.getElementById('theoryData');
             if (!infoDiv) return;
             
-            // 1. LIMPIEZA SEGURA: Solo posición y turno, nada más.
+            // Dentro de consultarLichess...
             const partes = fen.split(' ');
-            const fenSimplificado = partes[0] + " " + partes[1];
-            
-            // Importante: encodeURIComponent convierte los espacios en algo que Lichess entiende (%20)
-            const encodedFen = encodeURIComponent(fenSimplificado);
+            // Solo enviamos posición (0) y turno (1). Ignoramos enroques y números de jugada para evitar errores.
+            const fenParaLichess = partes[0] + " " + partes[1];
+            const encodedFen = encodeURIComponent(fenParaLichess);
             
             let miToken = localStorage.getItem('lichess_token');
             
