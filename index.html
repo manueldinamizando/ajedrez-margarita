@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Margarita: Laboratorio Botvínnik SUPREMO - Fase 8 Groq Edition</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+
+    <style>
+        :root {
+            --bg-ultra: #020408;
+            --bg-panel: #0d1117;
+            --bg-terminal: #010409;
+            --accent: #f1c40f; /* Oro Botvinnik */
+            --accent-blue: #1f6feb;
+            --border: #30363d;
+            --text-main: #e6edf3;
+            --text-dim: #8b949e;
+            --font-mono: 'Fira Code', 'Courier New', monospace;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-ultra); color: var(--text-main); 
+            margin: 0; padding: 10px 25px; 
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        header {
+            width: 100%; max-width: 1850px; padding: 15px; text-align: center;
+            border-bottom: 4px solid var(--accent); margin-bottom: 15px;
+            background: linear-gradient(180deg, rgba(241,196,15,0.1) 0%, transparent 100%);
+        }
+
+        .main-container { 
+            display: grid; 
+            /* Cuatro columnas: Tablero1, Historial1, Tablero2, Historial2 */
+            grid-template-columns: 460px 250px 460px 250px; 
+            gap: 15px; 
+            width: 100%; 
+            max-width: 1850px;
+            justify-content: center;
+            align-items: start;
+        }
+
+        .module-card { 
+            background: var(--bg-panel); 
+            padding: 12px; 
+            border-radius: 12px; 
+            border: 1px solid var(--border); 
+            min-height: 560px; 
+        }
+        .module-label { 
+            color: var(--accent); font-size: 0.85rem; text-transform: uppercase; 
+            margin-bottom: 15px; font-weight: 900; letter-spacing: 4px;
+            border-left: 6px solid var(--accent); padding-left: 15px;
+        }
+
+        .chess-canvas { width: 460px; border: 12px solid #000; border-radius: 4px; }
+
+        /* BUSCADOR DE APERTURAS - DISEÑO ELITE */
+        .aperturas-shelf {
+            width: 100%; max-width: 1850px; background: var(--bg-panel);
+            margin: 20px 0; padding: 20px; border-radius: 12px; border: 1px solid var(--accent-blue);
+        }
+
+        .search-container { display: flex; gap: 15px; margin-bottom: 15px; }
+
+        .select-margarita { 
+            flex-grow: 1; padding: 12px; border-radius: 6px; background: #000; 
+            color: white; border: 2px solid var(--accent-blue); font-weight: bold;
+        }
+
+        .btn-margarita { 
+            padding: 12px 25px; cursor: pointer; border: none; border-radius: 6px; 
+            font-weight: 900; text-transform: uppercase; color: white;
+        }
+
+        .terminal-output { 
+            padding: 30px; background: var(--bg-terminal); border-radius: 15px; 
+            width: 100%; max-width: 1850px; min-height: 200px; 
+            border-left: 15px solid var(--accent); line-height: 1.6;
+            font-size: 1.1rem; box-shadow: inset 0 0 40px #000; margin-bottom: 30px;
+        }
+        /* Nuevo panel de historial de jugadas */
+        .move-history-panel {
+            background: var(--bg-terminal);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            height: 440px; /* Ajustado para que cuadre con el tablero y botones */
+            overflow-y: auto;
+            padding: 10px;
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+        }
+
+        .history-title {
+            color: var(--accent);
+            font-size: 0.8rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .move-row {
+            display: grid;
+            grid-template-columns: 30px 1fr 1fr;
+            gap: 10px;
+            padding: 5px 0;
+            border-bottom: 1px solid #1a1f26;
+        }
+
+        .move-num { color: var(--text-dim); }
+        .move-val { color: var(--text-main); font-weight: bold; cursor: pointer; }
+        .move-val:hover { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>MARGARITA LAB: FASE 8 (Llama 3.3 Edition)</h1>
+        <div style="font-size: 0.7rem; letter-spacing: 3px; color: var(--accent);">NÚCLEO ESTRATÉGICO GROQ ACTIVO</div>
+    </header>
+
+    <div class="main-container">
+        <div class="module-card">
+            <div class="module-label">Módulo de Combate</div>
+            <div id="boardCombat" style="width: 430px"></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-top: 10px;">
+                <button class="btn-margarita" style="background: #da3633; padding: 8px;" onclick="gameReset()">Reiniciar</button>
+                <button class="btn-margarita" style="background: #1f6feb; padding: 8px;" onclick="gameUndo()">Deshacer</button>
+                <button class="btn-margarita" style="background: #238636; padding: 8px;" onclick="gameRedo()">Avanzar</button>
+            </div>
+        </div>
+
+        <div class="module-card">
+            <div class="history-title">Partida Principal</div>
+            <div id="moveListCombat" class="move-history-panel"></div>
+        </div>
+
+        <div class="module-card">
+            <div class="module-label" style="border-color: var(--accent-blue);">Laboratorio Llama 3.3</div>
+            <div id="boardAnalysis" style="width: 430px"></div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
+                <button class="btn-margarita" style="background: var(--accent); color: black; padding: 8px;" onclick="triggerLlamaAnalysis('Táctica')">Táctica</button>
+                <button class="btn-margarita" style="background: var(--accent-blue); padding: 8px;" onclick="triggerLlamaAnalysis('Estrategia')">Estrategia</button>
+                <button class="btn-margarita" style="background: #57606a; padding: 8px;" onclick="flipAnalysisBoard()">Girar Tablero</button>
+            </div>
+        </div>
+
+        <div class="module-card">
+            <div class="history-title">Líneas de Análisis</div>
+            <div id="moveListAnalysis" class="move-history-panel"></div>
+
+            <div id="theoryPanel" style="margin-top: 15px; padding: 10px; background: #161b22; border: 1px solid var(--accent-blue); border-radius: 8px; font-size: 0.85rem;">
+                <div style="color: var(--accent-blue); font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #30363d;">📚 TEORÍA DE MAESTROS</div>
+                <div id="theoryData" style="color: #c9d1d9;">Esperando movimiento...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="aperturas-shelf">
+        <div class="module-label" style="border-color: var(--accent-blue); color: var(--accent-blue);">Explorador de Teoría Maestra</div>
+        <div class="search-container">
+            <select id="selectApertura" class="select-margarita">
+                <option value="">Selecciona una apertura de la lista honorífica...</option>
+                <option value="">--- SELECCIONA UNA APERTURA MAESTRA ---</option>
+                <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 3">#1 Apertura Española o Ruy López</option>
+                <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 5 4">#2 Defensa Siciliana, Variante Najdorf (v. tras 1.e4 c5 2.Nf3 d6)</option>
+                <option value="rnbqk2r/ppppppbp/5np1/8/2PP4/5N2/PP2PPPP/RNBQKB1R w KQkq - 4 4">#3 Defensa India de Rey, Variante Mar del Plata</option>
+                <option value="r1bqkb1r/pp1p1ppp/2n1pn2/2p5/2PP4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 5">#4 Defensa Nimzo-India, Variante Rubinstein</option>
+                <option value="rn1qkb1r/pb3ppp/4pn2/1pp5/2PP4/5NP1/PP2PPBP/RNBQK2R w KQkq - 0 7">#5 Gambito de Dama Rehusado, Variante Tartakower</option>
+                <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 0 4">#6 Defensa Semi-Eslava, Variante Botvinnik</option>
+                <option value="rn1qkbnr/pp1b1ppp/4p3/2ppP3/3P4/2P5/PP3PPP/RNBQKBNR w KQkq - 1 6">#7 Defensa Francesa, Variante Winawer</option>
+                <option value="rn1qkbnr/pp2pppp/2p5/3pP3/3P4/5N2/PP2PPPP/RNBQKB1R b KQkq - 0 4">#8 Defensa Caro-Kann, Variante Capablanca</option>
+                <option value="rn1qkb1r/pp2pppp/2p2n2/3p2B1/2PP2b1/2N2N2/PP2PPPP/R2QKB1R w KQkq - 4 6">#9 Defensa Holandesa, Variante Muro de Piedra (Stone Wall)</option>
+                <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 3">#10 Defensa Berlinesa (Muro de Berlín)</option>
+                <option value="rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2">Apertura Reti (Sistema Clásico)</option>
+                <option value="rnbqkb1r/pppppp1p/5np1/8/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3">Defensa Benoni, Variante Moderna</option>
+                <option value="rnbqkb1r/pp1ppppp/5n2/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 3">Defensa Pirc (Sistema Clásico)</option>
+                <option value="rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 3">Defensa Siciliana, Variante Pelikan (Sveshnikov)</option>
+            </select>
+            <button class="btn-margarita" style="background: var(--accent-blue);" onclick="cargarAperturaSeleccionada()">Cargar en Tablero</button>
+        </div>
+        <div id="infoApertura" style="color: var(--text-dim); font-size: 0.9rem;"></div>
+    </div>
+
+    <div id="terminalBoard" class="terminal-output">
+        SISTEMA LISTO. Esperando entrada de Manuel...
+    </div>
+    <script>
+        // CONFIGURACIÓN DE NÚCLEO - MARGARITA FASE 8
+        const GROQ_API_KEY = "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";
+        var chessC = new Chess(), chessA = new Chess();
+        var boardC = null, boardA = null, motorE = null, motorA = null;
+
+        // CORRECTO: 1. INICIALIZACIÓN DE MOTORES
+        function initSystem() {
+            const sfUrl = "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js";
+            fetch(sfUrl).then(r => r.text()).then(code => {
+                const blob = new Blob([code], {type: 'application/javascript'});
+                const url = URL.createObjectURL(blob);
+                motorE = new Worker(url); 
+                motorA = new Worker(url);
+                
+                motorE.postMessage('uci');
+                motorA.postMessage('uci');
+                
+                motorE.onmessage = (e) => {
+                    if (e.data.includes("bestmove")) {
+                        const moveRaw = e.data.split(" ")[1];
+                        const moveObject = chessC.move(moveRaw, {sloppy: true}); 
+                        
+                        if (moveObject) {
+                            boardC.position(chessC.fen());
+                            syncSystems();
+                            actualizarListaJugadas('moveListCombat', chessC);
+                            terminalLog("Stockfish ha jugado: " + moveObject.san);
+                        }
+                    }
+                };
+                // El mensaje de éxito debe ir dentro del proceso de carga
+                terminalLog("Motores en línea. Llama 3.3 preparado para el análisis.");
+            });
+        }
+        
+
+        // 2. CONEXIÓN CON GROQ (Llama 3.3 70B)
+        async function triggerLlamaAnalysis(enfoque) {
+            const term = document.getElementById('terminalBoard');
+            const fen = chessA.fen();
+            term.innerHTML = `<div style="color:var(--accent)">Margarita consultando a Llama 3.3 (Groq)...</div>`;
+
+            // Pedimos a Stockfish una evaluación rápida para darle contexto a la IA
+            motorA.postMessage(`position fen ${fen}`);
+            motorA.postMessage('go depth 15');
+
+            motorA.onmessage = async (e) => {
+                if (e.data.includes("pv")) {
+                    const pv = e.data.split(" pv ")[1].split(" ").slice(0, 7).join(" ");
+                    const score = e.data.includes("cp") ? (parseInt(e.data.match(/score cp (-?\d+)/)[1])/100).toFixed(1) : "Mate";
+
+                    // Llamada a la API de Groq
+                    try {
+                        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                            method: "POST",
+                            headers: {
+                                "Authorization": `Bearer ${GROQ_API_KEY}`,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                model: "llama-3.3-70b-versatile",
+                                messages: [
+                                    { role: "system", content: "Eres Mijaíl Botvínnik. Analiza posiciones para Manuel de forma estratégica, breve y magistral." },
+                                    { role: "user", content: `FEN: ${fen}. Evaluación motor: ${score}. Línea recomendada: ${pv}. Explica el sentido de la posición enfocado en: ${enfoque}.` }
+                                ]
+                            })
+                        });
+                        const data = await response.json();
+                        const explicacion = data.choices[0].message.content;
+
+                        term.innerHTML = `
+                            <div style="border-bottom:1px solid var(--accent); padding-bottom:10px; margin-bottom:10px;">
+                                <strong>ANÁLISIS MAGISTRAL (${enfoque.toUpperCase()})</strong>
+                            </div>
+                            <div style="color:var(--accent); margin-bottom:10px;">EVALUACIÓN: ${score} | LÍNEA: ${pv}</div>
+                            <div>${explicacion.replace(/\n/g, '<br>')}</div>
+                        `;
+                    } catch (err) {
+                        term.innerHTML = "Error de conexión con el cerebro Groq.";
+                    }
+                }
+            };
+        }
+
+        // 3. LÓGICA DE TABLEROS Y APERTURAS
+        // Modificamos también tu función handleMoveC para que traduzca TUS jugadas
+        function handleMoveC(source, target) {
+            const move = chessC.move({from: source, to: target, promotion: 'q'});
+            
+            if (move === null) return 'snapback'; // Jugada ilegal
+            
+            boardC.position(chessC.fen());
+            syncSystems();
+            
+            // REGISTRO: Anota tu jugada en el panel de la izquierda
+            actualizarListaJugadas('moveListCombat', chessC);
+            
+            historialAvanzar = []; // Limpiamos la memoria de "Avanzar" al hacer jugada nueva
+            motorE.postMessage("position fen " + chessC.fen());
+            motorE.postMessage("go movetime 1000");
+        }
+
+        function syncSystems() { chessA.load(chessC.fen()); 
+        boardA.position(chessC.fen()); 
+        // Sincroniza visualmente el historial del tablero de análisis
+        actualizarListaJugadas('moveListAnalysis', chessA); }
+        function gameReset() { chessC.reset(); boardC.start(); syncSystems(); terminalLog("Laboratorio reiniciado."); }
+        function gameUndo() { chessC.undo(); chessC.undo(); boardC.position(chessC.fen()); syncSystems(); }
+
+        function cargarAperturaSeleccionada() {
+            const fen = document.getElementById('selectApertura').value;
+            if (fen) {
+                chessC.load(fen);
+                boardC.position(fen);
+                syncSystems();
+                document.getElementById('infoApertura').innerText = "Posición teórica cargada en ambos sistemas.";
+                terminalLog("Apertura sincronizada.");
+            }
+        }
+
+        function terminalLog(msg) { document.getElementById('terminalBoard').innerText = msg; }
+
+        $(document).ready(() => {
+            boardC = ChessBoard('boardCombat', { draggable: true, position: 'start', onDrop: handleMoveC, pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' });
+            boardA = ChessBoard('boardAnalysis', { 
+                draggable: true, 
+                position: 'start', 
+                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png', 
+                onDrop: (s, t) => {
+                    // Intentamos realizar el movimiento en el modelo lógico de análisis
+                    const m = chessA.move({from: s, to: t, promotion: 'q'});
+                    
+                    // Si el movimiento es ilegal, devolvemos la pieza
+                    if (m === null) return 'snapback';
+                    
+                    boardA.position(chessA.fen());
+                    
+                    // Actualiza el panel de jugadas
+                    actualizarListaJugadas('moveListAnalysis', chessA);
+                    
+                    // --- LA NUEVA PIEZA DEL PUZZLE ---
+                    // Consultamos la base de datos de Lichess con la nueva posición
+                    consultarLichess(chessA.fen());
+                    // ---------------------------------
+                    
+                    terminalLog("Probando variante en análisis: " + m.san);
+                }
+            });
+            initSystem();
+        });
+        var historialAvanzar = []; // Memoria para el botón avanzar
+
+        // Ahora esta función acepta el ID del panel y el objeto chess correspondiente
+        function actualizarListaJugadas(panelId, chessObj) {
+            const list = document.getElementById(panelId);
+            if (!list) return; // Por si acaso el panel no existe aún
+
+            const history = chessObj.history();
+            let html = "";
+            
+            for (let i = 0; i < history.length; i += 2) {
+                const num = Math.floor(i / 2) + 1;
+                const white = history[i] || "";
+                const black = history[i+1] || "";
+                html += `
+                    <div class="move-row" style="display: grid; grid-template-columns: 30px 1fr 1fr; gap: 10px; border-bottom: 1px solid #1a1f26; padding: 2px 0;">
+                        <span style="color: var(--text-dim);">${num}.</span>
+                        <span style="font-weight: bold; color: var(--text-main);">${white}</span>
+                        <span style="font-weight: bold; color: var(--text-main);">${black}</span>
+                    </div>`;
+            }
+            list.innerHTML = html;
+            list.scrollTop = list.scrollHeight; // Baja automáticamente al final
+        }
+
+        // Y asegúrate de llamar a la correcta en cada sitio:
+        // Para el combate: actualizarListaJugadas('moveListCombat', chessC);
+        // Para el análisis: actualizarListaJugadas('moveListAnalysis', chessA);
+
+        function gameUndo() {
+            const lastMove = chessC.undo();
+            if (lastMove) {
+                historialAvanzar.push(lastMove); // Guardamos para poder avanzar
+                boardC.position(chessC.fen());
+                syncSystems();
+                actualizarListaJugadas();
+                terminalLog("Jugada deshecha.");
+            }
+        }
+
+        function gameRedo() {
+            const move = historialAvanzar.pop();
+            if (move) {
+                chessC.move(move);
+                boardC.position(chessC.fen());
+                syncSystems();
+                actualizarListaJugadas();
+                terminalLog("Jugada recuperada.");
+            } else {
+                terminalLog("No hay jugadas para avanzar.");
+            }
+        }
+        function flipAnalysisBoard() {
+            boardA.orientation('flip');
+            terminalLog("Vista de tablero cambiada.");
+        }
+        async function consultarLichess(fen) {
+            const infoDiv = document.getElementById('theoryData');
+            if (!infoDiv) return;
+
+            const fenLimpio = encodeURIComponent(fen); 
+            
+            try {
+                infoDiv.innerHTML = '<span style="color: #8b949e;">Consultando teoría...</span>';
+                
+                // Usamos la API de Lichess directamente con un parámetro que suele evitar el CORS
+                // y apuntamos a la base de datos de jugadores normales (más estable para peticiones locales)
+                const response = await fetch(`https://explorer.lichess.ovh/lichess?variant=standard&fen=${fenLimpio}&speeds=blitz,rapid,classical&ratings=2000,2200,2500`);
+                
+                if (!response.ok) throw new Error("Respuesta no válida");
+
+                const data = await response.json();
+
+                if (data.moves && data.moves.length > 0) {
+                    let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
+                    
+                    data.moves.slice(0, 3).forEach(move => {
+                        const total = move.white + move.draws + move.black;
+                        // Calculamos el porcentaje de éxito para el que mueve
+                        const winRate = Math.round((move.white / total) * 100);
+                        
+                        html += `
+                            <li style="margin-bottom: 10px; border-left: 2px solid #458588; padding-left: 8px;">
+                                <span style="color: var(--accent); font-weight: bold;">${move.san}</span>
+                                <div style="font-size: 0.75rem; color: #8b949e;">
+                                    Éxito: ${winRate}% | Partidas: ${total.toLocaleString()}
+                                </div>
+                            </li>`;
+                    });
+                    html += '</ul>';
+                    infoDiv.innerHTML = html;
+                } else {
+                    infoDiv.innerHTML = '<span style="color: #8b949e;">Posición no encontrada en la base de datos.</span>';
+                }
+            } catch (err) {
+                console.error("Error:", err);
+                // Si falla, es por el bloqueo local del navegador. 
+                infoDiv.innerHTML = '<div style="font-size:0.8rem; color:#ffa657;">Bloqueo de seguridad del navegador detectado. <br><br> Para arreglarlo, abre el archivo con "Live Server" o súbelo a GitHub.</div>';
+            }
+        }
+    </script>
+</body>
+</html>
