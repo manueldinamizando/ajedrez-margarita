@@ -452,7 +452,7 @@
                 infoDiv.innerHTML = '<div style="color:#aaa; font-size:0.8rem;">Consultando Lichess.org...</div>';
                 
                 // 2. URL OFICIAL (Asegúrate de que pone .org)
-                const url = `https://explorer.lichess.org/lichess?variant=standard&fen=${encodedFen}&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500`;
+                const url = `https://explorer.lichess.org/lichess?variant=standard&fen=${encodedFen}&speeds=blitz,rapid,classical`;
                 
                 const response = await fetch(url, {
                     headers: { 
