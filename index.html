@@ -444,9 +444,11 @@
             const infoDiv = document.getElementById('theoryData');
             if (!infoDiv) return;
             
-            // 1. LIMPIEZA RADICAL DEL FEN (Solo la posición, sin turnos ni números)
-            const soloPosicion = fen.split(' ')[0];
-            const urlEncodedFen = encodeURIComponent(soloPosicion);
+            // 1. LIMPIEZA CORRECTA DEL FEN
+            // Necesitamos la posición (trozo 0) y el turno (trozo 1)
+            const partes = fen.split(' ');
+            const fenParaLichess = partes[0] + ' ' + partes[1]; 
+            const urlEncodedFen = encodeURIComponent(fenParaLichess);
             
             let miToken = localStorage.getItem('lichess_token');
             
