@@ -462,7 +462,7 @@
                 
                 // 2. URL CORREGIDA Y AMPLIADA
                 // Hemos bajado el rating a 1600 para que SIEMPRE encuentre partidas
-                const url = `https://explorer.lichess.ovh/lichess?variant=standard&fen=${urlEncodedFen}&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500`;
+                const url = `https://explorer.lichess.org/lichess?variant=standard&fen=${urlEncodedFen}&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500`;
                 
                 const response = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${miToken}` }
