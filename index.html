@@ -363,24 +363,24 @@
                 position: 'start', 
                 pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png', 
                 onDrop: (s, t) => {
-                    // Intentamos realizar el movimiento en el modelo lógico de análisis
-                    const m = chessA.move({from: s, to: t, promotion: 'q'});
-                    
-                    // Si el movimiento es ilegal, devolvemos la pieza
-                    if (m === null) return 'snapback';
-                    
-                    boardA.position(chessA.fen());
-                    
-                    // Actualiza el panel de jugadas
-                    actualizarListaJugadas('moveListAnalysis', chessA);
-                    
-                    // --- LA NUEVA PIEZA DEL PUZZLE ---
-                    // Consultamos la base de datos de Lichess con la nueva posición
-                    consultarLichess(chessA.fen());
-                    // ---------------------------------
-                    
-                    terminalLog("Probando variante en análisis: " + m.san);
-                }
+                // Detectamos qué juego estamos usando (el A o el B)
+                // Si tu tablero de análisis es el A, usamos chessA
+                const m = chessA.move({from: s, to: t, promotion: 'q'});
+                
+                if (m === null) return 'snapback';
+                
+                boardA.position(chessA.fen());
+                
+                // Actualiza el panel de jugadas
+                actualizarListaJugadas('moveListAnalysis', chessA);
+                
+                // --- LA CONEXIÓN CRÍTICA ---
+                // Forzamos a que siempre consulte Lichess con la posición actual
+                console.log("Enviando FEN a Lichess:", chessA.fen()); // Esto saldrá en tu consola F12
+                consultarLichess(chessA.fen());
+                
+                terminalLog("Probando variante en análisis: " + m.san);
+            }
             });
             initSystem();
         });
