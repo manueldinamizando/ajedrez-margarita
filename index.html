@@ -403,46 +403,45 @@
             const infoDiv = document.getElementById('theoryData');
             if (!infoDiv) return;
 
-            const fenLimpio = encodeURIComponent(fen); 
+            // IMPORTANTE: Solo enviamos la posición de las piezas (la primera parte del FEN)
+            // Esto evita errores 400 y mejora la precisión en Lichess
+            const fenLimpio = encodeURIComponent(fen.split(' ')[0]); 
             
             try {
-                infoDiv.innerHTML = '<span style="color: #8b949e;">Consultando teoría...</span>';
+                infoDiv.innerHTML = '<span style="color: #8b949e; font-size: 0.8rem;">Consultando...</span>';
                 
-                // Usamos la API de Lichess directamente con un parámetro que suele evitar el CORS
-                // y apuntamos a la base de datos de jugadores normales (más estable para peticiones locales)
                 const response = await fetch(`https://explorer.lichess.ovh/lichess?variant=standard&fen=${fenLimpio}&speeds=blitz,rapid,classical&ratings=2000,2200,2500`);
                 
-                if (!response.ok) throw new Error("Respuesta no válida");
+                if (!response.ok) throw new Error("Error en la conexión");
 
                 const data = await response.json();
 
                 if (data.moves && data.moves.length > 0) {
                     let html = '<ul style="list-style: none; padding: 0; margin: 0;">';
                     
-                    data.moves.slice(0, 3).forEach(move => {
+                    data.moves.slice(0, 4).forEach(move => {
                         const total = move.white + move.draws + move.black;
-                        // Calculamos el porcentaje de éxito para el que mueve
                         const winRate = Math.round((move.white / total) * 100);
                         
                         html += `
-                            <li style="margin-bottom: 10px; border-left: 2px solid #458588; padding-left: 8px;">
-                                <span style="color: var(--accent); font-weight: bold;">${move.san}</span>
-                                <div style="font-size: 0.75rem; color: #8b949e;">
-                                    Éxito: ${winRate}% | Partidas: ${total.toLocaleString()}
+                            <li style="margin-bottom: 12px; border-left: 3px solid var(--accent); padding-left: 10px; background: rgba(102, 252, 241, 0.05); padding: 8px 10px;">
+                                <span style="color: var(--accent); font-weight: bold; font-size: 1.05rem;">${move.san}</span>
+                                <div style="font-size: 0.75rem; color: #8b949e; margin-top: 2px;">
+                                    Éxito Blanco: ${winRate}% | Partidas: ${total.toLocaleString()}
                                 </div>
                             </li>`;
                     });
                     html += '</ul>';
                     infoDiv.innerHTML = html;
                 } else {
-                    infoDiv.innerHTML = '<span style="color: #8b949e;">Posición no encontrada en la base de datos.</span>';
+                    infoDiv.innerHTML = '<div style="color: #8b949e; font-size: 0.85rem; padding: 10px;">Fuera de teoría de maestros.</div>';
                 }
             } catch (err) {
-                console.error("Error:", err);
-                // Si falla, es por el bloqueo local del navegador. 
-                infoDiv.innerHTML = '<div style="font-size:0.8rem; color:#ffa657;">Bloqueo de seguridad del navegador detectado. <br><br> Para arreglarlo, abre el archivo con "Live Server" o súbelo a GitHub.</div>';
+                console.error("Error Lichess:", err);
+                infoDiv.innerHTML = '<span style="color: #ff7b72; font-size: 0.8rem;">Error al cargar datos.</span>';
             }
         }
+            
     </script>
 </body>
 </html>
