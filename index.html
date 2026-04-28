@@ -444,45 +444,52 @@
             const infoDiv = document.getElementById('theoryData');
             if (!infoDiv) return;
             
-            // 1. LIMPIEZA: Posición + Turno (vital para Lichess)
+            // 1. LIMPIEZA SEGURA: Solo posición y turno, nada más.
             const partes = fen.split(' ');
-            const fenLimpio = partes[0] + ' ' + partes[1];
-            const urlEncodedFen = encodeURIComponent(fenLimpio);
+            const fenSimplificado = partes[0] + " " + partes[1];
+            
+            // Importante: encodeURIComponent convierte los espacios en algo que Lichess entiende (%20)
+            const encodedFen = encodeURIComponent(fenSimplificado);
             
             let miToken = localStorage.getItem('lichess_token');
             
             try {
-                infoDiv.innerHTML = '<div style="color:#aaa;">Conectando con Lichess.org...</div>';
+                infoDiv.innerHTML = '<div style="color:#aaa; font-size:0.8rem;">Consultando Lichess.org...</div>';
                 
-                // 2. LA URL CORRECTA (.org)
-                const url = `https://explorer.lichess.org/lichess?variant=standard&fen=${urlEncodedFen}&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500`;
+                // 2. URL OFICIAL (Asegúrate de que pone .org)
+                const url = `https://explorer.lichess.org/lichess?variant=standard&fen=${encodedFen}&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500`;
                 
                 const response = await fetch(url, {
-                    headers: { 'Authorization': `Bearer ${miToken}` }
+                    headers: { 
+                        'Authorization': `Bearer ${miToken}`,
+                        'Accept': 'application/json'
+                    }
                 });
         
-                if (!response.ok) throw new Error("Error: " + response.status);
+                if (!response.ok) throw new Error("Error " + response.status);
         
                 const data = await response.json();
         
+                // 3. DIBUJAR RESULTADOS
                 if (data.moves && data.moves.length > 0) {
-                    let html = '<div style="display:grid; gap:5px;">';
+                    let html = '<div style="display:grid; gap:4px;">';
                     data.moves.slice(0, 5).forEach(m => {
                         const total = m.white + m.draws + m.black;
                         const winRate = Math.round((m.white / total) * 100);
                         html += `
-                            <div style="border-left:3px solid var(--accent); padding:4px 8px; background:rgba(255,255,255,0.05);">
-                                <strong style="color:var(--accent);">${m.san}</strong> 
+                            <div style="border-left:3px solid var(--accent); padding:2px 8px; background:rgba(255,255,255,0.05); margin-bottom:2px;">
+                                <strong style="color:var(--accent); font-size:0.9rem;">${m.san}</strong> 
                                 <span style="font-size:0.7rem; color:#8b949e;">(${winRate}% bl. | ${total.toLocaleString()} part.)</span>
                             </div>`;
                     });
                     infoDiv.innerHTML = html + '</div>';
                 } else {
-                    infoDiv.innerHTML = '<div style="color:#8b949e;">No hay partidas de maestros aquí.</div>';
+                    // Si llega aquí, es que Lichess respondió pero no encontró partidas
+                    infoDiv.innerHTML = '<div style="color:#8b949e; font-size:0.8rem;">Posición no registrada en Maestros.</div>';
                 }
             } catch (err) {
-                console.error("Error Margarita:", err);
-                infoDiv.innerHTML = '<div style="color:#da3633;">Error de servidor (.org).</div>';
+                console.error("Error en Margarita:", err);
+                infoDiv.innerHTML = '<div style="color:#da3633; font-size:0.8rem;">Error de conexión (.org)</div>';
             }
         }
     </script>
