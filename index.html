@@ -442,20 +442,22 @@
         }
         async function consultarLichess(fen) {
             const infoDiv = document.getElementById('theoryData');
-            if (!infoDiv) return;
+        if (!infoDiv) return;
         
-            const parts = fen.split(' ');
-            const fenLimpio = encodeURIComponent(parts[0]); 
+        // ESTA ES LA LÍNEA CLAVE: Limpiamos el FEN para que Lichess no se líe
+        const fenLimpio = encodeURIComponent(fen.split(' ')[0]); 
+        
+        const miToken = "lip_DjMU6lDaf2ROTAwrFr10";
+        
+        try {
+            // Ponemos un mensaje de "Cargando" para saber que el clic ha funcionado
+            infoDiv.innerHTML = '<div style="color:#aaa; font-size:0.8rem;">Buscando en base de datos...</div>';
             
-            // AQUÍ PONES TU TOKEN DE LICHESS
-            const miToken = "lip_DjMU6lDaf2ROTAwrFr10";
-        
-            try {
-                const response = await fetch(`https://explorer.lichess.ovh/lichess?variant=standard&fen=${fenLimpio}&speeds=blitz,rapid,classical&ratings=2000,2200,2500`, {
-                    headers: {
-                        'Authorization': `Bearer ${miToken}`
-                    }
-                });
+            const response = await fetch(`https://explorer.lichess.ovh/lichess?variant=standard&fen=${fenLimpio}&speeds=blitz,rapid,classical&ratings=2000,2200,2500`, {
+                headers: {
+                    'Authorization': `Bearer ${miToken}`
+                }
+            });
                 
                 if (!response.ok) throw new Error("Error " + response.status);
         
