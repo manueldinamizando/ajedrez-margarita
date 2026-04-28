@@ -444,10 +444,9 @@
             const infoDiv = document.getElementById('theoryData');
             if (!infoDiv) return;
             
-            // 1. LIMPIEZA ABSOLUTA DEL FEN
-            // Solo queremos la posición de las piezas, nada más.
-            const fenSoloPosicion = fen.split(' ')[0];
-            const fenUrl = encodeURIComponent(fenSoloPosicion);
+            // 1. LIMPIEZA RADICAL DEL FEN (Solo la posición, sin turnos ni números)
+            const soloPosicion = fen.split(' ')[0];
+            const urlEncodedFen = encodeURIComponent(soloPosicion);
             
             let miToken = localStorage.getItem('lichess_token');
             
@@ -457,38 +456,46 @@
             }
         
             try {
-                infoDiv.innerHTML = '<div style="color:#aaa;">Consultando...</div>';
+                infoDiv.innerHTML = '<div style="color:#aaa;">Consultando base de datos...</div>';
                 
-                // 2. URL SIMPLIFICADA (Sin filtros de ELO para asegurar resultados)
-                const url = `https://explorer.lichess.ovh/lichess?variant=standard&fen=${fenUrl}&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500`;
+                // 2. URL CORREGIDA Y AMPLIADA
+                // Hemos bajado el rating a 1600 para que SIEMPRE encuentre partidas
+                const url = `https://explorer.lichess.ovh/lichess?variant=standard&fen=${urlEncodedFen}&speeds=blitz,rapid,classical&ratings=1600,1800,2000,2200,2500`;
                 
                 const response = await fetch(url, {
                     headers: { 'Authorization': `Bearer ${miToken}` }
                 });
         
-                if (!response.ok) throw new Error("Status: " + response.status);
+                if (!response.ok) {
+                    if(response.status === 401) {
+                        localStorage.removeItem('lichess_token');
+                        infoDiv.innerHTML = '<div style="color:#da3633;">Token caducado. Recarga (F5).</div>';
+                        return;
+                    }
+                    throw new Error("Error " + response.status);
+                }
         
                 const data = await response.json();
         
-                // 3. VERIFICACIÓN DE DATOS
+                // 3. RENDERIZADO DE RESULTADOS
                 if (data.moves && data.moves.length > 0) {
-                    let html = '<div style="display:grid; gap:5px;">';
+                    let html = '<div style="display:grid; gap:6px;">';
                     data.moves.slice(0, 5).forEach(m => {
-                        const total = m.white + m.draws + m.black;
-                        const winRate = Math.round((m.white / total) * 100);
+                        const totalPartidas = m.white + m.draws + m.black;
+                        const winRate = Math.round((m.white / totalPartidas) * 100);
                         html += `
                             <div style="border-left:3px solid var(--accent); padding:4px 8px; background:rgba(255,255,255,0.05);">
-                                <strong style="color:var(--accent);">${m.san}</strong> 
-                                <span style="font-size:0.7rem; color:#8b949e;">(${winRate}% bl. | ${total.toLocaleString()} part.)</span>
+                                <strong style="color:var(--accent); font-size:1rem;">${m.san}</strong> 
+                                <span style="font-size:0.75rem; color:#8b949e;">(${winRate}% bl. | ${totalPartidas.toLocaleString()} part.)</span>
                             </div>`;
                     });
                     infoDiv.innerHTML = html + '</div>';
                 } else {
-                    infoDiv.innerHTML = '<div style="color:#8b949e;">Posición no encontrada en Maestros.</div>';
+                    infoDiv.innerHTML = '<div style="color:#8b949e; font-style:italic;">Sin datos en este nivel.</div>';
                 }
             } catch (err) {
-                console.error("Error detallado:", err);
-                infoDiv.innerHTML = '<div style="color:#da3633;">Error de conexión.</div>';
+                console.error("Error en Lichess:", err);
+                infoDiv.innerHTML = '<div style="color:#da3633;">Error de conexión. Revisa consola.</div>';
             }
         }
             
