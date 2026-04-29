@@ -1,6 +1,4 @@
-
-    <!-- ══ TABLEROS (sin cambios) ══ -->
-    <div class="main-container"><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -300,6 +298,8 @@
         <div style="font-size:0.7rem;letter-spacing:3px;color:var(--accent)">NÚCLEO ESTRATÉGICO GROQ ACTIVO</div>
     </header>
 
+    <!-- ══ TABLEROS (sin cambios) ══ -->
+    <div class="main-container">
         <div class="module-card">
             <div class="module-label">Módulo de Combate</div>
             <div id="boardCombat" style="width:430px"></div>
@@ -416,23 +416,10 @@
     <div id="vt-tooltip"></div>
 
     <script>
-        /* ════════════════════════════════════════════════════════════
-    CONFIGURACIÓN NÚCLEO: GESTIÓN DE CREDENCIALES (MODO SEGURO)
+    /* ════════════════════════════════════════════════════════════
+       CONFIGURACIÓN NÚCLEO  (sin cambios)
     ════════════════════════════════════════════════════════════ */
-
-    // 1. Gestión de API Key de Groq
-    let GROQ_API_KEY = localStorage.getItem('groq_key') || "";
-    if (!GROQ_API_KEY) {
-        GROQ_API_KEY = prompt("Margarita necesita tu API KEY de GROQ para el análisis táctico:", "gsk_...");
-        if (GROQ_API_KEY) localStorage.setItem('groq_key', GROQ_API_KEY);
-    }
-
-// 2. Gestión de Token de Lichess
-let LICHESS_TOKEN = localStorage.getItem('lichess_token') || "";
-if (!LICHESS_TOKEN) {
-    LICHESS_TOKEN = prompt("Margarita necesita tu Personal Access Token de LICHESS para la teoría:", "");
-    if (LICHESS_TOKEN) localStorage.setItem('lichess_token', LICHESS_TOKEN);
-}
+    const GROQ_API_KEY = "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";
     var chessC = new Chess(), chessA = new Chess();
     var boardC = null, boardA = null, motorE = null, motorA = null;
     var historialAvanzar = [];
@@ -1203,7 +1190,7 @@ if (!LICHESS_TOKEN) {
         const url = `https://explorer.lichess.ovh/lichess?variant=standard&fen=${encodedFen}&speeds=blitz,rapid,classical&ratings=2000,2200,2500&moves=8`;
 
         // Token opcional — no enviamos header si no existe
-        let miToken = LICHESS_TOKEN;
+        const miToken = localStorage.getItem('lichess_token');
         const headers  = { 'Accept': 'application/json' };
         if (miToken) headers['Authorization'] = `Bearer ${miToken}`;
 
@@ -1306,6 +1293,7 @@ if (!LICHESS_TOKEN) {
     </script>
 </body>
 </html>
+
 
 
 
