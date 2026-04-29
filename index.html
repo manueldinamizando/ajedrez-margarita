@@ -412,19 +412,19 @@
    CONFIGURACIÓN NÚCLEO: GESTIÓN DE CREDENCIALES (MODO SEGURO)
 ════════════════════════════════════════════════════════════ */
 
-// 1. Gestión de API Key de Groq
-let GROQ_API_KEY = localStorage.getItem('groq_key') || "";
-if (!GROQ_API_KEY) {
-    GROQ_API_KEY = prompt("Margarita necesita tu API KEY de GROQ para el análisis táctico:", "gsk_...");
-    if (GROQ_API_KEY) localStorage.setItem('groq_key', GROQ_API_KEY);
-}
+    // 1. Gestión de API Key de Groq
+    let GROQ_API_KEY = localStorage.getItem('groq_key') || "";
+    if (!GROQ_API_KEY) {
+        GROQ_API_KEY = prompt("Margarita necesita tu API KEY de GROQ para el análisis táctico:", "gsk_...");
+        if (GROQ_API_KEY) localStorage.setItem('groq_key', GROQ_API_KEY);
+    }
 
-// 2. Gestión de Token de Lichess
-let LICHESS_TOKEN = localStorage.getItem('lichess_token') || "";
-if (!LICHESS_TOKEN) {
-    LICHESS_TOKEN = prompt("Margarita necesita tu Personal Access Token de LICHESS para la teoría:", "");
-    if (LICHESS_TOKEN) localStorage.setItem('lichess_token', LICHESS_TOKEN);
-}
+    // 2. Gestión de Token de Lichess
+    let LICHESS_TOKEN = localStorage.getItem('lichess_token') || "";
+    if (!LICHESS_TOKEN) {
+        LICHESS_TOKEN = prompt("Margarita necesita tu Personal Access Token de LICHESS para la teoría:", "");
+        if (LICHESS_TOKEN) localStorage.setItem('lichess_token', LICHESS_TOKEN);
+    }
     var chessC = new Chess(), chessA = new Chess();
     var boardC = null, boardA = null, motorE = null, motorA = null;
     var historialAvanzar = [];
@@ -843,31 +843,64 @@ if (!LICHESS_TOKEN) {
     }
     function closeCtx() { _ctxMenu?.remove(); _ctxMenu = null; }
 
-    /* ── Panel de anotación ── */
-    function renderAnnotation(node) {
+    /* ── Panel de anotación — con apertura, variantes y botón Llama ── */
+    function renderAnnotation(node, explorerData) {
         const panel = document.getElementById('variant-annotation');
         if (!panel || !node) return;
+
         const ev    = node.eval;
-        const evLbl = ev !== undefined
+        const evLbl = (ev !== undefined && ev !== 0)
             ? `<span class="va-eval ${ev>=0?'va-eval-pos':'va-eval-neg'}">${ev>=0?'+':''}${(ev/100).toFixed(2)}</span>`
             : '';
-        const op = node.opening
-            ? `<div class="va-opening"><strong>${node.opening.eco}</strong> — ${node.opening.name}</div>` : '';
+
+        const opening = node.opening || explorerData?.opening || null;
+        const opHtml  = opening
+            ? `<div class="va-opening"><strong>${opening.eco}</strong> — ${opening.name}</div>`
+            : `<div class="va-opening" style="color:var(--text-dim);border-left-color:#30363d;">Sin datos de apertura</div>`;
+
+        const moves = explorerData?.moves || [];
+        let movesHtml = '';
+        if (moves.length) {
+            movesHtml = `<div style="margin:8px 0 4px;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;">Variantes maestros</div>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+            ${moves.slice(0,5).map(m => {
+                const total = (m.white + m.draws + m.black) || 1;
+                const wp = ((m.white/total)*100).toFixed(0);
+                const dp = ((m.draws/total)*100).toFixed(0);
+                const bp = ((m.black/total)*100).toFixed(0);
+                return `<div style="display:flex;align-items:center;gap:6px;padding:3px 6px;background:rgba(255,255,255,0.03);border-radius:4px;border:1px solid transparent;cursor:pointer;"
+                         onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='transparent'">
+                    <span style="font-weight:700;color:var(--accent);min-width:32px;font-size:12px;">${m.san}</span>
+                    <div style="flex:1;display:flex;height:6px;border-radius:3px;overflow:hidden;">
+                        <div style="width:${wp}%;background:#e8e0d0;"></div>
+                        <div style="width:${dp}%;background:#757575;"></div>
+                        <div style="width:${bp}%;background:#111;"></div>
+                    </div>
+                    <span style="font-size:9px;color:var(--text-dim);min-width:38px;text-align:right;">${total.toLocaleString()}</span>
+                </div>`;
+            }).join('')}
+            </div>`;
+        }
+
         const isVar = node.type === 'variant' || node.type === 'suggestion';
-        panel.innerHTML = `
-            <div class="va-header">
-                <span class="va-san">${node.san}</span>
-                ${evLbl}
-                <span class="va-badge va-badge-${node.type}">${node.type}</span>
-            </div>
-            ${op}
-            ${isVar ? `
-            <div class="va-actions">
+        const actHtml = isVar ? `
+            <div class="va-actions" style="margin-top:10px;">
                 <button class="va-btn va-btn-promote"     onclick="vtPromote()">⬆️ Promover</button>
                 <button class="va-btn va-btn-bifurcation" onclick="vtBifurcation()">🔀 Bifurcación</button>
                 <button class="va-btn va-btn-discard"     onclick="vtDiscard()">🗑️ Descartar</button>
-            </div>` : ''}
+            </div>` : '';
+
+        panel.innerHTML = `
+            <div class="va-header">
+                <span class="va-san">${node.san === '♟' ? 'Inicio' : node.san}</span>
+                ${evLbl}
+                <span class="va-badge va-badge-${node.type}">${node.type}</span>
+            </div>
+            ${opHtml}
+            ${movesHtml}
+            ${actHtml}
         `;
+        // NOTA: Llama se integrará en el módulo ADN de la Partida (llamada única al final)
     }
 
     /* ── Iluminador de casillas ── */
@@ -1140,18 +1173,22 @@ if (!LICHESS_TOKEN) {
             if (!response.ok) throw new Error("Error " + response.status);
             const data = await response.json();
 
-            // ★ Árbol: actualiza apertura en el nodo activo
+            // ★ Árbol: actualiza apertura en el nodo activo y renderiza el panel
             if (data.opening) {
                 VT.updateOpening(VT.activeId, data.opening);
             }
 
+            // ★ Panel de anotación: muestra apertura + variantes del Explorer
+            renderAnnotation(VT.activeNode, data);
+
             // ★ Árbol: ilumina sugerencias en tablero de análisis
             if (data.moves?.length) Illuminator.illuminateMany(data.moves);
 
+            // Panel de Teoría (columna derecha, sin cambios)
             if (data.moves?.length) {
                 let html = '<div style="display:grid;gap:4px;">';
                 data.moves.slice(0,5).forEach(m => {
-                    const total   = m.white + m.draws + m.black;
+                    const total   = (m.white + m.draws + m.black) || 1;
                     const winRate = Math.round((m.white/total)*100);
                     html += `
                         <div style="border-left:3px solid var(--accent);padding:2px 8px;background:rgba(255,255,255,0.05);">
@@ -1211,3 +1248,4 @@ if (!LICHESS_TOKEN) {
     </script>
 </body>
 </html>
+
