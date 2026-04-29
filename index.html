@@ -1212,7 +1212,7 @@ if (!LICHESS_TOKEN) {
             const response = await fetch(url, { headers });
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const data = await response.json();
-            
+
             // ★ 1. Apertura en el nodo activo del árbol
             if (data.opening) {
                 VT.updateOpening(VT.activeId, data.opening);
@@ -1306,6 +1306,7 @@ if (!LICHESS_TOKEN) {
     </script>
 </body>
 </html>
+
 
 
 
