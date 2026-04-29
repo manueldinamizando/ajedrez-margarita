@@ -428,7 +428,7 @@
     }
 
 // 2. Gestión de Token de Lichess
-let miToken = LICHESS_TOKEN;
+let LICHESS_TOKEN = localStorage.getItem('lichess_token') || "";
 if (!LICHESS_TOKEN) {
     LICHESS_TOKEN = prompt("Margarita necesita tu Personal Access Token de LICHESS para la teoría:", "");
     if (LICHESS_TOKEN) localStorage.setItem('lichess_token', LICHESS_TOKEN);
@@ -1306,5 +1306,6 @@ if (!LICHESS_TOKEN) {
     </script>
 </body>
 </html>
+
 
 
