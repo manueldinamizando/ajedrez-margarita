@@ -863,18 +863,13 @@ if (!LICHESS_TOKEN) {
     function renderAnnotation(node, explorerData) {
         const panel = document.getElementById('variant-annotation');
         if (!panel || !node) return;
-        let opening = node.opening || explorerData?.opening || null;
-    
-        // Si es el inicio y no hay datos, forzamos el nombre para que no salga vacío
-        if ((node.san === '♟' || node.id === 'root') && !opening) {
-            opening = { eco: 'A00', name: 'Posición Inicial (Teoría de Aperturas)' };
-        }
+
         const ev    = node.eval;
         const evLbl = (ev !== undefined && ev !== 0)
             ? `<span class="va-eval ${ev>=0?'va-eval-pos':'va-eval-neg'}">${ev>=0?'+':''}${(ev/100).toFixed(2)}</span>`
             : '';
 
-        
+        const opening = node.opening || explorerData?.opening || null;
         const opHtml  = opening
             ? `<div class="va-opening"><strong>${opening.eco}</strong> — ${opening.name}</div>`
             : `<div class="va-opening" style="color:var(--text-dim);border-left-color:#30363d;">Sin datos de apertura</div>`;
@@ -1217,10 +1212,7 @@ if (!LICHESS_TOKEN) {
             const response = await fetch(url, { headers });
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const data = await response.json();
-            // Si es la posición inicial y Lichess no manda nombre, le asignamos uno por defecto
-            if (fen.startsWith('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR') && !data.opening) {
-                data.opening = { eco: 'Start', name: 'Posición Inicial' };
-            }
+            
             // ★ 1. Apertura en el nodo activo del árbol
             if (data.opening) {
                 VT.updateOpening(VT.activeId, data.opening);
@@ -1308,13 +1300,13 @@ if (!LICHESS_TOKEN) {
 
         // ★ Inicializar árbol con FEN inicial
         VT.init('variant-tree-container', INITIAL_FEN);
-        // NUEVO: Consultar Lichess para la posición inicial inmediatamente
-        setTimeout(() => consultarLichess(INITIAL_FEN), 500);
+
         initSystem();
     });
     </script>
 </body>
 </html>
+
 
 
 
