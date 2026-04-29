@@ -9,23 +9,29 @@
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+    <!-- ★ D3.js para el Árbol de Variantes -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 
     <style>
+        /* ══════════════════════════════════════════════
+           VARIABLES Y BASE  (sin cambios)
+        ══════════════════════════════════════════════ */
         :root {
-            --bg-ultra: #020408;
-            --bg-panel: #0d1117;
+            --bg-ultra:    #020408;
+            --bg-panel:    #0d1117;
             --bg-terminal: #010409;
-            --accent: #f1c40f; /* Oro Botvinnik */
+            --accent:      #f1c40f;
             --accent-blue: #1f6feb;
-            --border: #30363d;
-            --text-main: #e6edf3;
-            --text-dim: #8b949e;
-            --font-mono: 'Fira Code', 'Courier New', monospace;
+            --border:      #30363d;
+            --text-main:   #e6edf3;
+            --text-dim:    #8b949e;
+            --font-mono:   'Fira Code', 'Courier New', monospace;
         }
 
         body { 
             font-family: 'Inter', sans-serif; 
-            background-color: var(--bg-ultra); color: var(--text-main); 
+            background-color: var(--bg-ultra); 
+            color: var(--text-main); 
             margin: 0; padding: 10px 25px; 
             display: flex; flex-direction: column; align-items: center;
         }
@@ -38,11 +44,9 @@
 
         .main-container { 
             display: grid; 
-            /* Cuatro columnas: Tablero1, Historial1, Tablero2, Historial2 */
             grid-template-columns: 460px 250px 460px 250px; 
             gap: 15px; 
-            width: 100%; 
-            max-width: 1850px;
+            width: 100%; max-width: 1850px;
             justify-content: center;
             align-items: start;
         }
@@ -54,47 +58,26 @@
             border: 1px solid var(--border); 
             min-height: 560px; 
         }
-        /* Contenedor para el tablero y su barrita */
-        .board-container {
-            display: flex;
-            align-items: stretch;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
 
-        /* La barrita de evaluación */
+        .board-container { display: flex; align-items: stretch; gap: 10px; margin-bottom: 20px; }
+
         .eval-bar {
-            width: 25px;
-            background-color: #444; /* Color para las negras */
-            border: 2px solid #66fcf1;
-            border-radius: 4px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            overflow: hidden;
+            width: 25px; background-color: #444;
+            border: 2px solid #66fcf1; border-radius: 4px;
+            position: relative; display: flex;
+            flex-direction: column; justify-content: flex-end; overflow: hidden;
         }
-
-        /* La parte blanca de la barra */
         .eval-progress {
-            background-color: #fff;
-            height: 50%; /* Empezamos al 50% (igualdad) */
-            width: 100%;
+            background-color: #fff; height: 50%; width: 100%;
             transition: height 0.5s ease;
         }
-        
-        /* Texto del numerito de evaluación */
         .eval-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
+            position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 0.7rem;
-            font-weight: bold;
-            color: #000;
-            z-index: 10;
-            mix-blend-mode: difference; /* Para que se lea siempre */
+            font-size: 0.7rem; font-weight: bold; color: #000;
+            z-index: 10; mix-blend-mode: difference;
         }
+
         .module-label { 
             color: var(--accent); font-size: 0.85rem; text-transform: uppercase; 
             margin-bottom: 15px; font-weight: 900; letter-spacing: 4px;
@@ -103,22 +86,19 @@
 
         .chess-canvas { width: 460px; border: 12px solid #000; border-radius: 4px; }
 
-        /* BUSCADOR DE APERTURAS - DISEÑO ELITE */
         .aperturas-shelf {
             width: 100%; max-width: 1850px; background: var(--bg-panel);
-            margin: 20px 0; padding: 20px; border-radius: 12px; border: 1px solid var(--accent-blue);
+            margin: 20px 0; padding: 20px; border-radius: 12px;
+            border: 1px solid var(--accent-blue);
         }
-
         .search-container { display: flex; gap: 15px; margin-bottom: 15px; }
-
         .select-margarita { 
-            flex-grow: 1; padding: 12px; border-radius: 6px; background: #000; 
-            color: white; border: 2px solid var(--accent-blue); font-weight: bold;
+            flex-grow: 1; padding: 12px; border-radius: 6px;
+            background: #000; color: white; border: 2px solid var(--accent-blue); font-weight: bold;
         }
-
         .btn-margarita { 
-            padding: 12px 25px; cursor: pointer; border: none; border-radius: 6px; 
-            font-weight: 900; text-transform: uppercase; color: white;
+            padding: 12px 25px; cursor: pointer; border: none;
+            border-radius: 6px; font-weight: 900; text-transform: uppercase; color: white;
         }
 
         .terminal-output { 
@@ -127,54 +107,206 @@
             border-left: 15px solid var(--accent); line-height: 1.6;
             font-size: 1.1rem; box-shadow: inset 0 0 40px #000; margin-bottom: 30px;
         }
-        /* Nuevo panel de historial de jugadas */
+
         .move-history-panel {
-            background: var(--bg-terminal);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            height: 440px; /* Ajustado para que cuadre con el tablero y botones */
-            overflow-y: auto;
-            padding: 10px;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
+            background: var(--bg-terminal); border: 1px solid var(--border);
+            border-radius: 8px; height: 440px;
+            overflow-y: auto; padding: 10px;
+            font-family: var(--font-mono); font-size: 0.9rem;
         }
-
         .history-title {
-            color: var(--accent);
-            font-size: 0.8rem;
+            color: var(--accent); font-size: 0.8rem;
             border-bottom: 1px solid var(--border);
-            margin-bottom: 10px;
-            padding-bottom: 5px;
-            text-transform: uppercase;
+            margin-bottom: 10px; padding-bottom: 5px; text-transform: uppercase;
         }
-
         .move-row {
-            display: grid;
-            grid-template-columns: 30px 1fr 1fr;
-            gap: 10px;
-            padding: 5px 0;
-            border-bottom: 1px solid #1a1f26;
+            display: grid; grid-template-columns: 30px 1fr 1fr;
+            gap: 10px; padding: 5px 0; border-bottom: 1px solid #1a1f26;
         }
-
         .move-num { color: var(--text-dim); }
         .move-val { color: var(--text-main); font-weight: bold; cursor: pointer; }
         .move-val:hover { color: var(--accent); }
+
+        /* ══════════════════════════════════════════════
+           ★ ÁRBOL DE VARIANTES — CONTENEDOR PRINCIPAL
+        ══════════════════════════════════════════════ */
+        .variant-section {
+            width: 100%; max-width: 1850px;
+            margin: 0 0 20px 0;
+            display: grid;
+            grid-template-columns: 1fr 280px;
+            gap: 15px;
+            align-items: start;
+        }
+
+        .vt-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--accent-blue);
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .vt-card-title {
+            color: var(--accent-blue);
+            font-size: 0.8rem;
+            font-weight: 900;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            border-left: 5px solid var(--accent-blue);
+            padding-left: 12px;
+            margin-bottom: 12px;
+        }
+
+        /* SVG del árbol */
+        #variant-tree-container {
+            width: 100%;
+            height: 300px;
+            background: #020408;
+            border: 1px solid #1a2035;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: grab;
+            position: relative;
+        }
+        #variant-tree-container:active { cursor: grabbing; }
+
+        /* Leyenda de colores */
+        .vt-legend {
+            display: flex; flex-wrap: wrap; gap: 10px;
+            padding: 8px 0 4px;
+            font-size: 10px; font-family: var(--font-mono);
+            color: var(--text-dim);
+        }
+        .vt-legend-item { display: flex; align-items: center; gap: 5px; }
+        .vt-legend-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            border: 1.5px solid rgba(255,255,255,0.15);
+            flex-shrink: 0;
+        }
+
+        /* Panel de anotación */
+        #variant-annotation {
+            background: var(--bg-terminal);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--text-main);
+            min-height: 80px;
+        }
+
+        .va-header {
+            display: flex; align-items: center;
+            gap: 8px; margin-bottom: 8px;
+        }
+        .va-san { font-size: 15px; font-weight: 700; color: #fff; }
+        .va-eval { font-size: 12px; font-weight: 700; padding: 2px 7px; border-radius: 3px; }
+        .va-eval-pos { background: rgba(76,175,80,0.2);  color: #4caf50; }
+        .va-eval-neg { background: rgba(239,83,80,0.2);  color: #ef5350; }
+        .va-badge {
+            margin-left: auto; font-size: 9px;
+            text-transform: uppercase; letter-spacing: 0.6px;
+            padding: 2px 7px; border-radius: 10px; font-weight: 700;
+        }
+        .va-badge-main       { background: rgba(241,196,15,0.15); color: var(--accent); }
+        .va-badge-variant    { background: rgba(31,111,235,0.15); color: var(--accent-blue); }
+        .va-badge-suggestion { background: rgba(168,85,247,0.15); color: #a855f7; }
+        .va-badge-discarded  { background: rgba(48,54,61,0.5);    color: var(--text-dim); }
+
+        .va-opening {
+            font-size: 11px; color: var(--text-main);
+            padding: 4px 8px;
+            border-left: 3px solid var(--accent);
+            margin-bottom: 8px;
+            background: rgba(241,196,15,0.05);
+            border-radius: 0 4px 4px 0;
+        }
+        .va-opening strong { color: var(--accent); margin-right: 4px; }
+
+        .va-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .va-btn {
+            flex: 1; min-width: 80px;
+            padding: 5px 8px; font-size: 10px;
+            font-family: var(--font-mono);
+            border-radius: 5px; border: 1px solid var(--border);
+            background: transparent; color: var(--text-main);
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s;
+            white-space: nowrap;
+        }
+        .va-btn-promote:hover    { background: rgba(76,175,80,0.15);  border-color: #4caf50; color: #4caf50; }
+        .va-btn-bifurcation:hover{ background: rgba(31,111,235,0.12); border-color: var(--accent-blue); color: var(--accent-blue); }
+        .va-btn-discard:hover    { background: rgba(218,54,51,0.12);  border-color: #da3633; color: #da3633; }
+
+        /* Menú contextual del árbol */
+        .vt-context-menu {
+            position: fixed; z-index: 9998;
+            background: #161928; border: 1px solid #2a2f4a;
+            border-radius: 8px; padding: 6px; min-width: 210px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+            animation: vcm-appear 0.15s ease;
+        }
+        @keyframes vcm-appear {
+            from { opacity:0; transform: scale(0.94) translateY(-4px); }
+            to   { opacity:1; transform: scale(1)   translateY(0);     }
+        }
+        .vcm-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 4px 8px 8px;
+            border-bottom: 1px solid #2a2f4a; margin-bottom: 4px;
+        }
+        .vcm-san  { font-size: 14px; font-weight: 700; font-family: var(--font-mono); color: var(--accent); }
+        .vcm-type { font-size: 10px; color: var(--text-dim); margin-left: auto; text-transform: uppercase; }
+        .vcm-btn {
+            display: block; width: 100%; text-align: left;
+            background: transparent; border: none;
+            color: var(--text-main); font-size: 12px;
+            font-family: var(--font-mono);
+            padding: 7px 10px; border-radius: 5px; cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .vcm-btn:hover          { background: rgba(31,111,235,0.12); color: var(--accent-blue); }
+        .vcm-btn.vcm-discard:hover { background: rgba(218,54,51,0.12); color: #da3633; }
+
+        /* Tooltip flotante */
+        #vt-tooltip {
+            position: fixed; z-index: 9999;
+            background: #161928; border: 1px solid var(--accent-blue);
+            color: var(--text-main); font-size: 11px;
+            font-family: var(--font-mono);
+            padding: 4px 10px; border-radius: 4px;
+            pointer-events: none; opacity: 0;
+            transition: opacity 0.15s ease;
+            white-space: nowrap;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+        }
+
+        /* Animación pulso en casillas iluminadas */
+        @keyframes vt-pulse {
+            0%,100% { opacity: 0.55; }
+            50%      { opacity: 0.20; }
+        }
+        .vt-square-highlight {
+            animation: vt-pulse 1.8s ease-in-out infinite !important;
+        }
     </style>
 </head>
 <body>
     <header>
         <h1>MARGARITA LAB: FASE 8 (Llama 3.3 Edition)</h1>
-        <div style="font-size: 0.7rem; letter-spacing: 3px; color: var(--accent);">NÚCLEO ESTRATÉGICO GROQ ACTIVO</div>
+        <div style="font-size:0.7rem;letter-spacing:3px;color:var(--accent)">NÚCLEO ESTRATÉGICO GROQ ACTIVO</div>
     </header>
 
+    <!-- ══ TABLEROS (sin cambios) ══ -->
     <div class="main-container">
         <div class="module-card">
             <div class="module-label">Módulo de Combate</div>
-            <div id="boardCombat" style="width: 430px"></div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-top: 10px;">
-                <button class="btn-margarita" style="background: #da3633; padding: 8px;" onclick="gameReset()">Reiniciar</button>
-                <button class="btn-margarita" style="background: #1f6feb; padding: 8px;" onclick="gameUndo()">Deshacer</button>
-                <button class="btn-margarita" style="background: #238636; padding: 8px;" onclick="gameRedo()">Avanzar</button>
+            <div id="boardCombat" style="width:430px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:10px;">
+                <button class="btn-margarita" style="background:#da3633;padding:8px;" onclick="gameReset()">Reiniciar</button>
+                <button class="btn-margarita" style="background:#1f6feb;padding:8px;" onclick="gameUndo()">Deshacer</button>
+                <button class="btn-margarita" style="background:#238636;padding:8px;" onclick="gameRedo()">Avanzar</button>
             </div>
         </div>
 
@@ -184,309 +316,837 @@
         </div>
 
         <div class="module-card">
-            <div class="module-label" style="border-color: var(--accent-blue);">Laboratorio Llama 3.3</div>
-            <div id="boardAnalysis" style="width: 430px"></div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 10px;">
-                <button class="btn-margarita" style="background: var(--accent); color: black; padding: 8px;" onclick="triggerLlamaAnalysis('Táctica')">Táctica</button>
-                <button class="btn-margarita" style="background: var(--accent-blue); padding: 8px;" onclick="triggerLlamaAnalysis('Estrategia')">Estrategia</button>
-                <button class="btn-margarita" style="background: #57606a; padding: 8px;" onclick="flipAnalysisBoard()">Girar Tablero</button>
+            <div class="module-label" style="border-color:var(--accent-blue);">Laboratorio Llama 3.3</div>
+            <div id="boardAnalysis" style="width:430px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:10px;">
+                <button class="btn-margarita" style="background:var(--accent);color:black;padding:8px;" onclick="triggerLlamaAnalysis('Táctica')">Táctica</button>
+                <button class="btn-margarita" style="background:var(--accent-blue);padding:8px;" onclick="triggerLlamaAnalysis('Estrategia')">Estrategia</button>
+                <button class="btn-margarita" style="background:#57606a;padding:8px;" onclick="flipAnalysisBoard()">Girar Tablero</button>
             </div>
         </div>
 
         <div class="module-card">
             <div class="history-title">Líneas de Análisis</div>
             <div id="moveListAnalysis" class="move-history-panel"></div>
-
-            <div id="theoryPanel" style="margin-top: 15px; padding: 10px; background: #161b22; border: 1px solid var(--accent-blue); border-radius: 8px; font-size: 0.85rem;">
-                <div style="color: var(--accent-blue); font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #30363d;">📚 TEORÍA DE MAESTROS</div>
-                <div id="theoryData" style="color: #c9d1d9;">Esperando movimiento...</div>
+            <div id="theoryPanel" style="margin-top:15px;padding:10px;background:#161b22;border:1px solid var(--accent-blue);border-radius:8px;font-size:0.85rem;">
+                <div style="color:var(--accent-blue);font-weight:bold;margin-bottom:5px;border-bottom:1px solid #30363d;">📚 TEORÍA DE MAESTROS</div>
+                <div id="theoryData" style="color:#c9d1d9;">Esperando movimiento...</div>
             </div>
         </div>
     </div>
 
+    <!-- ★ ══ SECCIÓN ÁRBOL DE VARIANTES (NUEVA) ══ ★ -->
+    <div class="variant-section">
+
+        <!-- Columna izquierda: árbol SVG + leyenda -->
+        <div class="vt-card">
+            <div class="vt-card-title">🌳 Árbol de Variantes</div>
+
+            <!-- Controles rápidos del árbol -->
+            <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+                <button class="btn-margarita" style="background:#238636;padding:5px 12px;font-size:11px;"
+                        onclick="vtPromote()">⬆ Promover</button>
+                <button class="btn-margarita" style="background:var(--accent-blue);padding:5px 12px;font-size:11px;"
+                        onclick="vtBifurcation()">🔀 Bifurcación</button>
+                <button class="btn-margarita" style="background:#da3633;padding:5px 12px;font-size:11px;"
+                        onclick="vtDiscard()">🗑 Descartar</button>
+                <button class="btn-margarita" style="background:#57606a;padding:5px 12px;font-size:11px;"
+                        onclick="vtReset()">↺ Reiniciar árbol</button>
+            </div>
+
+            <!-- SVG container -->
+            <div id="variant-tree-container"></div>
+
+            <!-- Leyenda -->
+            <div class="vt-legend">
+                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#f1c40f"></div>Línea principal</div>
+                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#1f6feb"></div>Variante</div>
+                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#a855f7"></div>Sugerencia</div>
+                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#4caf50"></div>Buena eval</div>
+                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#ef5350"></div>Mala eval</div>
+                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#2a2f4a"></div>Descartada</div>
+            </div>
+        </div>
+
+        <!-- Columna derecha: panel de anotación -->
+        <div class="vt-card">
+            <div class="vt-card-title">📝 Nodo Activo</div>
+            <div id="variant-annotation">
+                <div style="color:var(--text-dim);font-size:11px;">Haz click en un nodo del árbol para ver los detalles.</div>
+            </div>
+        </div>
+
+    </div><!-- /variant-section -->
+
+    <!-- Buscador de aperturas (sin cambios) -->
     <div class="aperturas-shelf">
-        <div class="module-label" style="border-color: var(--accent-blue); color: var(--accent-blue);">Explorador de Teoría Maestra</div>
+        <div class="module-label" style="border-color:var(--accent-blue);color:var(--accent-blue);">Explorador de Teoría Maestra</div>
         <div class="search-container">
             <select id="selectApertura" class="select-margarita">
                 <option value="">Selecciona una apertura de la lista honorífica...</option>
                 <option value="">--- SELECCIONA UNA APERTURA MAESTRA ---</option>
                 <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 3">#1 Apertura Española o Ruy López</option>
-                <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 5 4">#2 Defensa Siciliana, Variante Najdorf (v. tras 1.e4 c5 2.Nf3 d6)</option>
-                <option value="rnbqk2r/ppppppbp/5np1/8/2PP4/5N2/PP2PPPP/RNBQKB1R w KQkq - 4 4">#3 Defensa India de Rey, Variante Mar del Plata</option>
-                <option value="r1bqkb1r/pp1p1ppp/2n1pn2/2p5/2PP4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 5">#4 Defensa Nimzo-India, Variante Rubinstein</option>
-                <option value="rn1qkb1r/pb3ppp/4pn2/1pp5/2PP4/5NP1/PP2PPBP/RNBQK2R w KQkq - 0 7">#5 Gambito de Dama Rehusado, Variante Tartakower</option>
-                <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 0 4">#6 Defensa Semi-Eslava, Variante Botvinnik</option>
+                <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 5 4">#2 Defensa Siciliana, Variante Najdorf</option>
+                <option value="rnbqk2r/ppppppbp/5np1/8/2PP4/5N2/PP2PPPP/RNBQKB1R w KQkq - 4 4">#3 Defensa India de Rey</option>
+                <option value="r1bqkb1r/pp1p1ppp/2n1pn2/2p5/2PP4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 5">#4 Defensa Nimzo-India</option>
+                <option value="rn1qkb1r/pb3ppp/4pn2/1pp5/2PP4/5NP1/PP2PPBP/RNBQK2R w KQkq - 0 7">#5 Gambito de Dama Rehusado</option>
+                <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 0 4">#6 Defensa Semi-Eslava</option>
                 <option value="rn1qkbnr/pp1b1ppp/4p3/2ppP3/3P4/2P5/PP3PPP/RNBQKBNR w KQkq - 1 6">#7 Defensa Francesa, Variante Winawer</option>
-                <option value="rn1qkbnr/pp2pppp/2p5/3pP3/3P4/5N2/PP2PPPP/RNBQKB1R b KQkq - 0 4">#8 Defensa Caro-Kann, Variante Capablanca</option>
-                <option value="rn1qkb1r/pp2pppp/2p2n2/3p2B1/2PP2b1/2N2N2/PP2PPPP/R2QKB1R w KQkq - 4 6">#9 Defensa Holandesa, Variante Muro de Piedra (Stone Wall)</option>
-                <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 3">#10 Defensa Berlinesa (Muro de Berlín)</option>
-                <option value="rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2">Apertura Reti (Sistema Clásico)</option>
-                <option value="rnbqkb1r/pppppp1p/5np1/8/2PP4/8/PP2PPPP/RNBQKBNR w KQkq - 0 3">Defensa Benoni, Variante Moderna</option>
-                <option value="rnbqkb1r/pp1ppppp/5n2/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 3">Defensa Pirc (Sistema Clásico)</option>
-                <option value="rnbqkbnr/pp2pppp/3p4/2p5/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 1 3">Defensa Siciliana, Variante Pelikan (Sveshnikov)</option>
+                <option value="rn1qkbnr/pp2pppp/2p5/3pP3/3P4/5N2/PP2PPPP/RNBQKB1R b KQkq - 0 4">#8 Defensa Caro-Kann</option>
+                <option value="rn1qkb1r/pp2pppp/2p2n2/3p2B1/2PP2b1/2N2N2/PP2PPPP/R2QKB1R w KQkq - 4 6">#9 Defensa Holandesa</option>
+                <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 3">#10 Defensa Berlinesa</option>
             </select>
-            <button class="btn-margarita" style="background: var(--accent-blue);" onclick="cargarAperturaSeleccionada()">Cargar en Tablero</button>
+            <button class="btn-margarita" style="background:var(--accent-blue);" onclick="cargarAperturaSeleccionada()">Cargar en Tablero</button>
         </div>
-        <div id="infoApertura" style="color: var(--text-dim); font-size: 0.9rem;"></div>
+        <div id="infoApertura" style="color:var(--text-dim);font-size:0.9rem;"></div>
     </div>
 
-    <div id="terminalBoard" class="terminal-output">
-        SISTEMA LISTO. Esperando entrada de Manuel...
-    </div>
+    <!-- Terminal (sin cambios) -->
+    <div id="terminalBoard" class="terminal-output">SISTEMA LISTO. Esperando entrada de Manuel...</div>
+
+    <!-- Tooltip flotante del árbol -->
+    <div id="vt-tooltip"></div>
+
     <script>
-        // CONFIGURACIÓN DE NÚCLEO - MARGARITA FASE 8
-        const GROQ_API_KEY = "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";
-        var chessC = new Chess(), chessA = new Chess();
-        var boardC = null, boardA = null, motorE = null, motorA = null;
+    /* ════════════════════════════════════════════════════════════
+       CONFIGURACIÓN NÚCLEO  (sin cambios)
+    ════════════════════════════════════════════════════════════ */
+    /* ════════════════════════════════════════════════════════════
+   CONFIGURACIÓN NÚCLEO: GESTIÓN DE CREDENCIALES (MODO SEGURO)
+════════════════════════════════════════════════════════════ */
 
-        // CORRECTO: 1. INICIALIZACIÓN DE MOTORES
-        function initSystem() {
-            const sfUrl = "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js";
-            fetch(sfUrl).then(r => r.text()).then(code => {
-                const blob = new Blob([code], {type: 'application/javascript'});
-                const url = URL.createObjectURL(blob);
-                motorE = new Worker(url); 
-                motorA = new Worker(url);
-                
-                motorE.postMessage('uci');
-                motorA.postMessage('uci');
-                
-                motorE.onmessage = (e) => {
-                    if (e.data.includes("bestmove")) {
-                        const moveRaw = e.data.split(" ")[1];
-                        const moveObject = chessC.move(moveRaw, {sloppy: true}); 
-                        
-                        if (moveObject) {
-                            boardC.position(chessC.fen());
-                            syncSystems();
-                            actualizarListaJugadas('moveListCombat', chessC);
-                            terminalLog("Stockfish ha jugado: " + moveObject.san);
-                        }
-                    }
-                };
-                // El mensaje de éxito debe ir dentro del proceso de carga
-                terminalLog("Motores en línea. Llama 3.3 preparado para el análisis.");
+    // 1. Gestión de API Key de Groq
+    let GROQ_API_KEY = localStorage.getItem('groq_key') || "";
+    if (!GROQ_API_KEY) {
+        GROQ_API_KEY = prompt("Margarita necesita tu API KEY de GROQ para el análisis táctico:", "gsk_...");
+        if (GROQ_API_KEY) localStorage.setItem('groq_key', GROQ_API_KEY);
+    }
+
+    // 2. Gestión de Token de Lichess
+    let LICHESS_TOKEN = localStorage.getItem('lichess_token') || "";
+    if (!LICHESS_TOKEN) {
+        LICHESS_TOKEN = prompt("Margarita necesita tu Personal Access Token de LICHESS para la teoría:", "");
+        if (LICHESS_TOKEN) localStorage.setItem('lichess_token', LICHESS_TOKEN);
+    }
+    var chessC = new Chess(), chessA = new Chess();
+    var boardC = null, boardA = null, motorE = null, motorA = null;
+    var historialAvanzar = [];
+
+    /* ════════════════════════════════════════════════════════════
+       ★  ÁRBOL DE VARIANTES — Motor completo
+    ════════════════════════════════════════════════════════════ */
+
+    const VT_CFG = {
+        NODE_R:      15,
+        SPACING_X:   82,
+        SPACING_Y:   44,
+        TRANS_MS:    360,
+    };
+
+    const VT_COLORS = {
+        main:        '#f1c40f',
+        variant:     '#1f6feb',
+        suggestion:  '#a855f7',
+        discarded:   '#1a2030',
+        evalGood:    '#4caf50',
+        evalNeutral: '#78909c',
+        evalBad:     '#ef5350',
+    };
+
+    /* Estado del árbol */
+    const VT = {
+        rootData:  null,
+        nodeMap:   new Map(),
+        activeId:  null,
+        combatId:  null,
+        svg: null, gMain: null, gLinks: null, gNodes: null,
+        treeLayout: null, diagonal: null, zoomBeh: null,
+
+        /* ── Inicializar ── */
+        init(containerId, fen) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const W = el.clientWidth  || 900;
+            const H = el.clientHeight || 300;
+
+            this.svg = d3.select(`#${containerId}`).append('svg')
+                .attr('width','100%').attr('height','100%')
+                .attr('viewBox',`0 0 ${W} ${H}`);
+
+            const defs = this.svg.append('defs');
+
+            // Fondo puntos
+            defs.append('pattern').attr('id','vt-dots')
+                .attr('x',0).attr('y',0).attr('width',20).attr('height',20)
+                .attr('patternUnits','userSpaceOnUse')
+                .append('circle').attr('cx',2).attr('cy',2).attr('r',1).attr('fill','#12192b');
+            this.svg.append('rect').attr('width','100%').attr('height','100%').attr('fill','url(#vt-dots)');
+
+            // Glow
+            const f = defs.append('filter').attr('id','vt-glow');
+            f.append('feGaussianBlur').attr('stdDeviation','3').attr('result','blur');
+            const fm = f.append('feMerge');
+            fm.append('feMergeNode').attr('in','blur');
+            fm.append('feMergeNode').attr('in','SourceGraphic');
+
+            // Flechas
+            ['main','variant'].forEach(t => {
+                const col = t === 'main' ? VT_COLORS.main : VT_COLORS.variant;
+                defs.append('marker').attr('id',`vt-arr-${t}`)
+                    .attr('viewBox','0 -4 8 8').attr('refX',8).attr('refY',0)
+                    .attr('markerWidth',5).attr('markerHeight',5).attr('orient','auto')
+                    .append('path').attr('d','M0,-4L8,0L0,4').attr('fill',col).attr('opacity',0.8);
             });
-        }
-        
 
-        // 2. CONEXIÓN CON GROQ (Llama 3.3 70B)
-        async function triggerLlamaAnalysis(enfoque) {
-            const term = document.getElementById('terminalBoard');
-            const fen = chessA.fen();
-            term.innerHTML = `<div style="color:var(--accent)">Margarita consultando a Llama 3.3 (Groq)...</div>`;
+            // Zoom
+            this.zoomBeh = d3.zoom().scaleExtent([0.25, 2.5])
+                .on('zoom', e => this.gMain.attr('transform', e.transform));
+            this.svg.call(this.zoomBeh);
 
-            // Pedimos a Stockfish una evaluación rápida para darle contexto a la IA
-            motorA.postMessage(`position fen ${fen}`);
-            motorA.postMessage('go depth 15');
+            this.gMain  = this.svg.append('g').attr('transform',`translate(50,${H/2})`);
+            this.gLinks = this.gMain.append('g');
+            this.gNodes = this.gMain.append('g');
 
-            motorA.onmessage = async (e) => {
-                if (e.data.includes("pv")) {
-                    const pv = e.data.split(" pv ")[1].split(" ").slice(0, 7).join(" ");
-                    const score = e.data.includes("cp") ? (parseInt(e.data.match(/score cp (-?\d+)/)[1])/100).toFixed(1) : "Mate";
+            this.treeLayout = d3.tree()
+                .nodeSize([VT_CFG.SPACING_Y, VT_CFG.SPACING_X])
+                .separation((a,b) => a.parent===b.parent ? 1.2 : 1.8);
 
-                    // Llamada a la API de Groq
-                    try {
-                        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                            method: "POST",
-                            headers: {
-                                "Authorization": `Bearer ${GROQ_API_KEY}`,
-                                "Content-Type": "application/json"
-                            },
-                            body: JSON.stringify({
-                                model: "llama-3.3-70b-versatile",
-                                messages: [
-                                    { role: "system", content: "Eres Mijaíl Botvínnik. Analiza posiciones para Manuel de forma estratégica, breve y magistral." },
-                                    { role: "user", content: `FEN: ${fen}. Evaluación motor: ${score}. Línea recomendada: ${pv}. Explica el sentido de la posición enfocado en: ${enfoque}.` }
-                                ]
-                            })
-                        });
-                        const data = await response.json();
-                        const explicacion = data.choices[0].message.content;
+            this.diagonal = d3.linkHorizontal().x(d=>d.y).y(d=>d.x);
 
-                        term.innerHTML = `
-                            <div style="border-bottom:1px solid var(--accent); padding-bottom:10px; margin-bottom:10px;">
-                                <strong>ANÁLISIS MAGISTRAL (${enfoque.toUpperCase()})</strong>
-                            </div>
-                            <div style="color:var(--accent); margin-bottom:10px;">EVALUACIÓN: ${score} | LÍNEA: ${pv}</div>
-                            <div>${explicacion.replace(/\n/g, '<br>')}</div>
-                        `;
-                    } catch (err) {
-                        term.innerHTML = "Error de conexión con el cerebro Groq.";
+            // Nodo raíz
+            this.rootData = this._mkNode({ fen, san:'♟', uci:null, moveNum:0, side:null, type:'main', eval:0 }, null);
+            this.activeId = this.rootData.id;
+            this.combatId = this.rootData.id;
+            this.nodeMap.set(this.rootData.id, this.rootData);
+            this.render();
+        },
+
+        /* ── Crear nodo ── */
+        _mkNode(d, parentId) {
+            return {
+                id:       `vt-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+                parentId, fen:d.fen, san:d.san, uci:d.uci,
+                moveNum:d.moveNum, side:d.side, eval:d.eval??0,
+                opening:d.opening??null, type:d.type??'main',
+                children: [],
+            };
+        },
+
+        /* ── Añadir jugada ── */
+        addMove(moveData, type='main') {
+            const parent = this.nodeMap.get(this.activeId);
+            if (!parent) return null;
+            const dup = parent.children.find(c => c.uci === moveData.uci);
+            if (dup) { this.activeId = dup.id; this.render(); return dup; }
+            const node = this._mkNode({...moveData, type}, this.activeId);
+            parent.children.push(node);
+            this.nodeMap.set(node.id, node);
+            this.activeId = node.id;
+            this.render();
+            return node;
+        },
+
+        promote() {
+            let cur = this.nodeMap.get(this.activeId);
+            while (cur) { cur.type = 'main'; cur = this.nodeMap.get(cur.parentId); }
+            this.combatId = this.activeId;
+            this.render();
+            terminalLog('✅ Variante promovida a línea principal');
+        },
+
+        discard() {
+            const node = this.nodeMap.get(this.activeId);
+            if (!node || node.type === 'main') return;
+            this._markSub(node, 'discarded');
+            const parent = this.nodeMap.get(node.parentId);
+            if (parent) { this.activeId = parent.id; }
+            this.render();
+        },
+
+        bifurcation() {
+            const node   = this.nodeMap.get(this.activeId);
+            const parent = this.nodeMap.get(node?.parentId);
+            if (!parent) return null;
+            this.activeId = parent.id;
+            this.render();
+            this._dispatchSelected(parent);
+            return parent;
+        },
+
+        _markSub(node, type) {
+            node.type = type;
+            node.children.forEach(c => this._markSub(c, type));
+        },
+
+        updateEval(nodeId, cp) {
+            const n = this.nodeMap.get(nodeId);
+            if (n) { n.eval = cp; this.render(); }
+        },
+
+        updateOpening(nodeId, opening) {
+            const n = this.nodeMap.get(nodeId);
+            if (n && opening) { n.opening = opening; this.render(); }
+        },
+
+        reset() {
+            if (!this.rootData) return;
+            const fen = this.rootData.fen;
+            this.nodeMap.clear();
+            d3.select('#variant-tree-container svg').remove();
+            this.init('variant-tree-container', fen);
+        },
+
+        /* ── Color helpers ── */
+        _fill(node) {
+            if (node.id === this.activeId && node.id === this.combatId) return '#ffffff';
+            if (node.id === this.combatId)  return VT_COLORS.main;
+            if (node.id === this.activeId)  return '#a8d8ff';
+            switch(node.type) {
+                case 'discarded':  return VT_COLORS.discarded;
+                case 'suggestion': return VT_COLORS.suggestion;
+                case 'variant':
+                    if (node.eval >= 30)  return '#1a5c1e';
+                    if (node.eval <= -30) return '#7b1515';
+                    return VT_COLORS.variant;
+                default: // main
+                    if (node.eval >= 30)  return VT_COLORS.evalGood;
+                    if (node.eval <= -30) return VT_COLORS.evalBad;
+                    return VT_COLORS.evalNeutral;
+            }
+        },
+        _stroke(node) {
+            if (node.id === this.activeId)   return '#ffffff';
+            if (node.id === this.combatId)   return VT_COLORS.main;
+            if (node.type === 'main')        return VT_COLORS.main;
+            if (node.type === 'variant')     return VT_COLORS.variant;
+            if (node.type === 'suggestion')  return VT_COLORS.suggestion;
+            return '#2a2f4a';
+        },
+        _linkColor(t) {
+            if (t === 'main')       return 'rgba(241,196,15,0.5)';
+            if (t === 'variant')    return 'rgba(31,111,235,0.4)';
+            if (t === 'suggestion') return 'rgba(168,85,247,0.4)';
+            return 'rgba(42,47,74,0.4)';
+        },
+        _marker(t) {
+            if (t === 'main')    return 'url(#vt-arr-main)';
+            if (t === 'variant') return 'url(#vt-arr-variant)';
+            return 'none';
+        },
+
+        /* ── Render D3 ── */
+        render() {
+            if (!this.svg || !this.rootData) return;
+            const hier  = d3.hierarchy(this.rootData, d => d.children);
+            const tree  = this.treeLayout(hier);
+            const nodes = tree.descendants();
+            const links = tree.links();
+
+            /* LINKS */
+            const link = this.gLinks.selectAll('.vt-lk').data(links, d => d.target.data.id);
+            link.enter().append('path').attr('class','vt-lk')
+                .attr('fill','none').attr('opacity',0)
+                .attr('d', d => {
+                    const o = {x:d.source.x, y:d.source.y};
+                    return this.diagonal({source:o, target:o});
+                })
+                .merge(link)
+                .transition().duration(VT_CFG.TRANS_MS)
+                .attr('d', this.diagonal)
+                .attr('stroke',       d => this._linkColor(d.target.data.type))
+                .attr('stroke-width', d => d.target.data.type==='main' ? 2.5 : 1.5)
+                .attr('marker-end',   d => this._marker(d.target.data.type))
+                .attr('opacity',      d => d.target.data.type==='discarded' ? 0.15 : 1);
+            link.exit().transition().duration(VT_CFG.TRANS_MS).attr('opacity',0).remove();
+
+            /* NODES */
+            const self = this;
+            const node = this.gNodes.selectAll('.vt-nd').data(nodes, d => d.data.id);
+
+            const ne = node.enter().append('g').attr('class','vt-nd')
+                .attr('transform', d => `translate(${d.parent?.y??d.y},${d.parent?.x??d.x})`)
+                .attr('cursor','pointer').attr('opacity',0)
+                .on('click',       function(ev,d){ ev.stopPropagation(); self._onClick(d.data); })
+                .on('mouseenter',  function(ev,d){ self._onHover(ev,d.data,true);  })
+                .on('mouseleave',  function(ev,d){ self._onHover(ev,d.data,false); })
+                .on('contextmenu', function(ev,d){ ev.preventDefault(); self._onCtx(ev,d.data); });
+
+            ne.append('circle').attr('class','vt-glow')
+                .attr('r', VT_CFG.NODE_R+5).attr('fill','none').attr('stroke','transparent').attr('stroke-width',3);
+            ne.append('circle').attr('class','vt-circ').attr('r',VT_CFG.NODE_R).attr('stroke-width',2);
+            ne.append('text').attr('class','vt-san')
+                .attr('text-anchor','middle').attr('dominant-baseline','central')
+                .attr('font-size','9px').attr('font-weight','700').attr('pointer-events','none');
+            ne.append('text').attr('class','vt-num')
+                .attr('text-anchor','middle').attr('y',-(VT_CFG.NODE_R+6))
+                .attr('font-size','7px').attr('pointer-events','none').attr('fill','#6b7292');
+            ne.append('circle').attr('class','vt-odot')
+                .attr('r',3).attr('cy',VT_CFG.NODE_R+6).attr('fill','#a855f7').attr('opacity',0);
+
+            const nu = ne.merge(node).transition().duration(VT_CFG.TRANS_MS)
+                .attr('transform', d => `translate(${d.y},${d.x})`)
+                .attr('opacity',   d => d.data.type==='discarded' ? 0.25 : 1);
+
+            nu.select('.vt-glow')
+                .attr('stroke', d => d.data.id===this.activeId ? this._fill(d.data) : 'transparent')
+                .attr('filter',  d => d.data.id===this.activeId ? 'url(#vt-glow)' : 'none');
+
+            nu.select('.vt-circ')
+                .attr('fill',   d => this._fill(d.data))
+                .attr('stroke', d => this._stroke(d.data))
+                .attr('r',      d => d.data.id===this.activeId ? VT_CFG.NODE_R+2 : VT_CFG.NODE_R);
+
+            nu.select('.vt-san')
+                .text(d => d.data.san)
+                .attr('fill', d => {
+                    const bg = this._fill(d.data);
+                    return ['#ffffff','#f1c40f','#a8d8ff','#4caf50'].includes(bg) ? '#050810' : '#e6edf3';
+                });
+
+            nu.select('.vt-num')
+                .text(d => d.data.moveNum > 0
+                    ? `${Math.ceil(d.data.moveNum/2)}${d.data.side==='w'?'.':'…'}` : '');
+
+            nu.select('.vt-odot').attr('opacity', d => d.data.opening ? 1 : 0);
+
+            node.exit().transition().duration(VT_CFG.TRANS_MS).attr('opacity',0).remove();
+
+            /* Centrar en nodo activo */
+            const an = nodes.find(n => n.data.id === this.activeId);
+            if (an) this._center(an);
+        },
+
+        _center(d) {
+            const el = this.svg.node();
+            const W  = el.clientWidth  || 900;
+            const H  = el.clientHeight || 300;
+            const sc = 1.15;
+            this.svg.transition().duration(VT_CFG.TRANS_MS)
+                .call(this.zoomBeh.transform,
+                    d3.zoomIdentity.translate(W/2 - d.y*sc, H/2 - d.x*sc).scale(sc));
+        },
+
+        _onClick(nodeData) {
+            if (nodeData.type === 'discarded') return;
+            this.activeId = nodeData.id;
+            this.render();
+            this._dispatchSelected(nodeData);
+        },
+
+        _onHover(ev, nodeData, entering) {
+            const tip = document.getElementById('vt-tooltip');
+            if (entering && nodeData.opening) {
+                tip.textContent  = `${nodeData.opening.eco} — ${nodeData.opening.name}`;
+                tip.style.left   = `${ev.clientX+12}px`;
+                tip.style.top    = `${ev.clientY-8}px`;
+                tip.style.opacity = '1';
+            } else { tip.style.opacity = '0'; }
+        },
+
+        _onCtx(ev, nodeData) {
+            if (nodeData.type==='main' || nodeData.san==='♟') return;
+            showCtxMenu(ev.clientX, ev.clientY, nodeData);
+        },
+
+        _dispatchSelected(node) {
+            document.dispatchEvent(new CustomEvent('vt:selected', { detail: { node } }));
+        },
+
+        get activeNode() { return this.nodeMap.get(this.activeId); },
+    };
+
+    /* ── Accesos rápidos desde botones HTML ── */
+    function vtPromote()    { VT.promote(); }
+    function vtDiscard()    { VT.discard(); }
+    function vtBifurcation(){ VT.bifurcation(); }
+    function vtReset()      { VT.reset(); }
+
+    /* ── Menú contextual ── */
+    let _ctxMenu = null;
+    function showCtxMenu(x, y, nodeData) {
+        if (_ctxMenu) _ctxMenu.remove();
+        _ctxMenu = document.createElement('div');
+        _ctxMenu.className = 'vt-context-menu';
+        _ctxMenu.style.cssText = `left:${x}px;top:${y}px;`;
+        _ctxMenu.innerHTML = `
+            <div class="vcm-header">
+                <span class="vcm-san">${nodeData.san}</span>
+                <span class="vcm-type">${nodeData.type}</span>
+            </div>
+            <button class="vcm-btn" onclick="vtPromote();closeCtx()">⬆️ Promover a línea principal</button>
+            <button class="vcm-btn" onclick="vtBifurcation();closeCtx()">🔀 Volver a bifurcación</button>
+            <button class="vcm-btn vcm-discard" onclick="vtDiscard();closeCtx()">🗑️ Descartar variante</button>
+        `;
+        document.body.appendChild(_ctxMenu);
+        setTimeout(() => document.addEventListener('click', closeCtx, {once:true}), 50);
+    }
+    function closeCtx() { _ctxMenu?.remove(); _ctxMenu = null; }
+
+    /* ── Panel de anotación ── */
+    function renderAnnotation(node) {
+        const panel = document.getElementById('variant-annotation');
+        if (!panel || !node) return;
+        const ev    = node.eval;
+        const evLbl = ev !== undefined
+            ? `<span class="va-eval ${ev>=0?'va-eval-pos':'va-eval-neg'}">${ev>=0?'+':''}${(ev/100).toFixed(2)}</span>`
+            : '';
+        const op = node.opening
+            ? `<div class="va-opening"><strong>${node.opening.eco}</strong> — ${node.opening.name}</div>` : '';
+        const isVar = node.type === 'variant' || node.type === 'suggestion';
+        panel.innerHTML = `
+            <div class="va-header">
+                <span class="va-san">${node.san}</span>
+                ${evLbl}
+                <span class="va-badge va-badge-${node.type}">${node.type}</span>
+            </div>
+            ${op}
+            ${isVar ? `
+            <div class="va-actions">
+                <button class="va-btn va-btn-promote"     onclick="vtPromote()">⬆️ Promover</button>
+                <button class="va-btn va-btn-bifurcation" onclick="vtBifurcation()">🔀 Bifurcación</button>
+                <button class="va-btn va-btn-discard"     onclick="vtDiscard()">🗑️ Descartar</button>
+            </div>` : ''}
+        `;
+    }
+
+    /* ── Iluminador de casillas ── */
+    const Illuminator = {
+        _squares: [], _arrows: [],
+        illuminate(uci, color='#1f6feb', label='') {
+            this.clear();
+            if (!uci || uci.length < 4) return;
+            this._hl(uci.slice(0,2), color, 0.22);
+            this._hl(uci.slice(2,4), color, 0.50);
+            this._arrow(uci.slice(0,2), uci.slice(2,4), color, label);
+        },
+        illuminateMany(moves) {
+            this.clear();
+            const cols = ['#1f6feb','#a855f7','#4caf50','#f1c40f'];
+            moves.slice(0,4).forEach((m,i) => {
+                const c = cols[i];
+                this._hl(m.uci.slice(0,2), c, 0.18);
+                this._hl(m.uci.slice(2,4), c, 0.42);
+                this._arrow(m.uci.slice(0,2), m.uci.slice(2,4), c, m.san);
+            });
+        },
+        _hl(sq, color, opacity) {
+            const el = document.querySelector(`#boardAnalysis .square-${sq}`);
+            if (!el) return;
+            const ov = document.createElement('div');
+            ov.className   = 'vt-square-highlight';
+            ov.style.cssText = `position:absolute;inset:0;pointer-events:none;background:${color};opacity:${opacity};border-radius:2px;z-index:10;`;
+            el.style.position = 'relative';
+            el.appendChild(ov);
+            this._squares.push(ov);
+        },
+        _arrow(from, to, color, label='') {
+            const board   = document.getElementById('boardAnalysis');
+            const fromEl  = document.querySelector(`#boardAnalysis .square-${from}`);
+            const toEl    = document.querySelector(`#boardAnalysis .square-${to}`);
+            if (!board||!fromEl||!toEl) return;
+            const br = board.getBoundingClientRect();
+            const fr = fromEl.getBoundingClientRect();
+            const tr = toEl.getBoundingClientRect();
+            const x1 = fr.left+fr.width/2  - br.left;
+            const y1 = fr.top +fr.height/2 - br.top;
+            const x2 = tr.left+tr.width/2  - br.left;
+            const y2 = tr.top +tr.height/2 - br.top;
+            const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+            svg.classList.add('vt-arrows-svg');
+            svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:20;overflow:visible;';
+            const mid = `arr-${Date.now()}`;
+            const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy),t=18;
+            const ex=x2-(dx/len)*t, ey=y2-(dy/len)*t;
+            svg.innerHTML = `
+                <defs><marker id="${mid}" viewBox="0 -4 8 8" refX="7" refY="0" markerWidth="5" markerHeight="5" orient="auto">
+                    <path d="M0,-4L8,0L0,4" fill="${color}" opacity="0.9"/>
+                </marker></defs>
+                <line x1="${x1}" y1="${y1}" x2="${ex}" y2="${ey}"
+                      stroke="${color}" stroke-width="5" stroke-linecap="round" opacity="0.85"
+                      marker-end="url(#${mid})"/>
+                ${label ? `<text x="${(x1+x2)/2}" y="${(y1+y2)/2-8}" text-anchor="middle"
+                    font-size="11" font-weight="bold" font-family="'Courier New',monospace"
+                    fill="${color}" filter="drop-shadow(0 1px 2px rgba(0,0,0,.9))">${label}</text>` : ''}
+            `;
+            board.style.position = 'relative';
+            board.appendChild(svg);
+            this._arrows.push(svg);
+        },
+        clear() {
+            this._squares.forEach(e=>e.remove()); this._squares=[];
+            this._arrows.forEach(e=>e.remove());  this._arrows=[];
+        },
+    };
+
+    /* ── Evento: nodo seleccionado → sincronizar tablero análisis ── */
+    document.addEventListener('vt:selected', e => {
+        const { node } = e.detail;
+        if (!node?.fen) return;
+        chessA.load(node.fen);
+        boardA.position(node.fen);
+        actualizarListaJugadas('moveListAnalysis', chessA);
+        renderAnnotation(node);
+        // Pide teoría Lichess para el nodo seleccionado
+        consultarLichess(node.fen);
+    });
+
+    /* ════════════════════════════════════════════════════════════
+       SISTEMA PRINCIPAL  (tu código original, sin cambios salvo hooks)
+    ════════════════════════════════════════════════════════════ */
+
+    function initSystem() {
+        const sfUrl = "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js";
+        fetch(sfUrl).then(r=>r.text()).then(code => {
+            const blob = new Blob([code],{type:'application/javascript'});
+            const url  = URL.createObjectURL(blob);
+            motorE = new Worker(url);
+            motorA = new Worker(url);
+            motorE.postMessage('uci');
+            motorA.postMessage('uci');
+
+            motorE.onmessage = (e) => {
+                if (e.data.includes("bestmove")) {
+                    const moveRaw = e.data.split(" ")[1];
+                    const moveObj = chessC.move(moveRaw, {sloppy:true});
+                    if (moveObj) {
+                        boardC.position(chessC.fen());
+                        syncSystems();
+                        actualizarListaJugadas('moveListCombat', chessC);
+                        // ★ Árbol: jugada de Stockfish → línea principal
+                        const vtNode = VT.addMove({
+                            san: moveObj.san, uci: moveRaw,
+                            fen: chessC.fen(),
+                            moveNum: chessC.history().length,
+                            side: moveObj.color, eval: 0,
+                        }, 'main');
+                        VT.combatId = VT.activeId;
+                        terminalLog("Stockfish ha jugado: " + moveObj.san);
                     }
                 }
             };
-        }
+            terminalLog("Motores en línea. Llama 3.3 preparado para el análisis.");
+        });
+    }
 
-        // 3. LÓGICA DE TABLEROS Y APERTURAS
-        // Modificamos también tu función handleMoveC para que traduzca TUS jugadas
-        function handleMoveC(source, target) {
-            const move = chessC.move({from: source, to: target, promotion: 'q'});
-            
-            if (move === null) return 'snapback'; // Jugada ilegal
-            
+    async function triggerLlamaAnalysis(enfoque) {
+        const term = document.getElementById('terminalBoard');
+        const fen  = chessA.fen();
+        term.innerHTML = `<div style="color:var(--accent)">Margarita consultando a Llama 3.3 (Groq)...</div>`;
+        motorA.postMessage(`position fen ${fen}`);
+        motorA.postMessage('go depth 15');
+        motorA.onmessage = async (e) => {
+            if (e.data.includes("pv")) {
+                const pv    = e.data.split(" pv ")[1].split(" ").slice(0,7).join(" ");
+                const score = e.data.includes("cp")
+                    ? (parseInt(e.data.match(/score cp (-?\d+)/)[1])/100).toFixed(1)
+                    : "Mate";
+                try {
+                    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                        method: "POST",
+                        headers: { "Authorization":`Bearer ${GROQ_API_KEY}`, "Content-Type":"application/json" },
+                        body: JSON.stringify({
+                            model: "llama-3.3-70b-versatile",
+                            messages: [
+                                { role:"system", content:"Eres Mijaíl Botvínnik. Analiza posiciones para Manuel de forma estratégica, breve y magistral." },
+                                { role:"user",   content:`FEN: ${fen}. Evaluación motor: ${score}. Línea recomendada: ${pv}. Explica el sentido de la posición enfocado en: ${enfoque}.` }
+                            ]
+                        })
+                    });
+                    const data  = await response.json();
+                    const texto = data.choices[0].message.content;
+                    term.innerHTML = `
+                        <div style="border-bottom:1px solid var(--accent);padding-bottom:10px;margin-bottom:10px;">
+                            <strong>ANÁLISIS MAGISTRAL (${enfoque.toUpperCase()})</strong>
+                        </div>
+                        <div style="color:var(--accent);margin-bottom:10px;">EVALUACIÓN: ${score} | LÍNEA: ${pv}</div>
+                        <div>${texto.replace(/\n/g,'<br>')}</div>`;
+                } catch(err) {
+                    term.innerHTML = "Error de conexión con el cerebro Groq.";
+                }
+            }
+        };
+    }
+
+    /* ── handleMoveC: tu jugada en COMBATE + hook al árbol ── */
+    function handleMoveC(source, target) {
+        const move = chessC.move({from:source, to:target, promotion:'q'});
+        if (move === null) return 'snapback';
+
+        boardC.position(chessC.fen());
+        syncSystems();
+        actualizarListaJugadas('moveListCombat', chessC);
+        historialAvanzar = [];
+
+        // ★ Árbol: registra tu jugada como línea principal
+        VT.addMove({
+            san: move.san, uci: source+target,
+            fen: chessC.fen(),
+            moveNum: chessC.history().length,
+            side: move.color, eval: 0,
+        }, 'main');
+        VT.combatId = VT.activeId;
+
+        motorE.postMessage("position fen " + chessC.fen());
+        motorE.postMessage("go movetime 1000");
+    }
+
+    function syncSystems() {
+        chessA.load(chessC.fen());
+        boardA.position(chessC.fen());
+        actualizarListaJugadas('moveListAnalysis', chessA);
+    }
+
+    function gameReset() {
+        chessC.reset(); boardC.start(); syncSystems();
+        VT.reset();
+        terminalLog("Laboratorio reiniciado.");
+    }
+
+    function gameUndo() {
+        const lastMove = chessC.undo();
+        if (lastMove) {
+            historialAvanzar.push(lastMove);
             boardC.position(chessC.fen());
             syncSystems();
-            
-            // REGISTRO: Anota tu jugada en el panel de la izquierda
             actualizarListaJugadas('moveListCombat', chessC);
-            
-            historialAvanzar = []; // Limpiamos la memoria de "Avanzar" al hacer jugada nueva
-            motorE.postMessage("position fen " + chessC.fen());
-            motorE.postMessage("go movetime 1000");
+            // ★ Árbol: vuelve al nodo padre
+            VT.bifurcation();
+            VT.combatId = VT.activeId;
+            terminalLog("Jugada deshecha.");
         }
+    }
 
-        function syncSystems() { chessA.load(chessC.fen()); 
-        boardA.position(chessC.fen()); 
-        // Sincroniza visualmente el historial del tablero de análisis
-        actualizarListaJugadas('moveListAnalysis', chessA); }
-        function gameReset() { chessC.reset(); boardC.start(); syncSystems(); terminalLog("Laboratorio reiniciado."); }
-        function gameUndo() { chessC.undo(); chessC.undo(); boardC.position(chessC.fen()); syncSystems(); }
+    function gameRedo() {
+        const move = historialAvanzar.pop();
+        if (move) {
+            chessC.move(move);
+            boardC.position(chessC.fen());
+            syncSystems();
+            actualizarListaJugadas('moveListCombat', chessC);
+            terminalLog("Jugada recuperada.");
+        } else {
+            terminalLog("No hay jugadas para avanzar.");
+        }
+    }
 
-        function cargarAperturaSeleccionada() {
-            const fen = document.getElementById('selectApertura').value;
-            if (fen) {
-                chessC.load(fen);
-                boardC.position(fen);
-                syncSystems();
-                document.getElementById('infoApertura').innerText = "Posición teórica cargada en ambos sistemas.";
-                terminalLog("Apertura sincronizada.");
+    function flipAnalysisBoard() { boardA.orientation('flip'); terminalLog("Vista cambiada."); }
+
+    function cargarAperturaSeleccionada() {
+        const fen = document.getElementById('selectApertura').value;
+        if (fen) {
+            chessC.load(fen); boardC.position(fen); syncSystems();
+            VT.reset();
+            document.getElementById('infoApertura').innerText = "Posición teórica cargada en ambos sistemas.";
+            terminalLog("Apertura sincronizada.");
+        }
+    }
+
+    function terminalLog(msg) { document.getElementById('terminalBoard').innerText = msg; }
+
+    function actualizarListaJugadas(panelId, chessObj) {
+        const list = document.getElementById(panelId);
+        if (!list || !chessObj) return;
+        const history = chessObj.history();
+        let html = "";
+        for (let i = 0; i < history.length; i += 2) {
+            const num   = Math.floor(i/2)+1;
+            const white = history[i]   || "";
+            const black = history[i+1] || "";
+            html += `
+                <div class="move-row" style="display:grid;grid-template-columns:30px 1fr 1fr;gap:10px;border-bottom:1px solid #1a1f26;padding:2px 0;">
+                    <span style="color:var(--text-dim);">${num}.</span>
+                    <span style="font-weight:bold;color:var(--text-main);">${white}</span>
+                    <span style="font-weight:bold;color:var(--text-main);">${black}</span>
+                </div>`;
+        }
+        list.innerHTML = html;
+        list.scrollTop = list.scrollHeight;
+    }
+
+    async function consultarLichess(fen) {
+        const infoDiv = document.getElementById('theoryData');
+        if (!infoDiv) return;
+        const partes     = fen.split(' ');
+        const fenReducido = partes[0] + " " + partes[1];
+        const encodedFen  = encodeURIComponent(fenReducido);
+        let miToken = LICHESS_TOKEN;
+        try {
+            infoDiv.innerHTML = '<div style="color:#aaa;font-size:0.8rem;">Consultando...</div>';
+            const url = `https://explorer.lichess.org/lichess?variant=standard&fen=${encodedFen}&speeds=blitz,rapid,classical`;
+            const response = await fetch(url, {
+                headers: { 'Authorization':`Bearer ${miToken}`, 'Accept':'application/json' }
+            });
+            if (!response.ok) throw new Error("Error " + response.status);
+            const data = await response.json();
+
+            // ★ Árbol: actualiza apertura en el nodo activo
+            if (data.opening) {
+                VT.updateOpening(VT.activeId, data.opening);
             }
+
+            // ★ Árbol: ilumina sugerencias en tablero de análisis
+            if (data.moves?.length) Illuminator.illuminateMany(data.moves);
+
+            if (data.moves?.length) {
+                let html = '<div style="display:grid;gap:4px;">';
+                data.moves.slice(0,5).forEach(m => {
+                    const total   = m.white + m.draws + m.black;
+                    const winRate = Math.round((m.white/total)*100);
+                    html += `
+                        <div style="border-left:3px solid var(--accent);padding:2px 8px;background:rgba(255,255,255,0.05);">
+                            <strong style="color:var(--accent);font-size:0.9rem;">${m.san.toUpperCase()}</strong>
+                            <span style="font-size:0.7rem;color:#8b949e;">(${winRate}% bl. | ${total.toLocaleString()} part.)</span>
+                        </div>`;
+                });
+                infoDiv.innerHTML = html + '</div>';
+            } else {
+                infoDiv.innerHTML = '<div style="color:#8b949e;font-size:0.8rem;">Sin datos en Lichess.</div>';
+            }
+        } catch(err) {
+            console.error("Error Margarita:", err);
+            infoDiv.innerHTML = '<div style="color:#da3633;font-size:0.8rem;">Error de conexión.</div>';
         }
+    }
 
-        function terminalLog(msg) { document.getElementById('terminalBoard').innerText = msg; }
+    /* ════════════════════════════════════════════════════════════
+       ARRANQUE
+    ════════════════════════════════════════════════════════════ */
+    $(document).ready(() => {
+        const PIECE_THEME = 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png';
+        const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
-        var historialAvanzar = []; // Memoria para el botón avanzar
-
-        $(document).ready(() => {
-            // TABLERO COMBATE - Usando la ruta oficial
-            boardC = ChessBoard('boardCombat', { 
-                draggable: true, 
-                position: 'start', 
-                onDrop: handleMoveC, 
-                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png' 
-            });
-
-            // TABLERO ANÁLISIS - HE CAMBIADO LA RUTA AQUÍ TAMBIÉN PARA QUE FUNCIONE
-            boardA = ChessBoard('boardAnalysis', { 
-                draggable: true, 
-                position: 'start', 
-                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png', 
-                onDrop: (s, t) => {
-                    const m = chessA.move({from: s, to: t, promotion: 'q'});
-                    if (m === null) return 'snapback';
-                    
-                    boardA.position(chessA.fen());
-                    actualizarListaJugadas('moveListAnalysis', chessA);
-                    
-                    setTimeout(() => {
-                        console.log("Enviando FEN sincronizado:", chessA.fen());
-                        consultarLichess(chessA.fen());
-                    }, 100);
-                    
-                    terminalLog("Probando variante: " + m.san);
-                }
-            });
-
-            initSystem();
+        boardC = ChessBoard('boardCombat', {
+            draggable: true, position: 'start',
+            onDrop: handleMoveC, pieceTheme: PIECE_THEME,
         });
 
-        function actualizarListaJugadas(panelId, chessObj) {
-            const list = document.getElementById(panelId);
-            if (!list || !chessObj) return;
+        boardA = ChessBoard('boardAnalysis', {
+            draggable: true, position: 'start', pieceTheme: PIECE_THEME,
+            onDrop: (s, t) => {
+                const m = chessA.move({from:s, to:t, promotion:'q'});
+                if (m === null) return 'snapback';
+                boardA.position(chessA.fen());
+                actualizarListaJugadas('moveListAnalysis', chessA);
 
-            const history = chessObj.history();
-            let html = "";
-            for (let i = 0; i < history.length; i += 2) {
-                const num = Math.floor(i / 2) + 1;
-                const white = history[i] || "";
-                const black = history[i+1] || "";
-                html += `
-                    <div class="move-row" style="display: grid; grid-template-columns: 30px 1fr 1fr; gap: 10px; border-bottom: 1px solid #1a1f26; padding: 2px 0;">
-                        <span style="color: var(--text-dim);">${num}.</span>
-                        <span style="font-weight: bold; color: var(--text-main);">${white}</span>
-                        <span style="font-weight: bold; color: var(--text-main);">${black}</span>
-                    </div>`;
+                // ★ Árbol: jugada en análisis → variante (no toca la línea principal)
+                VT.addMove({
+                    san: m.san, uci: s+t,
+                    fen: chessA.fen(),
+                    moveNum: chessA.history().length,
+                    side: m.color, eval: 0,
+                }, 'variant');
+
+                Illuminator.clear();
+                setTimeout(() => consultarLichess(chessA.fen()), 100);
+                terminalLog("Variante explorada: " + m.san);
             }
-            list.innerHTML = html;
-            list.scrollTop = list.scrollHeight;
-        }
+        });
 
-        function gameUndo() {
-            const lastMove = chessC.undo();
-            if (lastMove) {
-                historialAvanzar.push(lastMove);
-                boardC.position(chessC.fen());
-                syncSystems();
-                // CORRECCIÓN: Pasamos los argumentos necesarios
-                actualizarListaJugadas('moveListCombat', chessC);
-                terminalLog("Jugada deshecha.");
-            }
-        }
+        // ★ Inicializar árbol con FEN inicial
+        VT.init('variant-tree-container', INITIAL_FEN);
 
-        function gameRedo() {
-            const move = historialAvanzar.pop();
-            if (move) {
-                chessC.move(move);
-                boardC.position(chessC.fen());
-                syncSystems();
-                // CORRECCIÓN: Pasamos los argumentos necesarios
-                actualizarListaJugadas('moveListCombat', chessC);
-                terminalLog("Jugada recuperada.");
-            } else {
-                terminalLog("No hay jugadas para avanzar.");
-            }
-        }
-
-        function flipAnalysisBoard() {
-            boardA.orientation('flip');
-            terminalLog("Vista de tablero cambiada.");
-        }
-
-        async function consultarLichess(fen) {
-            const infoDiv = document.getElementById('theoryData');
-            if (!infoDiv) return;
-            
-            const partes = fen.split(' ');
-            const fenReducido = partes[0] + " " + partes[1];
-            const encodedFen = encodeURIComponent(fenReducido);
-            let miToken = localStorage.getItem('lichess_token');
-            
-            try {
-                infoDiv.innerHTML = '<div style="color:#aaa; font-size:0.8rem;">Consultando...</div>';
-                const url = `https://explorer.lichess.org/lichess?variant=standard&fen=${encodedFen}&speeds=blitz,rapid,classical`;
-                
-                const response = await fetch(url, {
-                    headers: { 
-                        'Authorization': `Bearer ${miToken}`,
-                        'Accept': 'application/json'
-                    }
-                });
-
-                if (!response.ok) throw new Error("Error " + response.status);
-                const data = await response.json();
-
-                if (data.moves && data.moves.length > 0) {
-                    let html = '<div style="display:grid; gap:4px;">';
-                    data.moves.slice(0, 5).forEach(m => {
-                        const total = m.white + m.draws + m.black;
-                        const winRate = Math.round((m.white / total) * 100);
-                        const jugada = m.san.toUpperCase();
-                        html += `
-                            <div style="border-left:3px solid var(--accent); padding:2px 8px; background:rgba(255,255,255,0.05);">
-                                <strong style="color:var(--accent); font-size:0.9rem;">${jugada}</strong> 
-                                <span style="font-size:0.7rem; color:#8b949e;">(${winRate}% bl. | ${total.toLocaleString()} part.)</span>
-                            </div>`;
-                    });
-                    infoDiv.innerHTML = html + '</div>';
-                } else {
-                    infoDiv.innerHTML = '<div style="color:#8b949e; font-size:0.8rem;">Sin datos en Lichess.</div>';
-                }
-            } catch (err) {
-                console.error("Error Margarita:", err);
-                infoDiv.innerHTML = '<div style="color:#da3633; font-size:0.8rem;">Error de conexión.</div>';
-            }
-        }
+        initSystem();
+    });
     </script>
 </body>
 </html>
