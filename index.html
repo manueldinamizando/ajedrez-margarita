@@ -409,25 +409,22 @@
 
     <script>
     /* ════════════════════════════════════════════════════════════
-       CONFIGURACIÓN NÚCLEO  (sin cambios)
-    ════════════════════════════════════════════════════════════ */
-    /* ════════════════════════════════════════════════════════════
    CONFIGURACIÓN NÚCLEO: GESTIÓN DE CREDENCIALES (MODO SEGURO)
 ════════════════════════════════════════════════════════════ */
 
-    // 1. Gestión de API Key de Groq
-    let GROQ_API_KEY = localStorage.getItem('groq_key') || "";
-    if (!GROQ_API_KEY) {
-        GROQ_API_KEY = prompt("Margarita necesita tu API KEY de GROQ para el análisis táctico:", "gsk_...");
-        if (GROQ_API_KEY) localStorage.setItem('groq_key', GROQ_API_KEY);
-    }
+// 1. Gestión de API Key de Groq
+let GROQ_API_KEY = localStorage.getItem('groq_key') || "";
+if (!GROQ_API_KEY) {
+    GROQ_API_KEY = prompt("Margarita necesita tu API KEY de GROQ para el análisis táctico:", "gsk_...");
+    if (GROQ_API_KEY) localStorage.setItem('groq_key', GROQ_API_KEY);
+}
 
-    // 2. Gestión de Token de Lichess
-    let LICHESS_TOKEN = localStorage.getItem('lichess_token') || "";
-    if (!LICHESS_TOKEN) {
-        LICHESS_TOKEN = prompt("Margarita necesita tu Personal Access Token de LICHESS para la teoría:", "");
-        if (LICHESS_TOKEN) localStorage.setItem('lichess_token', LICHESS_TOKEN);
-    }
+// 2. Gestión de Token de Lichess
+let LICHESS_TOKEN = localStorage.getItem('lichess_token') || "";
+if (!LICHESS_TOKEN) {
+    LICHESS_TOKEN = prompt("Margarita necesita tu Personal Access Token de LICHESS para la teoría:", "");
+    if (LICHESS_TOKEN) localStorage.setItem('lichess_token', LICHESS_TOKEN);
+}
     var chessC = new Chess(), chessA = new Chess();
     var boardC = null, boardA = null, motorE = null, motorA = null;
     var historialAvanzar = [];
@@ -547,29 +544,93 @@
         },
 
         promote() {
-            let cur = this.nodeMap.get(this.activeId);
-            while (cur) { cur.type = 'main'; cur = this.nodeMap.get(cur.parentId); }
+            const node = this.nodeMap.get(this.activeId);
+            if (!node) return;
+            if (node.type === 'main') {
+                terminalLog('ℹ️ Este nodo ya es línea principal.');
+                return;
+            }
+
+            // 1. Marca este nodo y todos sus hijos como 'main' (hacia abajo)
+            this._markSub(node, 'main');
+
+            // 2. Asegura que los ancestros hasta la raíz también sean 'main'
+            let ancestor = this.nodeMap.get(node.parentId);
+            while (ancestor) {
+                ancestor.type = 'main';
+                ancestor = this.nodeMap.get(ancestor.parentId);
+            }
+
+            // 3. Actualiza el nodo de combate
             this.combatId = this.activeId;
+
+            // 4. ★ Aplica el FEN al tablero de COMBATE
+            chessC.load(node.fen);
+            boardC.position(node.fen);
+
+            // 5. Sincroniza tablero de análisis
+            chessA.load(node.fen);
+            boardA.position(node.fen);
+
+            // 6. Actualiza listas de jugadas
+            actualizarListaJugadas('moveListCombat',   chessC);
+            actualizarListaJugadas('moveListAnalysis',  chessA);
+
+            // 7. Continúa el motor desde esta posición
+            if (motorE) {
+                motorE.postMessage('position fen ' + node.fen);
+                motorE.postMessage('go movetime 1000');
+            }
+
             this.render();
-            terminalLog('✅ Variante promovida a línea principal');
+            renderAnnotation(node);
+            terminalLog('✅ Variante promovida — Stockfish continúa desde esta posición.');
         },
 
         discard() {
             const node = this.nodeMap.get(this.activeId);
-            if (!node || node.type === 'main') return;
+            if (!node || node.type === 'main') {
+                terminalLog('ℹ️ No se puede descartar la línea principal.');
+                return;
+            }
+            // Marca el subárbol como descartado
             this._markSub(node, 'discarded');
+
+            // Vuelve al nodo padre y sincroniza el tablero de análisis
             const parent = this.nodeMap.get(node.parentId);
-            if (parent) { this.activeId = parent.id; }
+            if (parent) {
+                this.activeId = parent.id;
+                chessA.load(parent.fen);
+                boardA.position(parent.fen);
+                actualizarListaJugadas('moveListAnalysis', chessA);
+                renderAnnotation(parent);
+            }
+            Illuminator.clear();
             this.render();
+            terminalLog('🗑️ Variante descartada.');
         },
 
         bifurcation() {
             const node   = this.nodeMap.get(this.activeId);
             const parent = this.nodeMap.get(node?.parentId);
-            if (!parent) return null;
+            if (!parent) {
+                terminalLog('ℹ️ Ya estás en la raíz del árbol.');
+                return null;
+            }
             this.activeId = parent.id;
+
+            // Sincroniza el tablero de análisis con la posición del padre
+            chessA.load(parent.fen);
+            boardA.position(parent.fen);
+            actualizarListaJugadas('moveListAnalysis', chessA);
+            renderAnnotation(parent);
+            Illuminator.clear();
+
+            // Pide el Explorer para la posición del padre (mostrará variantes disponibles)
+            setTimeout(() => consultarLichess(parent.fen), 80);
+
             this.render();
-            this._dispatchSelected(parent);
+            terminalLog('🔀 Volviendo al punto de bifurcación: ' + parent.san);
             return parent;
         },
 
