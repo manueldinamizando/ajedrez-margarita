@@ -577,10 +577,10 @@
             chessA.load(node.fen);
             boardA.position(node.fen);
 
-            // 6. Al promover: ambos paneles se igualan en blanco
-            sharedMoveCount = chessC.history().length;
-            actualizarListaJugadas('moveListCombat',  chessC, false); // blanco
-            actualizarListaJugadas('moveListAnalysis', chessA, false); // blanco (igual al combate)
+            // 6. Al promover: los arrays se fusionan → ambos paneles en blanco
+            combatMoveHistory  = [...combatMoveHistory, ...analysisExtraMoves];
+            analysisExtraMoves = [];
+            refrescarPaneles();
 
             // 7. Continúa el motor desde esta posición
             if (motorE) {
@@ -608,7 +608,8 @@
                 this.activeId = parent.id;
                 chessA.load(parent.fen);
                 boardA.position(parent.fen);
-                actualizarListaJugadas('moveListAnalysis', chessA, true);
+                analysisExtraMoves = [];
+                refrescarPaneles();
                 renderAnnotation(parent);
             }
             Illuminator.clear();
@@ -628,7 +629,8 @@
             // Sincroniza el tablero de análisis con la posición del padre
             chessA.load(parent.fen);
             boardA.position(parent.fen);
-            actualizarListaJugadas('moveListAnalysis', chessA, true);
+            analysisExtraMoves = [];
+            refrescarPaneles();
             renderAnnotation(parent);
             Illuminator.clear();
 
@@ -1023,14 +1025,16 @@
                     const moveRaw = e.data.split(" ")[1];
                     const moveObj = chessC.move(moveRaw, {sloppy:true});
                     if (moveObj) {
+                        combatMoveHistory.push(moveObj.san);
+                        analysisExtraMoves = [];
                         boardC.position(chessC.fen());
-                        syncSystems();
-                        actualizarListaJugadas('moveListCombat', chessC, false);
-                        // ★ Árbol: jugada de Stockfish → línea principal
-                        const vtNode = VT.addMove({
+                        chessA.load(chessC.fen()); boardA.position(chessC.fen());
+                        refrescarPaneles();
+                        actualizarTurno();
+                        VT.addMove({
                             san: moveObj.san, uci: moveRaw,
                             fen: chessC.fen(),
-                            moveNum: chessC.history().length,
+                            moveNum: combatMoveHistory.length,
                             side: moveObj.color, eval: 0,
                         }, 'main');
                         VT.combatId = VT.activeId;
@@ -1081,39 +1085,31 @@
         };
     }
 
-    /* ── handleMoveC: tu jugada en COMBATE + hook al árbol ── */
+    /* ── handleMoveC: tu jugada en COMBATE ── */
     function handleMoveC(source, target) {
         const move = chessC.move({from:source, to:target, promotion:'q'});
         if (move === null) return 'snapback';
 
+        // Empuja a nuestro array propio y limpia la variante
+        combatMoveHistory.push(move.san);
+        analysisExtraMoves = [];
+
         boardC.position(chessC.fen());
-
-        // ★ ORDEN CORRECTO:
-        // 1. Panel COMBATE primero → actualiza sharedMoveCount al nuevo valor
-        actualizarListaJugadas('moveListCombat', chessC, false);
-
-        // 2. Sincroniza tablero de análisis con el FEN nuevo
         chessA.load(chessC.fen());
         boardA.position(chessC.fen());
-
-        // 3. Panel ANÁLISIS → sharedMoveCount ya es correcto, todo sale en blanco
-        actualizarListaJugadas('moveListAnalysis', chessA, true);
-
+        refrescarPaneles();
         actualizarTurno();
         historialAvanzar = [];
 
-        // ★ Árbol: registra tu jugada como línea principal
         VT.addMove({
             san: move.san, uci: source+target,
             fen: chessC.fen(),
-            moveNum: chessC.history().length,
+            moveNum: combatMoveHistory.length,
             side: move.color, eval: 0,
         }, 'main');
         VT.combatId = VT.activeId;
 
-        // ★ Consulta apertura tras tu jugada
         consultarLichess(chessC.fen());
-
         motorE.postMessage("position fen " + chessC.fen());
         motorE.postMessage("go movetime 1000");
     }
@@ -1121,17 +1117,19 @@
     function syncSystems() {
         chessA.load(chessC.fen());
         boardA.position(chessC.fen());
-        // false: el análisis está sincronizado con combate, no hay variante
-        actualizarListaJugadas('moveListAnalysis', chessA, false);
+        refrescarPaneles();
         actualizarTurno();
     }
 
     function gameReset() {
         chessC.reset(); boardC.start();
-        sharedMoveCount = 0;
+        combatMoveHistory  = [];
+        analysisExtraMoves = [];
         currentOpeningEco  = null;
         currentOpeningName = null;
-        syncSystems();
+        chessA.reset(); boardA.start();
+        refrescarPaneles();
+        actualizarTurno();
         VT.reset();
         document.getElementById('variant-annotation').innerHTML =
             '<div style="color:var(--text-dim);font-size:11px;">Haz click en un nodo del árbol para ver los detalles.</div>';
@@ -1142,10 +1140,12 @@
         const lastMove = chessC.undo();
         if (lastMove) {
             historialAvanzar.push(lastMove);
+            combatMoveHistory.pop();
+            analysisExtraMoves = [];
             boardC.position(chessC.fen());
-            syncSystems();
-            actualizarListaJugadas('moveListCombat', chessC, false);
-            // ★ Árbol: vuelve al nodo padre
+            chessA.load(chessC.fen()); boardA.position(chessC.fen());
+            refrescarPaneles();
+            actualizarTurno();
             VT.bifurcation();
             VT.combatId = VT.activeId;
             terminalLog("Jugada deshecha.");
@@ -1156,9 +1156,12 @@
         const move = historialAvanzar.pop();
         if (move) {
             chessC.move(move);
+            combatMoveHistory.push(typeof move === 'string' ? move : move.san);
+            analysisExtraMoves = [];
             boardC.position(chessC.fen());
-            syncSystems();
-            actualizarListaJugadas('moveListCombat', chessC, false);
+            chessA.load(chessC.fen()); boardA.position(chessC.fen());
+            refrescarPaneles();
+            actualizarTurno();
             terminalLog("Jugada recuperada.");
         } else {
             terminalLog("No hay jugadas para avanzar.");
@@ -1170,7 +1173,10 @@
     function cargarAperturaSeleccionada() {
         const fen = document.getElementById('selectApertura').value;
         if (fen) {
-            chessC.load(fen); boardC.position(fen); syncSystems();
+            chessC.load(fen); boardC.position(fen);
+            combatMoveHistory  = [];
+            analysisExtraMoves = [];
+            syncSystems();
             VT.reset();
             document.getElementById('infoApertura').innerText = "Posición teórica cargada en ambos sistemas.";
             terminalLog("Apertura sincronizada.");
@@ -1179,61 +1185,71 @@
 
     function terminalLog(msg) { document.getElementById('terminalBoard').innerText = msg; }
 
-    // Jugadas de la línea principal en COMBATE
-    var sharedMoveCount = 0;
-    // Apertura detectada por Lichess (para mostrar en cabecera del panel de análisis)
+    // ── Arrays propios de historial (no usamos chessObj.history() porque
+    //    Chess.js no reconstruye historial al hacer load(fen)) ──
+    var combatMoveHistory  = [];  // jugadas SAN de la línea principal (combate)
+    var analysisExtraMoves = [];  // jugadas SAN extra del tablero de análisis (variante)
     var currentOpeningEco  = null;
     var currentOpeningName = null;
 
-    function actualizarListaJugadas(panelId, chessObj, isAnalysis) {
+    // Construye el HTML de una fila de jugadas
+    function _moveRowHtml(num, white, black, wRed, bRed) {
+        const wC = wRed ? '#ef5350' : 'var(--text-main)';
+        const bC = bRed ? '#ef5350' : 'var(--text-main)';
+        const wB = wRed ? 'rgba(239,83,80,0.1)' : 'transparent';
+        const bB = bRed ? 'rgba(239,83,80,0.1)' : 'transparent';
+        return `<div style="display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;
+                    border-bottom:1px solid #1a1f26;padding:2px 0;">
+            <span style="color:var(--text-dim);">${num}.</span>
+            <span style="font-weight:700;padding:1px 4px;border-radius:3px;
+                  color:${wC};background:${wB};">${white}</span>
+            <span style="font-weight:700;padding:1px 4px;border-radius:3px;
+                  color:${bC};background:${bB};">${black}</span>
+        </div>`;
+    }
+
+    // Renderiza los paneles usando los arrays propios
+    function actualizarListaJugadas(panelId, _unused, isAnalysis) {
         const list = document.getElementById(panelId);
-        if (!list || !chessObj) return;
-        const history = chessObj.history();
+        if (!list) return;
 
-        // COMBATE: actualiza el contador de jugadas de línea principal
-        if (!isAnalysis) sharedMoveCount = history.length;
+        const main  = combatMoveHistory;    // jugadas blancas (siempre)
+        const extra = isAnalysis ? analysisExtraMoves : []; // jugadas rojas
 
-        const hasVariant = isAnalysis && history.length > sharedMoveCount;
+        const allMoves = [...main, ...extra];
+        const splitAt  = main.length;       // a partir de aquí → rojo
+        const hasExtra = extra.length > 0;
+
         let html = '';
 
-        // ── Cabecera en rojo con nombre de apertura cuando hay variante ──
-        if (hasVariant) {
-            const opLabel = (currentOpeningEco && currentOpeningName)
-                ? `${currentOpeningEco} — ${currentOpeningName}`
-                : currentOpeningName || '';
+        // Cabecera de variante en rojo (solo panel análisis con jugadas extra)
+        if (isAnalysis && hasExtra) {
+            const opLabel = [currentOpeningEco, currentOpeningName].filter(Boolean).join(' — ');
             if (opLabel) {
                 html += `<div style="color:#ef5350;font-size:0.75rem;font-weight:700;
-                    padding:4px 8px;margin-bottom:4px;
-                    background:rgba(239,83,80,0.08);border-radius:4px;
-                    border-left:3px solid #ef5350;">📖 ${opLabel}</div>`;
+                    padding:4px 8px;margin-bottom:4px;background:rgba(239,83,80,0.08);
+                    border-radius:4px;border-left:3px solid #ef5350;">📖 ${opLabel}</div>`;
             }
             html += `<div style="color:#ef5350;font-size:0.68rem;letter-spacing:2px;
                 text-transform:uppercase;padding:3px 0;margin-bottom:4px;
                 border-bottom:1px dashed rgba(239,83,80,0.3);">── Variante ──</div>`;
         }
 
-        // ── Filas de jugadas ──
-        for (let i = 0; i < history.length; i += 2) {
+        for (let i = 0; i < allMoves.length; i += 2) {
             const num   = Math.floor(i / 2) + 1;
-            const white = history[i]     || '';
-            const black = history[i + 1] || '';
-            const wVar  = isAnalysis && i     >= sharedMoveCount;
-            const bVar  = isAnalysis && i + 1 >= sharedMoveCount;
-
-            html += `<div style="display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;
-                         border-bottom:1px solid #1a1f26;padding:2px 0;">
-                <span style="color:var(--text-dim);">${num}.</span>
-                <span style="font-weight:700;padding:1px 4px;border-radius:3px;
-                      color:${wVar ? '#ef5350' : 'var(--text-main)'};
-                      background:${wVar ? 'rgba(239,83,80,0.1)' : 'transparent'};">${white}</span>
-                <span style="font-weight:700;padding:1px 4px;border-radius:3px;
-                      color:${bVar ? '#ef5350' : 'var(--text-main)'};
-                      background:${bVar ? 'rgba(239,83,80,0.1)' : 'transparent'};">${black}</span>
-            </div>`;
+            const white = allMoves[i]     || '';
+            const black = allMoves[i + 1] || '';
+            html += _moveRowHtml(num, white, black, i >= splitAt, i+1 >= splitAt);
         }
 
         list.innerHTML = html;
         list.scrollTop = list.scrollHeight;
+    }
+
+    // Refresca ambos paneles de jugadas
+    function refrescarPaneles() {
+        actualizarListaJugadas('moveListCombat',   null, false);
+        actualizarListaJugadas('moveListAnalysis', null, true);
     }
 
     // ── Indicador de turno: muestra ⬜ BLANCAS / ⬛ NEGRAS bajo cada tablero ──
@@ -1345,18 +1361,18 @@
             onDrop: (s, t) => {
                 const m = chessA.move({from:s, to:t, promotion:'q'});
                 if (m === null) return 'snapback';
+                analysisExtraMoves.push(m.san);
                 boardA.position(chessA.fen());
-                // true: hay variante, jugadas extra en rojo
-                actualizarListaJugadas('moveListAnalysis', chessA, true);
+                refrescarPaneles();
+                actualizarTurno();
 
-                // ★ Árbol: jugada en análisis → variante (no toca la línea principal)
                 const vtNode = VT.addMove({
                     san: m.san, uci: s+t,
                     fen: chessA.fen(),
-                    moveNum: chessA.history().length,
+                    moveNum: combatMoveHistory.length + analysisExtraMoves.length,
                     side: m.color, eval: 0,
                 }, 'variant');
-                lastVariantId = vtNode?.id ?? null; // ★ guarda referencia para Promover
+                lastVariantId = vtNode?.id ?? null;
 
                 Illuminator.clear();
                 setTimeout(() => consultarLichess(chessA.fen()), 100);
@@ -1372,6 +1388,7 @@
     </script>
 </body>
 </html>
+
 
 
 
