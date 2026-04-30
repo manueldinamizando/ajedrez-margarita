@@ -419,7 +419,19 @@
     /* ════════════════════════════════════════════════════════════
        CONFIGURACIÓN NÚCLEO  (sin cambios)
     ════════════════════════════════════════════════════════════ */
-    const GROQ_API_KEY = "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";
+    /* ════════════════════════════════════════════════════════════
+    CONFIGURACIÓN NÚCLEO (Segura para GitHub)
+════════════════════════════════════════════════════════════ */
+        // Intentamos recuperar la clave del almacenamiento local del navegador
+        let GROQ_API_KEY = localStorage.getItem('groq_api_key') || "";
+
+        // Si no hay clave, la pedimos una sola vez
+        if (!GROQ_API_KEY) {
+            GROQ_API_KEY = prompt("Introduce tu GROQ API KEY (se guardará solo en este navegador):");
+            if (GROQ_API_KEY) {
+                localStorage.setItem('groq_api_key', GROQ_API_KEY);
+            }
+        }
     var chessC = new Chess(), chessA = new Chess();
     var boardC = null, boardA = null, motorE = null, motorA = null;
     var historialAvanzar = [];
@@ -568,9 +580,10 @@
             chessA.load(node.fen);
             boardA.position(node.fen);
 
-            // 6. Actualiza listas de jugadas
-            actualizarListaJugadas('moveListCombat',   chessC);
-            actualizarListaJugadas('moveListAnalysis',  chessA);
+            // 6. Actualiza listas de jugadas (al promover ambos muestran la misma línea)
+            sharedMoveCount = chessC.history().length;
+            actualizarListaJugadas('moveListCombat',   chessC, false);
+            actualizarListaJugadas('moveListAnalysis',  chessA, false);
 
             // 7. Continúa el motor desde esta posición
             if (motorE) {
@@ -598,7 +611,7 @@
                 this.activeId = parent.id;
                 chessA.load(parent.fen);
                 boardA.position(parent.fen);
-                actualizarListaJugadas('moveListAnalysis', chessA);
+                actualizarListaJugadas('moveListAnalysis', chessA, true);
                 renderAnnotation(parent);
             }
             Illuminator.clear();
@@ -642,7 +655,14 @@
 
         updateOpening(nodeId, opening) {
             const n = this.nodeMap.get(nodeId);
-            if (n && opening) { n.opening = opening; this.render(); }
+            if (!n || !opening) return;
+            // Muta la referencia ORIGINAL en el nodeMap (no una copia)
+            n.opening = opening;
+            this.render(); // actualiza el árbol D3
+            // Si el nodo sigue siendo el activo, refresca el panel de anotación
+            if (this.activeId === nodeId) {
+                renderAnnotation(n); // pasa la referencia mutada, no VT.activeNode
+            }
         },
 
         reset() {
@@ -1094,7 +1114,7 @@
     function syncSystems() {
         chessA.load(chessC.fen());
         boardA.position(chessC.fen());
-        actualizarListaJugadas('moveListAnalysis', chessA);
+        actualizarListaJugadas('moveListAnalysis', chessA, true);
         actualizarTurno();
     }
 
@@ -1145,23 +1165,48 @@
 
     function terminalLog(msg) { document.getElementById('terminalBoard').innerText = msg; }
 
-    function actualizarListaJugadas(panelId, chessObj) {
+    // Jugadas de la línea principal en COMBATE (para saber cuándo empieza la variante)
+    var sharedMoveCount = 0;
+
+    function actualizarListaJugadas(panelId, chessObj, isAnalysis) {
         const list = document.getElementById(panelId);
         if (!list || !chessObj) return;
         const history = chessObj.history();
-        let html = "";
+        if (!isAnalysis) sharedMoveCount = history.length;
+
+        let html = '';
         for (let i = 0; i < history.length; i += 2) {
-            const num   = Math.floor(i/2)+1;
-            const white = history[i]   || "";
-            const black = history[i+1] || "";
-            html += `
-                <div class="move-row" style="display:grid;grid-template-columns:30px 1fr 1fr;gap:10px;border-bottom:1px solid #1a1f26;padding:2px 0;">
-                    <span style="color:var(--text-dim);">${num}.</span>
-                    <span style="font-weight:bold;color:var(--text-main);">${white}</span>
-                    <span style="font-weight:bold;color:var(--text-main);">${black}</span>
-                </div>`;
+            const num   = Math.floor(i / 2) + 1;
+            const white = history[i]     || '';
+            const black = history[i + 1] || '';
+
+            // Jugadas más allá de la línea principal → rojo en panel de análisis
+            const wVar = isAnalysis && i     >= sharedMoveCount;
+            const bVar = isAnalysis && i + 1 >= sharedMoveCount;
+
+            html += `<div style="display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;
+                         border-bottom:1px solid #1a1f26;padding:2px 0;">
+                <span style="color:var(--text-dim);">${num}.</span>
+                <span style="font-weight:700;padding:1px 4px;border-radius:3px;
+                      color:${wVar ? '#ef5350' : 'var(--text-main)'};
+                      background:${wVar ? 'rgba(239,83,80,0.1)' : 'transparent'};"
+                      ${wVar ? 'title="Variante"' : ''}>${white}</span>
+                <span style="font-weight:700;padding:1px 4px;border-radius:3px;
+                      color:${bVar ? '#ef5350' : 'var(--text-main)'};
+                      background:${bVar ? 'rgba(239,83,80,0.1)' : 'transparent'};"
+                      ${bVar ? 'title="Variante"' : ''}>${black}</span>
+            </div>`;
         }
-        list.innerHTML = html;
+
+        // Separador visual si hay variante
+        if (isAnalysis && history.length > sharedMoveCount) {
+            const sep = `<div style="color:#ef5350;font-size:0.7rem;letter-spacing:2px;
+                text-transform:uppercase;padding:5px 0 3px;margin-bottom:3px;
+                border-bottom:1px dashed #ef535040;">── Variante ──</div>`;
+            list.innerHTML = sep + html;
+        } else {
+            list.innerHTML = html;
+        }
         list.scrollTop = list.scrollHeight;
     }
 
@@ -1181,15 +1226,15 @@
         const infoDiv = document.getElementById('theoryData');
         if (!infoDiv) return;
 
-        // FEN completo para el explorer (posición + turno)
-        const partes      = fen.split(' ');
-        const fenReducido  = partes[0] + ' ' + partes[1];
-        const encodedFen   = encodeURIComponent(fenReducido);
+        // ★ FIX RACE CONDITION: capturamos el nodeId AHORA, antes del await.
+        // Si el usuario mueve rápido y VT.activeId cambia durante la espera,
+        // seguimos actualizando el nodo CORRECTO (el que hizo la petición).
+        const capturedNodeId = VT.activeId;
 
-        // URL CORRECTA: explorer.lichess.ovh (no .org)
-        const url = `https://explorer.lichess.ovh/lichess?variant=standard&fen=${encodedFen}&speeds=blitz,rapid,classical&ratings=2000,2200,2500&moves=8`;
+        const encodedFen = encodeURIComponent(fen);
+        // Todos los rangos de ELO y velocidades para maximizar partidas en apertura
+        const url = `https://explorer.lichess.ovh/lichess?variant=standard&fen=${encodedFen}&speeds=ultraBullet,bullet,blitz,rapid,classical,correspondence&ratings=1600,1800,2000,2200,2500&moves=8`;
 
-        // Token opcional — no enviamos header si no existe
         const miToken = localStorage.getItem('lichess_token');
         const headers  = { 'Accept': 'application/json' };
         if (miToken) headers['Authorization'] = `Bearer ${miToken}`;
@@ -1200,13 +1245,15 @@
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const data = await response.json();
 
-            // ★ 1. Apertura en el nodo activo del árbol
+            // ★ FIX: usamos capturedNodeId (clausura), NO VT.activeId (puede haber cambiado)
             if (data.opening) {
-                VT.updateOpening(VT.activeId, data.opening);
+                VT.updateOpening(capturedNodeId, data.opening);
+                // updateOpening ya llama a renderAnnotation si el nodo sigue activo
             }
 
-            // ★ 2. Panel de anotación: apertura + variantes
-            renderAnnotation(VT.activeNode, data);
+            // ★ FIX: recuperamos la referencia FRESCA del nodeMap (ya mutada con opening)
+            const freshNode = VT.nodeMap.get(capturedNodeId);
+            renderAnnotation(freshNode, data);
 
             // ★ 3. Flechas en tablero de análisis
             if (data.moves?.length) Illuminator.illuminateMany(data.moves);
@@ -1268,7 +1315,7 @@
                 const m = chessA.move({from:s, to:t, promotion:'q'});
                 if (m === null) return 'snapback';
                 boardA.position(chessA.fen());
-                actualizarListaJugadas('moveListAnalysis', chessA);
+                actualizarListaJugadas('moveListAnalysis', chessA, true);
 
                 // ★ Árbol: jugada en análisis → variante (no toca la línea principal)
                 const vtNode = VT.addMove({
@@ -1293,6 +1340,7 @@
     </script>
 </body>
 </html>
+
 
 
 
