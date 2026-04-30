@@ -419,10 +419,7 @@
     /* ════════════════════════════════════════════════════════════
        CONFIGURACIÓN NÚCLEO  (sin cambios)
     ════════════════════════════════════════════════════════════ */
-    /* ════════════════════════════════════════════════════════════
-    CONFIGURACIÓN NÚCLEO (Segura para GitHub)
-════════════════════════════════════════════════════════════ */
-        // Intentamos recuperar la clave del almacenamiento local del navegador
+    // Intentamos recuperar la clave del almacenamiento local del navegador
         let GROQ_API_KEY = localStorage.getItem('groq_api_key') || "";
 
         // Si no hay clave, la pedimos una sola vez
@@ -580,10 +577,10 @@
             chessA.load(node.fen);
             boardA.position(node.fen);
 
-            // 6. Actualiza listas de jugadas (al promover ambos muestran la misma línea)
+            // 6. Al promover: ambos paneles se igualan en blanco
             sharedMoveCount = chessC.history().length;
-            actualizarListaJugadas('moveListCombat',   chessC, false);
-            actualizarListaJugadas('moveListAnalysis',  chessA, false);
+            actualizarListaJugadas('moveListCombat',  chessC, false); // blanco
+            actualizarListaJugadas('moveListAnalysis', chessA, false); // blanco (igual al combate)
 
             // 7. Continúa el motor desde esta posición
             if (motorE) {
@@ -1090,8 +1087,18 @@
         if (move === null) return 'snapback';
 
         boardC.position(chessC.fen());
-        syncSystems();
-        actualizarListaJugadas('moveListCombat', chessC);
+
+        // ★ ORDEN CORRECTO:
+        // 1. Panel COMBATE primero → actualiza sharedMoveCount al nuevo valor
+        actualizarListaJugadas('moveListCombat', chessC, false);
+
+        // 2. Sincroniza tablero de análisis con el FEN nuevo
+        chessA.load(chessC.fen());
+        boardA.position(chessC.fen());
+
+        // 3. Panel ANÁLISIS → sharedMoveCount ya es correcto, todo sale en blanco
+        actualizarListaJugadas('moveListAnalysis', chessA, true);
+
         actualizarTurno();
         historialAvanzar = [];
 
@@ -1114,13 +1121,20 @@
     function syncSystems() {
         chessA.load(chessC.fen());
         boardA.position(chessC.fen());
-        actualizarListaJugadas('moveListAnalysis', chessA, true);
+        // false: el análisis está sincronizado con combate, no hay variante
+        actualizarListaJugadas('moveListAnalysis', chessA, false);
         actualizarTurno();
     }
 
     function gameReset() {
-        chessC.reset(); boardC.start(); syncSystems();
+        chessC.reset(); boardC.start();
+        sharedMoveCount = 0;
+        currentOpeningEco  = null;
+        currentOpeningName = null;
+        syncSystems();
         VT.reset();
+        document.getElementById('variant-annotation').innerHTML =
+            '<div style="color:var(--text-dim);font-size:11px;">Haz click en un nodo del árbol para ver los detalles.</div>';
         terminalLog("Laboratorio reiniciado.");
     }
 
@@ -1165,48 +1179,60 @@
 
     function terminalLog(msg) { document.getElementById('terminalBoard').innerText = msg; }
 
-    // Jugadas de la línea principal en COMBATE (para saber cuándo empieza la variante)
+    // Jugadas de la línea principal en COMBATE
     var sharedMoveCount = 0;
+    // Apertura detectada por Lichess (para mostrar en cabecera del panel de análisis)
+    var currentOpeningEco  = null;
+    var currentOpeningName = null;
 
     function actualizarListaJugadas(panelId, chessObj, isAnalysis) {
         const list = document.getElementById(panelId);
         if (!list || !chessObj) return;
         const history = chessObj.history();
+
+        // COMBATE: actualiza el contador de jugadas de línea principal
         if (!isAnalysis) sharedMoveCount = history.length;
 
+        const hasVariant = isAnalysis && history.length > sharedMoveCount;
         let html = '';
+
+        // ── Cabecera en rojo con nombre de apertura cuando hay variante ──
+        if (hasVariant) {
+            const opLabel = (currentOpeningEco && currentOpeningName)
+                ? `${currentOpeningEco} — ${currentOpeningName}`
+                : currentOpeningName || '';
+            if (opLabel) {
+                html += `<div style="color:#ef5350;font-size:0.75rem;font-weight:700;
+                    padding:4px 8px;margin-bottom:4px;
+                    background:rgba(239,83,80,0.08);border-radius:4px;
+                    border-left:3px solid #ef5350;">📖 ${opLabel}</div>`;
+            }
+            html += `<div style="color:#ef5350;font-size:0.68rem;letter-spacing:2px;
+                text-transform:uppercase;padding:3px 0;margin-bottom:4px;
+                border-bottom:1px dashed rgba(239,83,80,0.3);">── Variante ──</div>`;
+        }
+
+        // ── Filas de jugadas ──
         for (let i = 0; i < history.length; i += 2) {
             const num   = Math.floor(i / 2) + 1;
             const white = history[i]     || '';
             const black = history[i + 1] || '';
-
-            // Jugadas más allá de la línea principal → rojo en panel de análisis
-            const wVar = isAnalysis && i     >= sharedMoveCount;
-            const bVar = isAnalysis && i + 1 >= sharedMoveCount;
+            const wVar  = isAnalysis && i     >= sharedMoveCount;
+            const bVar  = isAnalysis && i + 1 >= sharedMoveCount;
 
             html += `<div style="display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;
                          border-bottom:1px solid #1a1f26;padding:2px 0;">
                 <span style="color:var(--text-dim);">${num}.</span>
                 <span style="font-weight:700;padding:1px 4px;border-radius:3px;
                       color:${wVar ? '#ef5350' : 'var(--text-main)'};
-                      background:${wVar ? 'rgba(239,83,80,0.1)' : 'transparent'};"
-                      ${wVar ? 'title="Variante"' : ''}>${white}</span>
+                      background:${wVar ? 'rgba(239,83,80,0.1)' : 'transparent'};">${white}</span>
                 <span style="font-weight:700;padding:1px 4px;border-radius:3px;
                       color:${bVar ? '#ef5350' : 'var(--text-main)'};
-                      background:${bVar ? 'rgba(239,83,80,0.1)' : 'transparent'};"
-                      ${bVar ? 'title="Variante"' : ''}>${black}</span>
+                      background:${bVar ? 'rgba(239,83,80,0.1)' : 'transparent'};">${black}</span>
             </div>`;
         }
 
-        // Separador visual si hay variante
-        if (isAnalysis && history.length > sharedMoveCount) {
-            const sep = `<div style="color:#ef5350;font-size:0.7rem;letter-spacing:2px;
-                text-transform:uppercase;padding:5px 0 3px;margin-bottom:3px;
-                border-bottom:1px dashed #ef535040;">── Variante ──</div>`;
-            list.innerHTML = sep + html;
-        } else {
-            list.innerHTML = html;
-        }
+        list.innerHTML = html;
         list.scrollTop = list.scrollHeight;
     }
 
@@ -1247,8 +1273,13 @@
 
             // ★ FIX: usamos capturedNodeId (clausura), NO VT.activeId (puede haber cambiado)
             if (data.opening) {
+                // Guarda en variables globales para el encabezado del panel de análisis
+                currentOpeningEco  = data.opening.eco;
+                currentOpeningName = data.opening.name;
                 VT.updateOpening(capturedNodeId, data.opening);
                 // updateOpening ya llama a renderAnnotation si el nodo sigue activo
+                // Refresca el panel de análisis con la apertura en rojo (si hay variante)
+                actualizarListaJugadas('moveListAnalysis', chessA, true);
             }
 
             // ★ FIX: recuperamos la referencia FRESCA del nodeMap (ya mutada con opening)
@@ -1315,6 +1346,7 @@
                 const m = chessA.move({from:s, to:t, promotion:'q'});
                 if (m === null) return 'snapback';
                 boardA.position(chessA.fen());
+                // true: hay variante, jugadas extra en rojo
                 actualizarListaJugadas('moveListAnalysis', chessA, true);
 
                 // ★ Árbol: jugada en análisis → variante (no toca la línea principal)
@@ -1340,6 +1372,7 @@
     </script>
 </body>
 </html>
+
 
 
 
