@@ -628,7 +628,7 @@
             // Sincroniza el tablero de análisis con la posición del padre
             chessA.load(parent.fen);
             boardA.position(parent.fen);
-            actualizarListaJugadas('moveListAnalysis', chessA);
+            actualizarListaJugadas('moveListAnalysis', chessA, true);
             renderAnnotation(parent);
             Illuminator.clear();
 
@@ -998,7 +998,7 @@
         if (!node?.fen) return;
         chessA.load(node.fen);
         boardA.position(node.fen);
-        actualizarListaJugadas('moveListAnalysis', chessA);
+        actualizarListaJugadas('moveListAnalysis', chessA, true);
         renderAnnotation(node);
         // Pide teoría Lichess para el nodo seleccionado
         consultarLichess(node.fen);
@@ -1025,7 +1025,7 @@
                     if (moveObj) {
                         boardC.position(chessC.fen());
                         syncSystems();
-                        actualizarListaJugadas('moveListCombat', chessC);
+                        actualizarListaJugadas('moveListCombat', chessC, false);
                         // ★ Árbol: jugada de Stockfish → línea principal
                         const vtNode = VT.addMove({
                             san: moveObj.san, uci: moveRaw,
@@ -1144,7 +1144,7 @@
             historialAvanzar.push(lastMove);
             boardC.position(chessC.fen());
             syncSystems();
-            actualizarListaJugadas('moveListCombat', chessC);
+            actualizarListaJugadas('moveListCombat', chessC, false);
             // ★ Árbol: vuelve al nodo padre
             VT.bifurcation();
             VT.combatId = VT.activeId;
@@ -1158,7 +1158,7 @@
             chessC.move(move);
             boardC.position(chessC.fen());
             syncSystems();
-            actualizarListaJugadas('moveListCombat', chessC);
+            actualizarListaJugadas('moveListCombat', chessC, false);
             terminalLog("Jugada recuperada.");
         } else {
             terminalLog("No hay jugadas para avanzar.");
@@ -1372,6 +1372,7 @@
     </script>
 </body>
 </html>
+
 
 
 
