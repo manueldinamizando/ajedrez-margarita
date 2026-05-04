@@ -282,7 +282,116 @@
             box-shadow: 0 4px 16px rgba(0,0,0,0.7);
         }
 
-        /* Animación pulso en casillas iluminadas */
+        /* Jugadas clickables en el panel de ruta */
+        .path-chip {
+            display: inline-block;
+            padding: 2px 7px;
+            margin: 2px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 11px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+        .path-chip:hover { border-color: var(--accent-blue); background: rgba(31,111,235,0.15); }
+        .path-chip.main-chip  { color: var(--text-main); }
+        .path-chip.var-chip   { color: #ef5350; background: rgba(239,83,80,0.08); }
+        .path-chip.active-chip {
+            background: var(--accent-blue) !important;
+            color: #fff !important;
+            border-color: var(--accent-blue) !important;
+        }
+        .path-num { color: var(--text-dim); font-size: 10px; margin-right: 2px; }
+
+        /* ── 3 Estados del tablero ── */
+
+        /* Estado 1: casilla teoría (azul suave, pulso) */
+        @keyframes vt-pulse-teoria {
+            0%,100% { opacity: 0.55; box-shadow: inset 0 0 0 3px rgba(52,152,219,0.7); }
+            50%      { opacity: 0.30; box-shadow: inset 0 0 0 3px rgba(52,152,219,0.3); }
+        }
+        .sq-teoria-from {
+            background: rgba(52,152,219,0.20) !important;
+            box-shadow: inset 0 0 0 3px rgba(52,152,219,0.6) !important;
+            animation: vt-pulse-teoria 1.8s ease-in-out infinite;
+            position: relative; z-index: 5;
+        }
+        .sq-teoria-to {
+            background: rgba(52,152,219,0.45) !important;
+            box-shadow: inset 0 0 0 3px rgba(52,152,219,0.9) !important;
+            animation: vt-pulse-teoria 1.8s ease-in-out infinite;
+            position: relative; z-index: 5;
+        }
+        /* Hover preview de candidata */
+        .sq-hover-from { background: rgba(168,85,247,0.20) !important; box-shadow: inset 0 0 0 2px rgba(168,85,247,0.7) !important; }
+        .sq-hover-to   { background: rgba(168,85,247,0.42) !important; box-shadow: inset 0 0 0 2px rgba(168,85,247,0.9) !important; }
+
+        /* Estado 2: variante propia (sin luces teoría) */
+        /* Estado 3: visitado */
+        .sq-visited-from { background: rgba(241,196,15,0.12) !important; box-shadow: inset 0 0 0 2px rgba(241,196,15,0.4) !important; }
+        .sq-visited-to   { background: rgba(241,196,15,0.28) !important; box-shadow: inset 0 0 0 2px rgba(241,196,15,0.6) !important; }
+
+        /* ── Píldoras de candidatas ── */
+        .pill-candidata {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 9px; margin: 2px;
+            border-radius: 5px; cursor: pointer;
+            font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+            border: 1px solid rgba(255,255,255,0.15);
+            background: rgba(255,255,255,0.05);
+            color: var(--text-main);
+            user-select: none;
+            transition: all 0.15s;
+        }
+        .pill-candidata:hover    { border-color: #a855f7; background: rgba(168,85,247,0.15); color: #c084fc; }
+        .pill-candidata.top-pill { border-color: #3498db; background: rgba(52,152,219,0.15); color: #7dd3fc; }
+        .pill-candidata.visited  { border-color: rgba(241,196,15,0.5); background: rgba(241,196,15,0.08); color: #fcd34d; }
+        .pill-candidata.visited::after { content: " ✓"; font-size: 9px; opacity: 0.7; }
+        .pill-candidata:active   { transform: scale(0.95); }
+
+        /* ── Barra de evaluación Stockfish ── */
+        #eval-bar-analysis {
+            width: 18px; height: 430px;
+            background: #1a1a2e; border: 1px solid var(--border);
+            border-radius: 4px; overflow: hidden;
+            position: relative; display: flex;
+            flex-direction: column-reverse;
+        }
+        #eval-bar-white {
+            width: 100%; height: 50%;
+            background: linear-gradient(to top, #d4c9b0, #ffffff);
+            transition: height 0.5s cubic-bezier(0.25,0.46,0.45,0.94);
+            min-height: 4px;
+        }
+        #eval-bar-black {
+            width: 100%;
+            background: linear-gradient(to bottom, #2d2d3a, #0d0d15);
+            flex: 1; min-height: 4px;
+        }
+        #eval-bar-label {
+            position: absolute; left: 50%; transform: translateX(-50%);
+            font-size: 8px; font-weight: 700;
+            font-family: var(--font-mono); color: #ffd700;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+            pointer-events: none; white-space: nowrap;
+            background: rgba(0,0,0,0.5); border-radius: 2px;
+            padding: 1px 2px; z-index: 10;
+            transition: bottom 0.5s ease;
+            bottom: 50%;
+        }
+
+        /* ── Badge de estado del análisis ── */
+        .estado-badge {
+            display: inline-block; font-size: 9px; font-weight: 700;
+            letter-spacing: 1px; text-transform: uppercase;
+            padding: 2px 7px; border-radius: 10px; margin-bottom: 6px;
+        }
+        .estado-teoria  { background: rgba(52,152,219,0.2);  color: #7dd3fc; border: 1px solid #3498db; }
+        .estado-variante{ background: rgba(239,83,80,0.2);   color: #fca5a5; border: 1px solid #ef5350; }
+        .estado-visitado{ background: rgba(241,196,15,0.15); color: #fcd34d; border: 1px solid #f1c40f; }
+
+        /* Animación pulso en casillas iluminadas (legacy) */
         @keyframes vt-pulse {
             0%,100% { opacity: 0.55; }
             50%      { opacity: 0.20; }
@@ -321,12 +430,40 @@
 
         <div class="module-card">
             <div class="module-label" style="border-color:var(--accent-blue);">Laboratorio Llama 3.3</div>
-            <div id="boardAnalysis" style="width:430px"></div>
+            <div style="display:flex;gap:8px;align-items:stretch;">
+                <div id="eval-bar-analysis">
+                    <div id="eval-bar-white"></div>
+                    <div id="eval-bar-black"></div>
+                    <span id="eval-bar-label">0.0</span>
+                </div>
+                <div id="boardAnalysis" style="width:430px"></div>
+            </div>
             <div id="turno-analysis" style="text-align:center;font-size:0.8rem;font-weight:700;
                 letter-spacing:2px;padding:5px 0;margin-top:4px;font-family:var(--font-mono);">
                 ⬜ Turno: BLANCAS
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px;">
+
+            <!-- ★ Navegación de análisis -->
+            <div style="display:flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:6px;">
+                <button id="btn-analysis-start" onclick="analysisGoTo(0)"
+                    style="flex:0;padding:5px 10px;background:#161b22;border:1px solid var(--border);
+                    border-radius:5px;color:var(--text-dim);cursor:pointer;font-size:14px;font-weight:700;"
+                    title="Inicio">⏮</button>
+                <button id="btn-analysis-prev" onclick="analysisPrev()"
+                    style="flex:1;padding:6px;background:#161b22;border:1px solid var(--accent-blue);
+                    border-radius:5px;color:var(--accent-blue);cursor:pointer;font-size:13px;font-weight:700;"
+                    title="Jugada anterior">← Atrás</button>
+                <button id="btn-analysis-next" onclick="analysisNext()"
+                    style="flex:1;padding:6px;background:#161b22;border:1px solid var(--accent-blue);
+                    border-radius:5px;color:var(--accent-blue);cursor:pointer;font-size:13px;font-weight:700;"
+                    title="Jugada siguiente">Adelante →</button>
+                <button id="btn-analysis-end" onclick="analysisGoTo(-1)"
+                    style="flex:0;padding:5px 10px;background:#161b22;border:1px solid var(--border);
+                    border-radius:5px;color:var(--text-dim);cursor:pointer;font-size:14px;font-weight:700;"
+                    title="Última jugada">⏭</button>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px;">
                 <button class="btn-margarita" style="background:var(--accent);color:black;padding:8px;" onclick="triggerLlamaAnalysis('Táctica')">Táctica</button>
                 <button class="btn-margarita" style="background:var(--accent-blue);padding:8px;" onclick="triggerLlamaAnalysis('Estrategia')">Estrategia</button>
                 <button class="btn-margarita" style="background:#57606a;padding:8px;" onclick="flipAnalysisBoard()">Girar Tablero</button>
@@ -381,6 +518,16 @@
             <div class="vt-card-title">📝 Nodo Activo</div>
             <div id="variant-annotation">
                 <div style="color:var(--text-dim);font-size:11px;">Haz click en un nodo del árbol para ver los detalles.</div>
+            </div>
+            <!-- ★ Lista de jugadas clickable del análisis -->
+            <div style="margin-top:12px;">
+                <div style="color:var(--accent-blue);font-size:0.7rem;font-weight:700;
+                    letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;
+                    border-bottom:1px solid var(--border);padding-bottom:4px;">
+                    🗺 Ruta del árbol
+                </div>
+                <div id="analysis-path-list" style="font-family:var(--font-mono);font-size:12px;
+                    max-height:200px;overflow-y:auto;"></div>
             </div>
         </div>
 
@@ -865,45 +1012,53 @@
     }
     function closeCtx() { _ctxMenu?.remove(); _ctxMenu = null; }
 
-    /* ── Panel de anotación — con apertura, variantes y botón Llama ── */
+    /* ── Panel de anotación — Sistema 3 estados ── */
     function renderAnnotation(node, explorerData) {
         const panel = document.getElementById('variant-annotation');
         if (!panel || !node) return;
 
+        const estado  = calcularEstado(node, explorerData);
+        estadoAnalisis = estado;
+
+        // Badge de estado
+        const estadoMap = {
+            teoria:   { cls: 'estado-teoria',   txt: '📖 Teoría' },
+            variante: { cls: 'estado-variante',  txt: '🔴 Variante propia' },
+            visitado: { cls: 'estado-visitado',  txt: '✓ Ya explorado' },
+        };
+        const eb = estadoMap[estado];
+        const estadoHtml = `<span class="estado-badge ${eb.cls}">${eb.txt}</span>`;
+
+        // Evaluación
         const ev    = node.eval;
         const evLbl = (ev !== undefined && ev !== 0)
             ? `<span class="va-eval ${ev>=0?'va-eval-pos':'va-eval-neg'}">${ev>=0?'+':''}${(ev/100).toFixed(2)}</span>`
             : '';
 
+        // Apertura
         const opening = node.opening || explorerData?.opening || null;
+        const opColor = estado === 'variante' ? '#ef5350' : (estado === 'visitado' ? '#fcd34d' : 'var(--accent)');
         const opHtml  = opening
-            ? `<div class="va-opening"><strong>${opening.eco}</strong> — ${opening.name}</div>`
-            : `<div class="va-opening" style="color:var(--text-dim);border-left-color:#30363d;">Sin datos de apertura</div>`;
+            ? `<div style="font-size:11px;padding:4px 8px;margin-bottom:6px;
+                border-left:3px solid ${opColor};background:rgba(255,255,255,0.03);border-radius:0 4px 4px 0;">
+                <strong style="color:${opColor};">${opening.eco}</strong>
+                <span style="color:${estado==='variante'?'#fca5a5':'var(--text-main)'}"> — ${opening.name}</span>
+               </div>`
+            : `<div style="color:var(--text-dim);font-size:11px;padding:4px 8px;margin-bottom:6px;">
+                Posición fuera de teoría
+               </div>`;
 
+        // Píldoras de candidatas (solo en estados teoría y visitado)
         const moves = explorerData?.moves || [];
-        let movesHtml = '';
-        if (moves.length) {
-            movesHtml = `<div style="margin:8px 0 4px;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;">Variantes maestros</div>
-            <div style="display:flex;flex-direction:column;gap:3px;">
-            ${moves.slice(0,5).map(m => {
-                const total = (m.white + m.draws + m.black) || 1;
-                const wp = ((m.white/total)*100).toFixed(0);
-                const dp = ((m.draws/total)*100).toFixed(0);
-                const bp = ((m.black/total)*100).toFixed(0);
-                return `<div style="display:flex;align-items:center;gap:6px;padding:3px 6px;background:rgba(255,255,255,0.03);border-radius:4px;border:1px solid transparent;cursor:pointer;"
-                         onmouseover="this.style.borderColor='var(--accent-blue)'" onmouseout="this.style.borderColor='transparent'">
-                    <span style="font-weight:700;color:var(--accent);min-width:32px;font-size:12px;">${m.san}</span>
-                    <div style="flex:1;display:flex;height:6px;border-radius:3px;overflow:hidden;">
-                        <div style="width:${wp}%;background:#e8e0d0;"></div>
-                        <div style="width:${dp}%;background:#757575;"></div>
-                        <div style="width:${bp}%;background:#111;"></div>
-                    </div>
-                    <span style="font-size:9px;color:var(--text-dim);min-width:38px;text-align:right;">${total.toLocaleString()}</span>
-                </div>`;
-            }).join('')}
-            </div>`;
-        }
+        const pildorasHtml = (estado !== 'variante' && moves.length)
+            ? renderizarPildoras(moves, node.id)
+            : (estado === 'variante'
+                ? `<div style="color:#fca5a5;font-size:11px;padding:4px 0;opacity:0.8;">
+                    Exploración libre — las luces de teoría están apagadas
+                   </div>`
+                : '');
 
+        // Botones de acción
         const isVar = node.type === 'variant' || node.type === 'suggestion';
         const actHtml = isVar ? `
             <div class="va-actions" style="margin-top:10px;">
@@ -918,91 +1073,232 @@
                 ${evLbl}
                 <span class="va-badge va-badge-${node.type}">${node.type}</span>
             </div>
+            ${estadoHtml}
             ${opHtml}
-            ${movesHtml}
+            ${pildorasHtml}
             ${actHtml}
         `;
-        // NOTA: Llama se integrará en el módulo ADN de la Partida (llamada única al final)
+
+        // Ilumina según el estado
+        if (estado === 'variante') {
+            Illuminator.clear();
+        } else if (moves.length) {
+            const topMove = moves[0];
+            if (estado === 'visitado') {
+                Illuminator.illuminateVisitado(topMove.uci);
+            } else {
+                Illuminator.illuminateTeoria(topMove.uci);
+            }
+        }
     }
 
-    /* ── Iluminador de casillas ── */
+    /* ══════════════════════════════════════════════════════════
+       SISTEMA DE 3 ESTADOS DEL TABLERO DE ANÁLISIS
+    ══════════════════════════════════════════════════════════ */
+
+    // Estado actual: 'teoria' | 'variante' | 'visitado'
+    var estadoAnalisis = 'teoria';
+    // Nodos ya visitados (para el estado 3)
+    var nodosVisitados = new Set();
+    // Candidatas actuales del Explorer
+    var candidatasActuales = [];
+    // Índice de la candidata iluminada (-1 = ninguna)
+    var candidataActiva = -1;
+
+    /* ── Iluminador CSS (sin flechas SVG) ── */
     const Illuminator = {
-        _squares: [], _arrows: [],
-        illuminate(uci, color='#1f6feb', label='') {
+        _activeClasses: [], // [{el, cls}]
+
+        // Ilumina la candidata principal (teoría)
+        illuminateTeoria(uci) {
             this.clear();
             if (!uci || uci.length < 4) return;
-            this._hl(uci.slice(0,2), color, 0.22);
-            this._hl(uci.slice(2,4), color, 0.50);
-            this._arrow(uci.slice(0,2), uci.slice(2,4), color, label);
+            this._addClass(uci.slice(0,2), 'sq-teoria-from');
+            this._addClass(uci.slice(2,4), 'sq-teoria-to');
         },
-        illuminateMany(moves) {
+
+        // Preview hover de una candidata (sin cambiar el estado)
+        previewCandidata(uci) {
+            this._removeClass('sq-hover-from');
+            this._removeClass('sq-hover-to');
+            if (!uci) return;
+            this._addClass(uci.slice(0,2), 'sq-hover-from');
+            this._addClass(uci.slice(2,4), 'sq-hover-to');
+        },
+
+        // Ilumina una candidata específica al hacer click en la píldora
+        illuminateCandidataClick(uci) {
+            this.clearTeoria();
+            this._addClass(uci.slice(0,2), 'sq-teoria-from');
+            this._addClass(uci.slice(2,4), 'sq-teoria-to');
+        },
+
+        // Muestra casillas visitadas (estado 3)
+        illuminateVisitado(uci) {
             this.clear();
-            const cols = ['#1f6feb','#a855f7','#4caf50','#f1c40f'];
-            moves.slice(0,4).forEach((m,i) => {
-                const c = cols[i];
-                this._hl(m.uci.slice(0,2), c, 0.18);
-                this._hl(m.uci.slice(2,4), c, 0.42);
-                this._arrow(m.uci.slice(0,2), m.uci.slice(2,4), c, m.san);
-            });
+            if (!uci || uci.length < 4) return;
+            this._addClass(uci.slice(0,2), 'sq-visited-from');
+            this._addClass(uci.slice(2,4), 'sq-visited-to');
         },
-        _hl(sq, color, opacity) {
-            const el = document.querySelector(`#boardAnalysis .square-${sq}`);
-            if (!el) return;
-            const ov = document.createElement('div');
-            ov.className   = 'vt-square-highlight';
-            ov.style.cssText = `position:absolute;inset:0;pointer-events:none;background:${color};opacity:${opacity};border-radius:2px;z-index:10;`;
-            el.style.position = 'relative';
-            el.appendChild(ov);
-            this._squares.push(ov);
+
+        clearTeoria() {
+            ['sq-teoria-from','sq-teoria-to'].forEach(cls => this._removeClass(cls));
         },
-        _arrow(from, to, color, label='') {
-            const board   = document.getElementById('boardAnalysis');
-            const fromEl  = document.querySelector(`#boardAnalysis .square-${from}`);
-            const toEl    = document.querySelector(`#boardAnalysis .square-${to}`);
-            if (!board||!fromEl||!toEl) return;
-            const br = board.getBoundingClientRect();
-            const fr = fromEl.getBoundingClientRect();
-            const tr = toEl.getBoundingClientRect();
-            const x1 = fr.left+fr.width/2  - br.left;
-            const y1 = fr.top +fr.height/2 - br.top;
-            const x2 = tr.left+tr.width/2  - br.left;
-            const y2 = tr.top +tr.height/2 - br.top;
-            const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-            svg.classList.add('vt-arrows-svg');
-            svg.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:20;overflow:visible;';
-            const mid = `arr-${Date.now()}`;
-            const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy),t=18;
-            const ex=x2-(dx/len)*t, ey=y2-(dy/len)*t;
-            svg.innerHTML = `
-                <defs><marker id="${mid}" viewBox="0 -4 8 8" refX="7" refY="0" markerWidth="5" markerHeight="5" orient="auto">
-                    <path d="M0,-4L8,0L0,4" fill="${color}" opacity="0.9"/>
-                </marker></defs>
-                <line x1="${x1}" y1="${y1}" x2="${ex}" y2="${ey}"
-                      stroke="${color}" stroke-width="5" stroke-linecap="round" opacity="0.85"
-                      marker-end="url(#${mid})"/>
-                ${label ? `<text x="${(x1+x2)/2}" y="${(y1+y2)/2-8}" text-anchor="middle"
-                    font-size="11" font-weight="bold" font-family="'Courier New',monospace"
-                    fill="${color}" filter="drop-shadow(0 1px 2px rgba(0,0,0,.9))">${label}</text>` : ''}
-            `;
-            board.style.position = 'relative';
-            board.appendChild(svg);
-            this._arrows.push(svg);
+        clearHover() {
+            ['sq-hover-from','sq-hover-to'].forEach(cls => this._removeClass(cls));
         },
         clear() {
-            this._squares.forEach(e=>e.remove()); this._squares=[];
-            this._arrows.forEach(e=>e.remove());  this._arrows=[];
+            this._activeClasses.forEach(({el, cls}) => el.classList.remove(cls));
+            this._activeClasses = [];
+        },
+
+        _addClass(sq, cls) {
+            const el = document.querySelector(`#boardAnalysis .square-${sq}`);
+            if (!el) return;
+            el.classList.add(cls);
+            this._activeClasses.push({el, cls});
+        },
+        _removeClass(cls) {
+            this._activeClasses = this._activeClasses.filter(item => {
+                if (item.cls === cls) { item.el.classList.remove(cls); return false; }
+                return true;
+            });
         },
     };
 
-    /* ── Evento: nodo seleccionado → sincronizar tablero análisis ── */
+    /* ── Barra de evaluación Stockfish ── */
+    function actualizarBarraEval(scoreText) {
+        const barWhite = document.getElementById('eval-bar-white');
+        const barLabel = document.getElementById('eval-bar-label');
+        if (!barWhite || !barLabel) return;
+
+        let cp = 0, label = '0.0';
+
+        if (scoreText && scoreText.includes('mate')) {
+            const m = parseInt(scoreText.split(' ')[1]);
+            cp    = m > 0 ? 9999 : -9999;
+            label = m > 0 ? `M+${Math.abs(m)}` : `M-${Math.abs(m)}`;
+        } else if (scoreText) {
+            cp    = parseInt(scoreText.split(' ')[1]) || 0;
+            const abs = (Math.abs(cp)/100).toFixed(2);
+            label = cp >= 0 ? `+${abs}` : `-${abs}`;
+        }
+
+        // Escala logarítmica con atan
+        const pct = 50 + (Math.atan(cp * 0.0035) / Math.PI) * 100;
+        barWhite.style.height = `${pct}%`;
+        barLabel.textContent  = label;
+        barLabel.style.bottom = `${pct}%`;
+
+        // Guarda en el nodo activo del árbol
+        VT.updateEval(VT.activeId, cp);
+    }
+
+    /* ── Detecta si el nodo activo tiene hijos visitados ── */
+    function tieneHijosVisitados(nodeId) {
+        const node = VT.nodeMap.get(nodeId);
+        return (node?.children || []).some(c => nodosVisitados.has(c.id));
+    }
+
+    /* ── Determina el estado del análisis para la posición actual ── */
+    function calcularEstado(node, explorerData) {
+        if (!node) return 'teoria';
+        if (nodosVisitados.has(node.id) && explorerData?.moves?.length) return 'visitado';
+        if (node.type === 'variant') return 'variante';
+        return 'teoria';
+    }
+
+    /* ── Renderiza las píldoras de candidatas en el panel ── */
+    function renderizarPildoras(moves, nodeId) {
+        candidatasActuales = moves || [];
+        candidataActiva    = 0;
+
+        // Nodos hijo ya visitados desde este nodo
+        const parentNode   = VT.nodeMap.get(nodeId);
+        const hijosUci     = new Set((parentNode?.children || []).map(c => c.uci));
+
+        const pildorasHtml = candidatasActuales.slice(0, 6).map((m, i) => {
+            const total    = (m.white + m.draws + m.black) || 1;
+            const winPct   = Math.round((m.white / total) * 100);
+            const isTop    = i === 0;
+            const visited  = hijosUci.has(m.uci);
+            const clases   = ['pill-candidata', isTop ? 'top-pill' : '', visited ? 'visited' : ''].filter(Boolean).join(' ');
+
+            // Semáforo de color
+            let semaforo = '';
+            if (winPct > 52)      semaforo = '<span style="color:#4caf50;font-size:9px;">●</span>';
+            else if (winPct < 44) semaforo = '<span style="color:#ef5350;font-size:9px;">●</span>';
+            else                  semaforo = '<span style="color:#9e9e9e;font-size:9px;">●</span>';
+
+            return `<span class="${clases}"
+                data-uci="${m.uci}" data-idx="${i}"
+                onclick="pillClick('${m.uci}', ${i})"
+                ondblclick="pillDblClick('${m.uci}', '${m.san}')"
+                onmouseenter="Illuminator.previewCandidata('${m.uci}')"
+                onmouseleave="Illuminator.clearHover()"
+                title="Doble clic para mover | ${total.toLocaleString()} partidas | ${winPct}% bl.">
+                ${semaforo} ${m.san}
+                <span style="font-size:9px;opacity:0.6;">${total > 999 ? Math.round(total/1000)+'k' : total}</span>
+            </span>`;
+        }).join('');
+
+        return `<div style="margin-top:8px;">
+            <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;
+                margin-bottom:5px;">Candidatas — click: ver · doble clic: mover</div>
+            <div style="display:flex;flex-wrap:wrap;gap:2px;">${pildorasHtml}</div>
+        </div>`;
+    }
+
+    /* ── Click en píldora: ilumina esa candidata ── */
+    function pillClick(uci, idx) {
+        candidataActiva = idx;
+        Illuminator.illuminateCandidataClick(uci);
+        // Resalta la píldora activa
+        document.querySelectorAll('.pill-candidata').forEach((el, i) => {
+            el.style.outline = i === idx ? '2px solid #7dd3fc' : 'none';
+        });
+    }
+
+    /* ── Doble clic en píldora: ejecuta el movimiento automáticamente ── */
+    function pillDblClick(uci, san) {
+        const from = uci.slice(0, 2);
+        const to   = uci.slice(2, 4);
+        const prom = uci[4] || undefined;
+
+        const move = chessA.move({ from, to, promotion: prom });
+        if (!move) return;
+
+        analysisExtraMoves.push(move.san);
+        boardA.position(chessA.fen());
+
+        const vtNode = VT.addMove({
+            san:     move.san, uci,
+            fen:     chessA.fen(),
+            moveNum: combatMoveHistory.length + analysisExtraMoves.length,
+            side:    move.color, eval: 0,
+        }, 'variant');
+        lastVariantId = vtNode?.id ?? null;
+        if (vtNode) nodosVisitados.add(vtNode.id);
+
+        Illuminator.clear();
+        refrescarPaneles();
+        actualizarTurno();
+
+        // Carga Lichess para la nueva posición
+        setTimeout(() => consultarLichess(chessA.fen()), 80);
+        terminalLog(`📖 Variante auto: ${move.san}`);
+    }
+
+    /* ── Evento: nodo seleccionado (click en árbol D3) ── */
     document.addEventListener('vt:selected', e => {
         const { node } = e.detail;
         if (!node?.fen) return;
         chessA.load(node.fen);
         boardA.position(node.fen);
-        actualizarListaJugadas('moveListAnalysis', chessA, true);
+        _syncExtraMovesFromPath();
+        refrescarPaneles();
+        actualizarTurno();
         renderAnnotation(node);
-        // Pide teoría Lichess para el nodo seleccionado
         consultarLichess(node.fen);
     });
 
@@ -1250,6 +1546,179 @@
     function refrescarPaneles() {
         actualizarListaJugadas('moveListCombat',   null, false);
         actualizarListaJugadas('moveListAnalysis', null, true);
+        actualizarPathList();
+        actualizarBotonesNav();
+    }
+
+    // ══════════════════════════════════════════════════════
+    // ★ NAVEGACIÓN DEL TABLERO DE ANÁLISIS
+    // Cada nodo del árbol VT es una posición. La "ruta"
+    // es el camino desde la raíz hasta el nodo activo.
+    // ══════════════════════════════════════════════════════
+
+    // Construye la ruta desde la raíz hasta el nodo activo
+    function getAnalysisPath() {
+        const path = [];
+        let node = VT.nodeMap.get(VT.activeId);
+        while (node && node.san !== '♟') {
+            path.unshift(node);
+            node = VT.nodeMap.get(node.parentId);
+        }
+        return path;
+    }
+
+    // ← Atrás: va al nodo padre (sin borrar la rama actual)
+    function analysisPrev() {
+        const node   = VT.nodeMap.get(VT.activeId);
+        const parent = VT.nodeMap.get(node?.parentId);
+        if (!parent) return;
+
+        VT.activeId = parent.id;
+        chessA.load(parent.fen);
+        boardA.position(parent.fen);
+
+        // Recalcula analysisExtraMoves desde la ruta
+        _syncExtraMovesFromPath();
+        refrescarPaneles();
+        actualizarTurno();
+        Illuminator.clear();
+        if (motorA) { motorA.postMessage('position fen ' + parent.fen); motorA.postMessage('go depth 14'); }
+        setTimeout(() => consultarLichess(parent.fen), 80);
+        VT.render();
+    }
+
+    // → Adelante: va al primer hijo del nodo activo
+    function analysisNext() {
+        const node = VT.nodeMap.get(VT.activeId);
+        const child = node?.children?.find(c => c.type !== 'discarded');
+        if (!child) return;
+
+        VT.activeId = child.id;
+        chessA.load(child.fen);
+        boardA.position(child.fen);
+
+        _syncExtraMovesFromPath();
+        refrescarPaneles();
+        actualizarTurno();
+        Illuminator.clear();
+        setTimeout(() => consultarLichess(child.fen), 80);
+        VT.render();
+    }
+
+    // ⏮ / ⏭ — ir al primer/último nodo de la ruta
+    function analysisGoTo(index) {
+        const path = getAnalysisPath();
+        if (!path.length) return;
+        const target = index === 0
+            ? VT.rootData                    // inicio absoluto
+            : path[path.length - 1];         // último nodo de la ruta
+        if (!target) return;
+
+        VT.activeId = target.id;
+        chessA.load(target.fen);
+        boardA.position(target.fen);
+        _syncExtraMovesFromPath();
+        refrescarPaneles();
+        actualizarTurno();
+        Illuminator.clear();
+        setTimeout(() => consultarLichess(target.fen), 80);
+        VT.render();
+    }
+
+    // Navega a un nodo concreto por su id (desde click en jugada clickable)
+    function analysisGoToNode(nodeId) {
+        const node = VT.nodeMap.get(nodeId);
+        if (!node || node.type === 'discarded') return;
+
+        VT.activeId = nodeId;
+        chessA.load(node.fen);
+        boardA.position(node.fen);
+        _syncExtraMovesFromPath();
+        refrescarPaneles();
+        actualizarTurno();
+        Illuminator.clear();
+        renderAnnotation(node);
+        setTimeout(() => consultarLichess(node.fen), 80);
+        VT.render();
+    }
+
+    // Recalcula analysisExtraMoves a partir de la ruta del árbol
+    // (jugadas que van más allá de combatMoveHistory)
+    function _syncExtraMovesFromPath() {
+        const path = getAnalysisPath();
+        const extra = path.slice(combatMoveHistory.length);
+        analysisExtraMoves = extra.map(n => n.san);
+    }
+
+    // Actualiza el estado habilitado/deshabilitado de los botones ← →
+    function actualizarBotonesNav() {
+        const node   = VT.nodeMap.get(VT.activeId);
+        const parent = VT.nodeMap.get(node?.parentId);
+        const child  = node?.children?.find(c => c.type !== 'discarded');
+
+        const btnPrev  = document.getElementById('btn-analysis-prev');
+        const btnNext  = document.getElementById('btn-analysis-next');
+        const btnStart = document.getElementById('btn-analysis-start');
+        const btnEnd   = document.getElementById('btn-analysis-end');
+
+        if (btnPrev)  { btnPrev.disabled  = !parent; btnPrev.style.opacity  = parent ? '1' : '0.35'; }
+        if (btnNext)  { btnNext.disabled  = !child;  btnNext.style.opacity  = child  ? '1' : '0.35'; }
+        if (btnStart) { btnStart.disabled = !parent; btnStart.style.opacity = parent ? '1' : '0.35'; }
+        if (btnEnd)   { btnEnd.disabled   = !child;  btnEnd.style.opacity   = child  ? '1' : '0.35'; }
+    }
+
+    // Renderiza la "Ruta del árbol" con jugadas clickables
+    function actualizarPathList() {
+        const list = document.getElementById('analysis-path-list');
+        if (!list) return;
+
+        const path = getAnalysisPath();
+        if (!path.length) {
+            list.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Posición inicial</span>';
+            return;
+        }
+
+        let html = '';
+        path.forEach((node, i) => {
+            const isActive   = node.id === VT.activeId;
+            const isVariant  = node.type !== 'main';
+            const isDiscarded = node.type === 'discarded';
+            if (isDiscarded) return;
+
+            // Número de jugada
+            if (node.side === 'w' || i === 0) {
+                const moveNum = Math.floor((combatMoveHistory.length + i) / 2) + 1;
+                if (node.side === 'w') {
+                    html += `<span class="path-num">${moveNum}.</span>`;
+                }
+            }
+
+            const cls = [
+                'path-chip',
+                isVariant  ? 'var-chip'  : 'main-chip',
+                isActive   ? 'active-chip' : ''
+            ].join(' ');
+
+            html += `<span class="${cls}"
+                onclick="analysisGoToNode('${node.id}')"
+                title="${isVariant ? 'Variante' : 'Línea principal'}"
+            >${node.san}</span>`;
+        });
+
+        // Si el nodo activo tiene varios hijos → mostrar bifurcaciones disponibles
+        const activeNode = VT.nodeMap.get(VT.activeId);
+        const branches = (activeNode?.children || []).filter(c => c.type !== 'discarded');
+        if (branches.length > 1) {
+            html += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);">
+                <span style="color:var(--text-dim);font-size:10px;letter-spacing:1px;">BIFURCACIONES:</span><br>`;
+            branches.forEach(b => {
+                const cls = b.type !== 'main' ? 'path-chip var-chip' : 'path-chip main-chip';
+                html += `<span class="${cls}" onclick="analysisGoToNode('${b.id}')">${b.san}</span>`;
+            });
+            html += '</div>';
+        }
+
+        list.innerHTML = html;
     }
 
     // ── Indicador de turno: muestra ⬜ BLANCAS / ⬛ NEGRAS bajo cada tablero ──
@@ -1302,8 +1771,8 @@
             const freshNode = VT.nodeMap.get(capturedNodeId);
             renderAnnotation(freshNode, data);
 
-            // ★ 3. Flechas en tablero de análisis
-            if (data.moves?.length) Illuminator.illuminateMany(data.moves);
+            // ★ 3. Iluminación según estado (ya lo hace renderAnnotation)
+            // illuminateMany eliminado — ahora son píldoras + iluminación de una sola jugada
 
             // 4. Panel TEORÍA DE MAESTROS (columna derecha)
             if (data.moves?.length) {
@@ -1375,6 +1844,11 @@
                 lastVariantId = vtNode?.id ?? null;
 
                 Illuminator.clear();
+                // Pide evaluación al motor de análisis
+                if (motorA) {
+                    motorA.postMessage('position fen ' + chessA.fen());
+                    motorA.postMessage('go depth 14');
+                }
                 setTimeout(() => consultarLichess(chessA.fen()), 100);
                 terminalLog("Variante explorada: " + m.san);
             }
@@ -1388,6 +1862,7 @@
     </script>
 </body>
 </html>
+
 
 
 
