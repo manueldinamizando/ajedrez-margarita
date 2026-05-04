@@ -306,31 +306,30 @@
 
         /* ── 3 Estados del tablero ── */
 
-        /* Estado 1: casilla teoría (azul suave, pulso) */
+        /* Estado 1: casilla teoría — SOLO box-shadow, sin background
+           para que las piezas se vean con claridad */
         @keyframes vt-pulse-teoria {
-            0%,100% { opacity: 0.55; box-shadow: inset 0 0 0 3px rgba(52,152,219,0.7); }
-            50%      { opacity: 0.30; box-shadow: inset 0 0 0 3px rgba(52,152,219,0.3); }
+            0%,100% { box-shadow: inset 0 0 0 4px rgba(52,152,219,0.9),
+                                  0 0 8px rgba(52,152,219,0.4); }
+            50%      { box-shadow: inset 0 0 0 4px rgba(52,152,219,0.4),
+                                  0 0 4px rgba(52,152,219,0.2); }
         }
         .sq-teoria-from {
-            background: rgba(52,152,219,0.20) !important;
-            box-shadow: inset 0 0 0 3px rgba(52,152,219,0.6) !important;
+            box-shadow: inset 0 0 0 4px rgba(52,152,219,0.8) !important;
             animation: vt-pulse-teoria 1.8s ease-in-out infinite;
-            position: relative; z-index: 5;
         }
         .sq-teoria-to {
-            background: rgba(52,152,219,0.45) !important;
-            box-shadow: inset 0 0 0 3px rgba(52,152,219,0.9) !important;
+            box-shadow: inset 0 0 0 5px rgba(52,152,219,1.0),
+                        inset 0 0 20px rgba(52,152,219,0.3) !important;
             animation: vt-pulse-teoria 1.8s ease-in-out infinite;
-            position: relative; z-index: 5;
         }
-        /* Hover preview de candidata */
-        .sq-hover-from { background: rgba(168,85,247,0.20) !important; box-shadow: inset 0 0 0 2px rgba(168,85,247,0.7) !important; }
-        .sq-hover-to   { background: rgba(168,85,247,0.42) !important; box-shadow: inset 0 0 0 2px rgba(168,85,247,0.9) !important; }
+        /* Hover preview — borde violeta, sin tapar piezas */
+        .sq-hover-from { box-shadow: inset 0 0 0 3px rgba(168,85,247,0.8) !important; }
+        .sq-hover-to   { box-shadow: inset 0 0 0 4px rgba(168,85,247,1.0) !important; }
 
-        /* Estado 2: variante propia (sin luces teoría) */
-        /* Estado 3: visitado */
-        .sq-visited-from { background: rgba(241,196,15,0.12) !important; box-shadow: inset 0 0 0 2px rgba(241,196,15,0.4) !important; }
-        .sq-visited-to   { background: rgba(241,196,15,0.28) !important; box-shadow: inset 0 0 0 2px rgba(241,196,15,0.6) !important; }
+        /* Estado 3: visitado — borde dorado */
+        .sq-visited-from { box-shadow: inset 0 0 0 3px rgba(241,196,15,0.6) !important; }
+        .sq-visited-to   { box-shadow: inset 0 0 0 4px rgba(241,196,15,0.9) !important; }
 
         /* ── Píldoras de candidatas ── */
         .pill-candidata {
@@ -1102,8 +1101,10 @@
     var nodosVisitados = new Set();
     // Candidatas actuales del Explorer
     var candidatasActuales = [];
-    // Índice de la candidata iluminada (-1 = ninguna)
+    // Índice de la candidata iluminada
     var candidataActiva = -1;
+    // FEN exacto que se usó para consultar Lichess (para pillDblClick)
+    var fenParaPildoras = null;
 
     /* ── Iluminador CSS (sin flechas SVG) ── */
     const Illuminator = {
@@ -1265,17 +1266,34 @@
         const to   = uci.slice(2, 4);
         const prom = uci[4] || undefined;
 
-        const move = chessA.move({ from, to, promotion: prom });
-        if (!move) return;
+        // ★ FIX: Cargamos el FEN exacto desde el que se consultó Lichess
+        // para evitar desfases entre el estado de chessA y las candidatas mostradas
+        if (fenParaPildoras) chessA.load(fenParaPildoras);
 
-        analysisExtraMoves.push(move.san);
+        const move = chessA.move({ from, to, promotion: prom || 'q' });
+        if (!move) {
+            console.warn('[pillDblClick] Movimiento ilegal:', uci, 'FEN:', chessA.fen());
+            return;
+        }
+
+        // Sincroniza tablero visual
         boardA.position(chessA.fen());
 
+        // Actualiza el array de variante
+        const fenBase    = fenParaPildoras;
+        const extraBase  = [...analysisExtraMoves];
+        // Recalcula extra desde la ruta del árbol para no perder contexto
+        _syncExtraMovesFromPath();
+        analysisExtraMoves.push(move.san);
+
+        // Crea el nodo en el árbol
         const vtNode = VT.addMove({
-            san:     move.san, uci,
+            san:     move.san,
+            uci:     from + to + (prom || ''),
             fen:     chessA.fen(),
             moveNum: combatMoveHistory.length + analysisExtraMoves.length,
-            side:    move.color, eval: 0,
+            side:    move.color,
+            eval:    0,
         }, 'variant');
         lastVariantId = vtNode?.id ?? null;
         if (vtNode) nodosVisitados.add(vtNode.id);
@@ -1284,9 +1302,13 @@
         refrescarPaneles();
         actualizarTurno();
 
-        // Carga Lichess para la nueva posición
+        // Motor + Lichess para la nueva posición
+        if (motorA) {
+            motorA.postMessage('position fen ' + chessA.fen());
+            motorA.postMessage('go depth 14');
+        }
         setTimeout(() => consultarLichess(chessA.fen()), 80);
-        terminalLog(`📖 Variante auto: ${move.san}`);
+        terminalLog('📖 Variante auto: ' + move.san);
     }
 
     /* ── Evento: nodo seleccionado (click en árbol D3) ── */
@@ -1738,9 +1760,9 @@
         if (!infoDiv) return;
 
         // ★ FIX RACE CONDITION: capturamos el nodeId AHORA, antes del await.
-        // Si el usuario mueve rápido y VT.activeId cambia durante la espera,
-        // seguimos actualizando el nodo CORRECTO (el que hizo la petición).
         const capturedNodeId = VT.activeId;
+        // Guardamos el FEN para que pillDblClick sepa desde dónde mover
+        fenParaPildoras = fen;
 
         const encodedFen = encodeURIComponent(fen);
         // Todos los rangos de ELO y velocidades para maximizar partidas en apertura
@@ -1862,6 +1884,7 @@
     </script>
 </body>
 </html>
+
 
 
 
