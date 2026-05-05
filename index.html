@@ -1348,6 +1348,15 @@
             motorE.postMessage('uci');
             motorA.postMessage('uci');
 
+            // ★ motorA: listener PERMANENTE para la barra de evaluación
+            // triggerLlamaAnalysis ya NO sobreescribe este handler —
+            // usa addEventListener para añadir un listener temporal aparte
+            motorA.onmessage = (e) => {
+                // Barra de evaluación — siempre activa
+                const match = e.data.match(/score (cp -?\d+|mate -?\d+)/);
+                if (match) actualizarBarraEval(match[1]);
+            };
+
             motorE.onmessage = (e) => {
                 if (e.data.includes("bestmove")) {
                     const moveRaw = e.data.split(" ")[1];
@@ -1378,39 +1387,45 @@
         const term = document.getElementById('terminalBoard');
         const fen  = chessA.fen();
         term.innerHTML = `<div style="color:var(--accent)">Margarita consultando a Llama 3.3 (Groq)...</div>`;
+
+        // ★ Usamos motorA pero con addEventListener temporal (no sobreescribe onmessage)
+        // Así la barra de evaluación sigue funcionando
         motorA.postMessage(`position fen ${fen}`);
         motorA.postMessage('go depth 15');
-        motorA.onmessage = async (e) => {
-            if (e.data.includes("pv")) {
-                const pv    = e.data.split(" pv ")[1].split(" ").slice(0,7).join(" ");
-                const score = e.data.includes("cp")
-                    ? (parseInt(e.data.match(/score cp (-?\d+)/)[1])/100).toFixed(1)
-                    : "Mate";
-                try {
-                    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                        method: "POST",
-                        headers: { "Authorization":`Bearer ${GROQ_API_KEY}`, "Content-Type":"application/json" },
-                        body: JSON.stringify({
-                            model: "llama-3.3-70b-versatile",
-                            messages: [
-                                { role:"system", content:"Eres Mijaíl Botvínnik. Analiza posiciones para Manuel de forma estratégica, breve y magistral." },
-                                { role:"user",   content:`FEN: ${fen}. Evaluación motor: ${score}. Línea recomendada: ${pv}. Explica el sentido de la posición enfocado en: ${enfoque}.` }
-                            ]
-                        })
-                    });
-                    const data  = await response.json();
-                    const texto = data.choices[0].message.content;
-                    term.innerHTML = `
-                        <div style="border-bottom:1px solid var(--accent);padding-bottom:10px;margin-bottom:10px;">
-                            <strong>ANÁLISIS MAGISTRAL (${enfoque.toUpperCase()})</strong>
-                        </div>
-                        <div style="color:var(--accent);margin-bottom:10px;">EVALUACIÓN: ${score} | LÍNEA: ${pv}</div>
-                        <div>${texto.replace(/\n/g,'<br>')}</div>`;
-                } catch(err) {
-                    term.innerHTML = "Error de conexión con el cerebro Groq.";
-                }
+
+        const handler = async (e) => {
+            if (!e.data.includes("pv")) return;
+            motorA.removeEventListener('message', handler); // una sola vez
+
+            const pv    = e.data.split(" pv ")[1]?.split(" ").slice(0,7).join(" ") || '';
+            const score = e.data.includes("cp")
+                ? (parseInt(e.data.match(/score cp (-?\d+)/)[1]) / 100).toFixed(1)
+                : "Mate";
+            try {
+                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization":`Bearer ${GROQ_API_KEY}`, "Content-Type":"application/json" },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: [
+                            { role:"system", content:"Eres Mijaíl Botvínnik. Analiza posiciones para Manuel de forma estratégica, breve y magistral." },
+                            { role:"user",   content:`FEN: ${fen}. Evaluación motor: ${score}. Línea recomendada: ${pv}. Explica el sentido de la posición enfocado en: ${enfoque}.` }
+                        ]
+                    })
+                });
+                const data  = await response.json();
+                const texto = data.choices[0].message.content;
+                term.innerHTML = `
+                    <div style="border-bottom:1px solid var(--accent);padding-bottom:10px;margin-bottom:10px;">
+                        <strong>ANÁLISIS MAGISTRAL (${enfoque.toUpperCase()})</strong>
+                    </div>
+                    <div style="color:var(--accent);margin-bottom:10px;">EVALUACIÓN: ${score} | LÍNEA: ${pv}</div>
+                    <div>${texto.replace(/\n/g,'<br>')}</div>`;
+            } catch(err) {
+                term.innerHTML = "Error de conexión con el cerebro Groq.";
             }
         };
+        motorA.addEventListener('message', handler);
     }
 
     /* ── handleMoveC: tu jugada en COMBATE ── */
