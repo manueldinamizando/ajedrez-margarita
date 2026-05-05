@@ -776,11 +776,11 @@
             chessA.load(parent.fen);
             boardA.position(parent.fen);
             analysisExtraMoves = [];
+            estadoAnalisis = 'teoria'; // Luz reaparece al volver a bifurcación
             refrescarPaneles();
             renderAnnotation(parent);
             Illuminator.clear();
 
-            // Pide el Explorer para la posición del padre (mostrará variantes disponibles)
             setTimeout(() => consultarLichess(parent.fen), 80);
 
             this.render();
@@ -1078,16 +1078,22 @@
             ${actHtml}
         `;
 
-        // Ilumina según el estado
-        if (estado === 'variante') {
-            Illuminator.clear();
-        } else if (moves.length) {
+        // ═══════════════════════════════════════════════════════
+        // Ilumina según el estado ACTUAL del análisis:
+        // - teoría/visitado → luz azul/dorada en candidata principal
+        // - variante        → sin luces (tablero limpio)
+        // ═══════════════════════════════════════════════════════
+        if (moves.length && estado !== 'variante') {
             const topMove = moves[0];
             if (estado === 'visitado') {
                 Illuminator.illuminateVisitado(topMove.uci);
             } else {
+                // Estado teoría: SIEMPRE muestra la luz de la jugada principal
                 Illuminator.illuminateTeoria(topMove.uci);
             }
+        } else if (estado === 'variante') {
+            // Variante propia: apaga todo
+            Illuminator.clear();
         }
     }
 
@@ -1318,9 +1324,13 @@
         chessA.load(node.fen);
         boardA.position(node.fen);
         _syncExtraMovesFromPath();
+        // Estado según tipo del nodo seleccionado en el árbol
+        estadoAnalisis = node.type === 'variant' ? 'variante' : 'teoria';
         refrescarPaneles();
         actualizarTurno();
+        Illuminator.clear();
         renderAnnotation(node);
+        if (motorA) { motorA.postMessage('position fen ' + node.fen); motorA.postMessage('go depth 14'); }
         consultarLichess(node.fen);
     });
 
@@ -1427,6 +1437,7 @@
         }, 'main');
         VT.combatId = VT.activeId;
 
+        estadoAnalisis = 'teoria'; // al jugar en combate, análisis muestra luz teórica
         consultarLichess(chessC.fen());
         motorE.postMessage("position fen " + chessC.fen());
         motorE.postMessage("go movetime 1000");
@@ -1601,6 +1612,8 @@
 
         // Recalcula analysisExtraMoves desde la ruta
         _syncExtraMovesFromPath();
+        // Volvemos atrás → resetea estado para que la luz reaparezca
+        estadoAnalisis = 'teoria';
         refrescarPaneles();
         actualizarTurno();
         Illuminator.clear();
@@ -1620,9 +1633,12 @@
         boardA.position(child.fen);
 
         _syncExtraMovesFromPath();
+        // El estado depende del tipo del nodo hijo
+        estadoAnalisis = child.type === 'variant' ? 'variante' : 'teoria';
         refrescarPaneles();
         actualizarTurno();
         Illuminator.clear();
+        if (motorA) { motorA.postMessage('position fen ' + child.fen); motorA.postMessage('go depth 14'); }
         setTimeout(() => consultarLichess(child.fen), 80);
         VT.render();
     }
@@ -1640,9 +1656,11 @@
         chessA.load(target.fen);
         boardA.position(target.fen);
         _syncExtraMovesFromPath();
+        estadoAnalisis = (!target.type || target.type === 'main') ? 'teoria' : 'variante';
         refrescarPaneles();
         actualizarTurno();
         Illuminator.clear();
+        if (motorA) { motorA.postMessage('position fen ' + target.fen); motorA.postMessage('go depth 14'); }
         setTimeout(() => consultarLichess(target.fen), 80);
         VT.render();
     }
@@ -1852,27 +1870,47 @@
             onDrop: (s, t) => {
                 const m = chessA.move({from:s, to:t, promotion:'q'});
                 if (m === null) return 'snapback';
+
+                // ── Determina si la jugada sigue la teoría o se desvía ──
+                const sigueTeoria = candidatasActuales.length > 0 &&
+                    candidatasActuales.some(c => c.uci === (s + t) || c.uci.startsWith(s + t));
+
                 analysisExtraMoves.push(m.san);
                 boardA.position(chessA.fen());
                 refrescarPaneles();
                 actualizarTurno();
 
                 const vtNode = VT.addMove({
-                    san: m.san, uci: s+t,
-                    fen: chessA.fen(),
+                    san:     m.san, uci: s + t,
+                    fen:     chessA.fen(),
                     moveNum: combatMoveHistory.length + analysisExtraMoves.length,
-                    side: m.color, eval: 0,
-                }, 'variant');
+                    side:    m.color, eval: 0,
+                    // Si sigue la teoría, es 'main'; si no, 'variant'
+                }, sigueTeoria ? 'main' : 'variant');
                 lastVariantId = vtNode?.id ?? null;
+                if (vtNode) nodosVisitados.add(vtNode.id);
 
                 Illuminator.clear();
-                // Pide evaluación al motor de análisis
+
+                if (sigueTeoria) {
+                    // ── Estado teoría: apaga la luz actual, pide la siguiente ──
+                    terminalLog('📖 Siguiendo teoría: ' + m.san);
+                } else {
+                    // ── Estado variante: apaga luces, marca como variante ──
+                    estadoAnalisis = 'variante';
+                    terminalLog('🔴 Variante propia: ' + m.san);
+                }
+
+                // Motor de análisis
                 if (motorA) {
                     motorA.postMessage('position fen ' + chessA.fen());
                     motorA.postMessage('go depth 14');
                 }
+
+                // Lichess para la nueva posición:
+                // - Si sigue teoría → mostrará la siguiente luz azul
+                // - Si es variante  → no habrá luces, solo candidatas en el panel
                 setTimeout(() => consultarLichess(chessA.fen()), 100);
-                terminalLog("Variante explorada: " + m.san);
             }
         });
 
@@ -1884,6 +1922,7 @@
     </script>
 </body>
 </html>
+
 
 
 
