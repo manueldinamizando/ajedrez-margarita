@@ -28,104 +28,202 @@
             --font-mono:   'Fira Code', 'Courier New', monospace;
         }
 
+        /* ══ BASE ══ */
+        *, *::before, *::after { box-sizing: border-box; }
+
         body { 
             font-family: 'Inter', sans-serif; 
             background-color: var(--bg-ultra); 
             color: var(--text-main); 
-            margin: 0; padding: 10px 25px; 
-            display: flex; flex-direction: column; align-items: center;
+            margin: 0; padding: 0 16px 16px;
+            min-height: 100vh;
         }
 
         header {
-            width: 100%; max-width: 1850px; padding: 15px; text-align: center;
-            border-bottom: 4px solid var(--accent); margin-bottom: 15px;
-            background: linear-gradient(180deg, rgba(241,196,15,0.1) 0%, transparent 100%);
+            padding: 12px 0; text-align: center;
+            border-bottom: 3px solid var(--accent); margin-bottom: 12px;
+            background: linear-gradient(180deg, rgba(241,196,15,0.08) 0%, transparent 100%);
+        }
+        header h1 { margin: 0 0 4px; font-size: clamp(1rem, 2vw, 1.4rem); }
+
+        /* ══ DASHBOARD PRINCIPAL ══ */
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            grid-template-rows: auto auto auto;
+            gap: 10px;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
-        .main-container { 
-            display: grid; 
-            grid-template-columns: 460px 250px 460px 250px; 
-            gap: 15px; 
-            width: 100%; max-width: 1850px;
-            justify-content: center;
+        /* Zona de tableros (izquierda) */
+        .boards-zone {
+            grid-column: 1;
+            grid-row: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Fila de los dos tableros */
+        .boards-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
             align-items: start;
         }
 
-        .module-card { 
-            background: var(--bg-panel); 
-            padding: 12px; 
-            border-radius: 12px; 
-            border: 1px solid var(--border); 
-            min-height: 560px; 
+        /* Carta de cada tablero */
+        .board-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+        }
+        .board-card.combat  { border-top: 3px solid var(--accent); }
+        .board-card.analysis{ border-top: 3px solid var(--accent-blue); }
+
+        /* Fila historial (debajo de los tableros) */
+        .history-row {
+            grid-column: 1;
+            grid-row: 2;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .history-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
         }
 
-        .board-container { display: flex; align-items: stretch; gap: 10px; margin-bottom: 20px; }
-
-        .eval-bar {
-            width: 25px; background-color: #444;
-            border: 2px solid #66fcf1; border-radius: 4px;
-            position: relative; display: flex;
-            flex-direction: column; justify-content: flex-end; overflow: hidden;
-        }
-        .eval-progress {
-            background-color: #fff; height: 50%; width: 100%;
-            transition: height 0.5s ease;
-        }
-        .eval-text {
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 0.7rem; font-weight: bold; color: #000;
-            z-index: 10; mix-blend-mode: difference;
+        /* Panel derecho (tabs: árbol / nodo / teoría) */
+        .right-panel {
+            grid-column: 2;
+            grid-row: 1 / 3;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            max-height: calc(100vh - 100px);
+            position: sticky;
+            top: 10px;
         }
 
-        .module-label { 
-            color: var(--accent); font-size: 0.85rem; text-transform: uppercase; 
-            margin-bottom: 15px; font-weight: 900; letter-spacing: 4px;
-            border-left: 6px solid var(--accent); padding-left: 15px;
+        /* Tabs del panel derecho */
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            background: #0a0d14;
+            border-radius: 10px 10px 0 0;
+            overflow: hidden;
         }
+        .tab-btn {
+            flex: 1; padding: 9px 4px;
+            background: transparent; border: none; cursor: pointer;
+            color: var(--text-dim); font-size: 10px; font-weight: 700;
+            letter-spacing: 0.5px; text-transform: uppercase;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-btn:hover  { color: var(--text-main); background: rgba(255,255,255,0.03); }
+        .tab-btn.active { color: var(--accent-blue); border-bottom-color: var(--accent-blue); background: rgba(31,111,235,0.06); }
 
-        .chess-canvas { width: 460px; border: 12px solid #000; border-radius: 4px; }
+        /* Contenido de cada tab */
+        .tab-content { display: none; flex: 1; overflow-y: auto; padding: 10px; }
+        .tab-content.active { display: flex; flex-direction: column; gap: 8px; }
 
-        .aperturas-shelf {
-            width: 100%; max-width: 1850px; background: var(--bg-panel);
-            margin: 20px 0; padding: 20px; border-radius: 12px;
+        /* Selector de aperturas compacto */
+        .apertura-bar {
+            max-width: 1400px; margin: 0 auto;
+            background: var(--bg-panel);
             border: 1px solid var(--accent-blue);
-        }
-        .search-container { display: flex; gap: 15px; margin-bottom: 15px; }
-        .select-margarita { 
-            flex-grow: 1; padding: 12px; border-radius: 6px;
-            background: #000; color: white; border: 2px solid var(--accent-blue); font-weight: bold;
-        }
-        .btn-margarita { 
-            padding: 12px 25px; cursor: pointer; border: none;
-            border-radius: 6px; font-weight: 900; text-transform: uppercase; color: white;
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex; gap: 8px; align-items: center;
+            flex-wrap: wrap;
         }
 
+        /* Terminal colapsable */
+        .terminal-toggle {
+            max-width: 1400px; margin: 8px auto 0;
+            width: 100%;
+        }
+        .terminal-toggle-btn {
+            width: 100%; padding: 6px;
+            background: #161b22; border: 1px solid var(--border);
+            border-radius: 6px; color: var(--text-dim);
+            font-size: 11px; font-family: var(--font-mono);
+            cursor: pointer; text-align: left;
+            transition: all 0.2s;
+        }
+        .terminal-toggle-btn:hover { color: var(--text-main); border-color: var(--accent); }
         .terminal-output { 
-            padding: 30px; background: var(--bg-terminal); border-radius: 15px; 
-            width: 100%; max-width: 1850px; min-height: 200px; 
-            border-left: 15px solid var(--accent); line-height: 1.6;
-            font-size: 1.1rem; box-shadow: inset 0 0 40px #000; margin-bottom: 30px;
+            padding: 16px; background: var(--bg-terminal); border-radius: 0 0 8px 8px;
+            min-height: 80px; max-height: 200px; overflow-y: auto;
+            border-left: 6px solid var(--accent); line-height: 1.6;
+            font-size: 0.9rem; box-shadow: inset 0 0 20px #000;
+            display: none;
         }
+        .terminal-output.open { display: block; }
 
+        /* Etiquetas de módulo */
+        .module-label { 
+            color: var(--accent); font-size: 0.75rem; text-transform: uppercase; 
+            margin-bottom: 8px; font-weight: 900; letter-spacing: 3px;
+            border-left: 4px solid var(--accent); padding-left: 10px;
+        }
+        .module-label.blue { color: var(--accent-blue); border-left-color: var(--accent-blue); }
+
+        /* Historial de jugadas */
         .move-history-panel {
             background: var(--bg-terminal); border: 1px solid var(--border);
-            border-radius: 8px; height: 440px;
-            overflow-y: auto; padding: 10px;
-            font-family: var(--font-mono); font-size: 0.9rem;
+            border-radius: 6px; height: 180px;
+            overflow-y: auto; padding: 6px;
+            font-family: var(--font-mono); font-size: 0.82rem;
+            scrollbar-width: thin; scrollbar-color: var(--border) transparent;
         }
         .history-title {
-            color: var(--accent); font-size: 0.8rem;
+            color: var(--accent); font-size: 0.72rem;
             border-bottom: 1px solid var(--border);
-            margin-bottom: 10px; padding-bottom: 5px; text-transform: uppercase;
+            margin-bottom: 6px; padding-bottom: 4px; text-transform: uppercase;
+            letter-spacing: 2px;
         }
-        .move-row {
-            display: grid; grid-template-columns: 30px 1fr 1fr;
-            gap: 10px; padding: 5px 0; border-bottom: 1px solid #1a1f26;
+
+        /* Botones */
+        .btn-margarita { 
+            padding: 7px 12px; cursor: pointer; border: none;
+            border-radius: 6px; font-weight: 900; text-transform: uppercase;
+            color: white; font-size: 11px;
+            transition: opacity 0.2s, transform 0.1s;
         }
-        .move-num { color: var(--text-dim); }
-        .move-val { color: var(--text-main); font-weight: bold; cursor: pointer; }
-        .move-val:hover { color: var(--accent); }
+        .btn-margarita:hover   { opacity: 0.85; }
+        .btn-margarita:active  { transform: scale(0.97); }
+        .btn-margarita:disabled{ opacity: 0.35; cursor: not-allowed; }
+
+        /* Select aperturas */
+        .select-margarita { 
+            flex: 1; min-width: 200px; padding: 7px 10px; border-radius: 6px;
+            background: #000; color: white; border: 1px solid var(--accent-blue);
+            font-size: 12px;
+        }
+
+        /* ══ RESPONSIVE ══ */
+        @media (max-width: 1100px) {
+            .dashboard { grid-template-columns: 1fr; }
+            .right-panel {
+                grid-column: 1; grid-row: auto;
+                position: static; max-height: 500px;
+            }
+            .history-row { display: none; } /* oculta historial en tablet, está en el tab */
+        }
+        @media (max-width: 700px) {
+            .boards-row { grid-template-columns: 1fr; }
+            body { padding: 0 8px 8px; }
+        }
 
         /* ══════════════════════════════════════════════
            ★ ÁRBOL DE VARIANTES — CONTENEDOR PRINCIPAL
@@ -414,7 +512,7 @@
 
         /* ── Barra de evaluación Stockfish ── */
         #eval-bar-analysis {
-            width: 18px; height: 430px;
+            width: 18px; height: 100%; min-height: 200px;
             background: #1a1a2e; border: 1px solid var(--border);
             border-radius: 4px; overflow: hidden;
             position: relative; display: flex;
@@ -465,176 +563,189 @@
 </head>
 <body>
     <header>
-        <h1>MARGARITA LAB: FASE 8 (Llama 3.3 Edition)</h1>
-        <div style="font-size:0.7rem;letter-spacing:3px;color:var(--accent)">NÚCLEO ESTRATÉGICO GROQ ACTIVO</div>
+        <h1>♟ MARGARITA LAB — FASE 8</h1>
+        <div style="font-size:0.65rem;letter-spacing:3px;color:var(--accent)">STOCKFISH · LICHESS · GROQ LLAMA 3.3</div>
     </header>
 
-    <!-- ══ TABLEROS (sin cambios) ══ -->
-    <div class="main-container">
-        <div class="module-card">
-            <div class="module-label">Módulo de Combate</div>
-            <div id="boardCombat" style="width:430px"></div>
-            <div id="turno-combat" style="text-align:center;font-size:0.8rem;font-weight:700;
-                letter-spacing:2px;padding:5px 0;margin-top:4px;font-family:var(--font-mono);">
-                ⬜ Turno: BLANCAS
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:6px;">
-                <button class="btn-margarita" style="background:#da3633;padding:8px;" onclick="gameReset()">Reiniciar</button>
-                <button class="btn-margarita" style="background:#1f6feb;padding:8px;" onclick="gameUndo()">Deshacer</button>
-                <button class="btn-margarita" style="background:#238636;padding:8px;" onclick="gameRedo()">Avanzar</button>
-            </div>
-        </div>
+    <div class="dashboard">
 
-        <div class="module-card">
-            <div class="history-title">Partida Principal</div>
-            <div id="moveListCombat" class="move-history-panel"></div>
-        </div>
+        <!-- ══ ZONA TABLEROS ══ -->
+        <div class="boards-zone">
 
-        <div class="module-card">
-            <div class="module-label" style="border-color:var(--accent-blue);">Laboratorio Llama 3.3</div>
-            <div style="display:flex;gap:8px;align-items:stretch;">
-                <div id="eval-bar-analysis">
-                    <div id="eval-bar-white"></div>
-                    <div id="eval-bar-black"></div>
-                    <span id="eval-bar-label">0.0</span>
+            <div class="boards-row">
+
+                <!-- COMBATE -->
+                <div class="board-card combat">
+                    <div class="module-label">⚔ Combate vs Stockfish</div>
+                    <div id="boardCombat" style="width:100%"></div>
+                    <div id="turno-combat" style="text-align:center;font-size:0.75rem;font-weight:700;
+                        letter-spacing:2px;padding:4px 0;margin-top:4px;font-family:var(--font-mono);">
+                        ⬜ Turno: BLANCAS
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:6px;">
+                        <button class="btn-margarita" style="background:#da3633;" onclick="gameReset()">↺ Reset</button>
+                        <button class="btn-margarita" style="background:#1f6feb;" onclick="gameUndo()">← Des</button>
+                        <button class="btn-margarita" style="background:#238636;" onclick="gameRedo()">Av →</button>
+                    </div>
                 </div>
-                <div id="boardAnalysis" style="width:430px"></div>
-            </div>
-            <div id="turno-analysis" style="text-align:center;font-size:0.8rem;font-weight:700;
-                letter-spacing:2px;padding:5px 0;margin-top:4px;font-family:var(--font-mono);">
-                ⬜ Turno: BLANCAS
-            </div>
 
-            <!-- ★ Navegación de análisis -->
-            <div style="display:flex;align-items:center;gap:6px;margin-top:8px;margin-bottom:6px;">
-                <button id="btn-analysis-start" onclick="analysisGoTo(0)"
-                    style="flex:0;padding:5px 10px;background:#161b22;border:1px solid var(--border);
-                    border-radius:5px;color:var(--text-dim);cursor:pointer;font-size:14px;font-weight:700;"
-                    title="Inicio">⏮</button>
-                <button id="btn-analysis-prev" onclick="analysisPrev()"
-                    style="flex:1;padding:6px;background:#161b22;border:1px solid var(--accent-blue);
-                    border-radius:5px;color:var(--accent-blue);cursor:pointer;font-size:13px;font-weight:700;"
-                    title="Jugada anterior">← Atrás</button>
-                <button id="btn-analysis-next" onclick="analysisNext()"
-                    style="flex:1;padding:6px;background:#161b22;border:1px solid var(--accent-blue);
-                    border-radius:5px;color:var(--accent-blue);cursor:pointer;font-size:13px;font-weight:700;"
-                    title="Jugada siguiente">Adelante →</button>
-                <button id="btn-analysis-end" onclick="analysisGoTo(-1)"
-                    style="flex:0;padding:5px 10px;background:#161b22;border:1px solid var(--border);
-                    border-radius:5px;color:var(--text-dim);cursor:pointer;font-size:14px;font-weight:700;"
-                    title="Última jugada">⏭</button>
-            </div>
-
-            <!-- ★ Panel Motor MultiPV -->
-            <div id="motor-panel">
-                <div style="display:flex;justify-content:space-between;align-items:center;
-                    margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid var(--border);">
-                    <span style="color:var(--accent-blue);font-size:9px;letter-spacing:2px;
-                        text-transform:uppercase;font-weight:700;">⚙ Motor Stockfish</span>
-                    <span id="motor-depth-label" style="color:var(--text-dim);font-size:9px;">depth 0</span>
+                <!-- ANÁLISIS -->
+                <div class="board-card analysis">
+                    <div class="module-label blue">🔬 Laboratorio Análisis</div>
+                    <div style="display:flex;gap:6px;align-items:stretch;">
+                        <div id="eval-bar-analysis">
+                            <div id="eval-bar-white"></div>
+                            <div id="eval-bar-black"></div>
+                            <span id="eval-bar-label">0.0</span>
+                        </div>
+                        <div id="boardAnalysis" style="flex:1;min-width:0;"></div>
+                    </div>
+                    <div id="turno-analysis" style="text-align:center;font-size:0.75rem;font-weight:700;
+                        letter-spacing:2px;padding:4px 0;margin-top:4px;font-family:var(--font-mono);">
+                        ⬜ Turno: BLANCAS
+                    </div>
+                    <!-- Navegación -->
+                    <div style="display:flex;gap:4px;margin-top:6px;">
+                        <button id="btn-analysis-start" onclick="analysisGoTo(0)"
+                            style="padding:5px 8px;background:#161b22;border:1px solid var(--border);
+                            border-radius:5px;color:var(--text-dim);cursor:pointer;font-size:13px;" title="Inicio">⏮</button>
+                        <button id="btn-analysis-prev" onclick="analysisPrev()"
+                            style="flex:1;padding:5px;background:#161b22;border:1px solid var(--accent-blue);
+                            border-radius:5px;color:var(--accent-blue);cursor:pointer;font-size:11px;font-weight:700;">← Atrás</button>
+                        <button id="btn-analysis-next" onclick="analysisNext()"
+                            style="flex:1;padding:5px;background:#161b22;border:1px solid var(--accent-blue);
+                            border-radius:5px;color:var(--accent-blue);cursor:pointer;font-size:11px;font-weight:700;">Adelante →</button>
+                        <button id="btn-analysis-end" onclick="analysisGoTo(-1)"
+                            style="padding:5px 8px;background:#161b22;border:1px solid var(--border);
+                            border-radius:5px;color:var(--text-dim);cursor:pointer;font-size:13px;" title="Final">⏭</button>
+                    </div>
+                    <!-- Motor MultiPV -->
+                    <div id="motor-panel">
+                        <div style="display:flex;justify-content:space-between;align-items:center;
+                            margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">
+                            <span style="color:var(--accent-blue);font-size:9px;letter-spacing:2px;
+                                text-transform:uppercase;font-weight:700;">⚙ Stockfish MultiPV</span>
+                            <span id="motor-depth-label" style="color:var(--text-dim);font-size:9px;">depth 0</span>
+                        </div>
+                        <div id="motor-lineas"><div class="motor-thinking">Esperando posición...</div></div>
+                    </div>
+                    <!-- Botones Llama -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:6px;">
+                        <button class="btn-margarita" style="background:var(--accent);color:black;" onclick="triggerLlamaAnalysis('Táctica')">Táctica</button>
+                        <button class="btn-margarita" style="background:var(--accent-blue);" onclick="triggerLlamaAnalysis('Estrategia')">Estrategia</button>
+                        <button class="btn-margarita" style="background:#57606a;" onclick="flipAnalysisBoard()">⇅ Girar</button>
+                    </div>
                 </div>
-                <div id="motor-lineas">
-                    <div class="motor-thinking">Esperando posición...</div>
+
+            </div><!-- /boards-row -->
+
+            <!-- Historiales -->
+            <div class="history-row">
+                <div class="history-card">
+                    <div class="history-title">📋 Partida Principal</div>
+                    <div id="moveListCombat" class="move-history-panel"></div>
+                </div>
+                <div class="history-card">
+                    <div class="history-title" style="color:var(--accent-blue);border-color:var(--accent-blue);">🔬 Líneas de Análisis</div>
+                    <div id="moveListAnalysis" class="move-history-panel"></div>
                 </div>
             </div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:4px;">
-                <button class="btn-margarita" style="background:var(--accent);color:black;padding:8px;" onclick="triggerLlamaAnalysis('Táctica')">Táctica</button>
-                <button class="btn-margarita" style="background:var(--accent-blue);padding:8px;" onclick="triggerLlamaAnalysis('Estrategia')">Estrategia</button>
-                <button class="btn-margarita" style="background:#57606a;padding:8px;" onclick="flipAnalysisBoard()">Girar Tablero</button>
-            </div>
-        </div>
+        </div><!-- /boards-zone -->
 
-        <div class="module-card">
-            <div class="history-title">Líneas de Análisis</div>
-            <div id="moveListAnalysis" class="move-history-panel"></div>
-            <div id="theoryPanel" style="margin-top:15px;padding:10px;background:#161b22;border:1px solid var(--accent-blue);border-radius:8px;font-size:0.85rem;">
-                <div style="color:var(--accent-blue);font-weight:bold;margin-bottom:5px;border-bottom:1px solid #30363d;">📚 TEORÍA DE MAESTROS</div>
-                <div id="theoryData" style="color:#c9d1d9;">Esperando movimiento...</div>
+        <!-- ══ PANEL DERECHO TABS ══ -->
+        <div class="right-panel">
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('tab-arbol', this)">🌳 Árbol</button>
+                <button class="tab-btn" onclick="switchTab('tab-nodo', this)">📝 Nodo</button>
+                <button class="tab-btn" onclick="switchTab('tab-teoria', this)">📚 Teoría</button>
+                <button class="tab-btn" onclick="switchTab('tab-apertura', this)">📖 Apert.</button>
             </div>
-        </div>
+
+            <!-- TAB: Árbol -->
+            <div id="tab-arbol" class="tab-content active">
+                <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;">
+                    <button class="btn-margarita" style="background:#238636;" onclick="vtPromote()">⬆ Promover</button>
+                    <button class="btn-margarita" style="background:var(--accent-blue);" onclick="vtBifurcation()">🔀 Bifurc.</button>
+                    <button class="btn-margarita" style="background:#da3633;" onclick="vtDiscard()">🗑 Desc.</button>
+                    <button class="btn-margarita" style="background:#57606a;" onclick="vtReset()">↺ Reset</button>
+                </div>
+                <div id="variant-tree-container" style="height:240px;"></div>
+                <div class="vt-legend" style="margin-top:6px;">
+                    <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#f1c40f"></div>Principal</div>
+                    <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#1f6feb"></div>Variante</div>
+                    <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#4caf50"></div>Buena eval</div>
+                    <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#ef5350"></div>Mala eval</div>
+                </div>
+                <div style="border-top:1px solid var(--border);padding-top:8px;margin-top:8px;">
+                    <div style="color:var(--accent-blue);font-size:0.68rem;font-weight:700;
+                        letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">🗺 Ruta activa</div>
+                    <div id="analysis-path-list" style="font-family:var(--font-mono);font-size:11px;
+                        max-height:130px;overflow-y:auto;"></div>
+                </div>
+            </div>
+
+            <!-- TAB: Nodo activo -->
+            <div id="tab-nodo" class="tab-content">
+                <div id="variant-annotation">
+                    <div style="color:var(--text-dim);font-size:11px;">
+                        Haz click en un nodo del árbol para ver los detalles.
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB: Teoría -->
+            <div id="tab-teoria" class="tab-content">
+                <div style="color:var(--accent-blue);font-weight:bold;font-size:0.8rem;
+                    margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:5px;">
+                    📚 Teoría de Maestros — Lichess
+                </div>
+                <div id="theoryData" style="color:#c9d1d9;font-size:0.85rem;">
+                    Esperando movimiento...
+                </div>
+            </div>
+
+            <!-- TAB: Aperturas -->
+            <div id="tab-apertura" class="tab-content">
+                <div style="color:var(--accent);font-size:0.75rem;font-weight:700;letter-spacing:2px;
+                    text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid var(--border);
+                    padding-bottom:5px;">📖 Explorador de Aperturas</div>
+                <select id="selectApertura" class="select-margarita" style="width:100%;margin-bottom:8px;">
+                    <option value="">Selecciona una apertura...</option>
+                    <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 3">#1 Española / Ruy López</option>
+                    <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 5 4">#2 Siciliana Najdorf</option>
+                    <option value="rnbqk2r/ppppppbp/5np1/8/2PP4/5N2/PP2PPPP/RNBQKB1R w KQkq - 4 4">#3 India de Rey</option>
+                    <option value="r1bqkb1r/pp1p1ppp/2n1pn2/2p5/2PP4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 5">#4 Nimzo-India</option>
+                    <option value="rn1qkb1r/pb3ppp/4pn2/1pp5/2PP4/5NP1/PP2PPBP/RNBQK2R w KQkq - 0 7">#5 Gambito de Dama Rehusado</option>
+                    <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 0 4">#6 Semi-Eslava Botvinnik</option>
+                    <option value="rn1qkbnr/pp1b1ppp/4p3/2ppP3/3P4/2P5/PP3PPP/RNBQKBNR w KQkq - 1 6">#7 Francesa Winawer</option>
+                    <option value="rn1qkbnr/pp2pppp/2p5/3pP3/3P4/5N2/PP2PPPP/RNBQKB1R b KQkq - 0 4">#8 Caro-Kann</option>
+                    <option value="rn1qkb1r/pp2pppp/2p2n2/3p2B1/2PP2b1/2N2N2/PP2PPPP/R2QKB1R w KQkq - 4 6">#9 Holandesa</option>
+                    <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 3">#10 Berlinesa</option>
+                </select>
+                <button class="btn-margarita" style="background:var(--accent-blue);width:100%;padding:8px;"
+                    onclick="cargarAperturaSeleccionada()">Cargar en Tablero</button>
+                <div id="infoApertura" style="color:var(--text-dim);font-size:0.8rem;margin-top:6px;"></div>
+            </div>
+
+        </div><!-- /right-panel -->
+
+    </div><!-- /dashboard -->
+
+    <!-- Terminal colapsable -->
+    <div style="max-width:1400px;margin:8px auto 0;width:100%;">
+        <button onclick="toggleTerminal(this)"
+            style="width:100%;padding:6px 12px;background:#161b22;border:1px solid var(--border);
+            border-radius:6px 6px 0 0;color:var(--text-dim);font-size:11px;font-family:var(--font-mono);
+            cursor:pointer;text-align:left;transition:all 0.2s;"
+            onmouseover="this.style.color='var(--text-main)'"
+            onmouseout="this.style.color='var(--text-dim)'">
+            ▶ Terminal — click para expandir
+        </button>
+        <div id="terminalBoard" class="terminal-output">SISTEMA LISTO. Esperando entrada de Manuel...</div>
     </div>
 
-    <!-- ★ ══ SECCIÓN ÁRBOL DE VARIANTES (NUEVA) ══ ★ -->
-    <div class="variant-section">
-
-        <!-- Columna izquierda: árbol SVG + leyenda -->
-        <div class="vt-card">
-            <div class="vt-card-title">🌳 Árbol de Variantes</div>
-
-            <!-- Controles rápidos del árbol -->
-            <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
-                <button class="btn-margarita" style="background:#238636;padding:5px 12px;font-size:11px;"
-                        onclick="vtPromote()">⬆ Promover</button>
-                <button class="btn-margarita" style="background:var(--accent-blue);padding:5px 12px;font-size:11px;"
-                        onclick="vtBifurcation()">🔀 Bifurcación</button>
-                <button class="btn-margarita" style="background:#da3633;padding:5px 12px;font-size:11px;"
-                        onclick="vtDiscard()">🗑 Descartar</button>
-                <button class="btn-margarita" style="background:#57606a;padding:5px 12px;font-size:11px;"
-                        onclick="vtReset()">↺ Reiniciar árbol</button>
-            </div>
-
-            <!-- SVG container -->
-            <div id="variant-tree-container"></div>
-
-            <!-- Leyenda -->
-            <div class="vt-legend">
-                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#f1c40f"></div>Línea principal</div>
-                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#1f6feb"></div>Variante</div>
-                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#a855f7"></div>Sugerencia</div>
-                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#4caf50"></div>Buena eval</div>
-                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#ef5350"></div>Mala eval</div>
-                <div class="vt-legend-item"><div class="vt-legend-dot" style="background:#2a2f4a"></div>Descartada</div>
-            </div>
-        </div>
-
-        <!-- Columna derecha: panel de anotación -->
-        <div class="vt-card">
-            <div class="vt-card-title">📝 Nodo Activo</div>
-            <div id="variant-annotation">
-                <div style="color:var(--text-dim);font-size:11px;">Haz click en un nodo del árbol para ver los detalles.</div>
-            </div>
-            <!-- ★ Lista de jugadas clickable del análisis -->
-            <div style="margin-top:12px;">
-                <div style="color:var(--accent-blue);font-size:0.7rem;font-weight:700;
-                    letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;
-                    border-bottom:1px solid var(--border);padding-bottom:4px;">
-                    🗺 Ruta del árbol
-                </div>
-                <div id="analysis-path-list" style="font-family:var(--font-mono);font-size:12px;
-                    max-height:200px;overflow-y:auto;"></div>
-            </div>
-        </div>
-
-    </div><!-- /variant-section -->
-
-    <!-- Buscador de aperturas (sin cambios) -->
-    <div class="aperturas-shelf">
-        <div class="module-label" style="border-color:var(--accent-blue);color:var(--accent-blue);">Explorador de Teoría Maestra</div>
-        <div class="search-container">
-            <select id="selectApertura" class="select-margarita">
-                <option value="">Selecciona una apertura de la lista honorífica...</option>
-                <option value="">--- SELECCIONA UNA APERTURA MAESTRA ---</option>
-                <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 3">#1 Apertura Española o Ruy López</option>
-                <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 5 4">#2 Defensa Siciliana, Variante Najdorf</option>
-                <option value="rnbqk2r/ppppppbp/5np1/8/2PP4/5N2/PP2PPPP/RNBQKB1R w KQkq - 4 4">#3 Defensa India de Rey</option>
-                <option value="r1bqkb1r/pp1p1ppp/2n1pn2/2p5/2PP4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 5">#4 Defensa Nimzo-India</option>
-                <option value="rn1qkb1r/pb3ppp/4pn2/1pp5/2PP4/5NP1/PP2PPBP/RNBQK2R w KQkq - 0 7">#5 Gambito de Dama Rehusado</option>
-                <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 0 4">#6 Defensa Semi-Eslava</option>
-                <option value="rn1qkbnr/pp1b1ppp/4p3/2ppP3/3P4/2P5/PP3PPP/RNBQKBNR w KQkq - 1 6">#7 Defensa Francesa, Variante Winawer</option>
-                <option value="rn1qkbnr/pp2pppp/2p5/3pP3/3P4/5N2/PP2PPPP/RNBQKB1R b KQkq - 0 4">#8 Defensa Caro-Kann</option>
-                <option value="rn1qkb1r/pp2pppp/2p2n2/3p2B1/2PP2b1/2N2N2/PP2PPPP/R2QKB1R w KQkq - 4 6">#9 Defensa Holandesa</option>
-                <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 3">#10 Defensa Berlinesa</option>
-            </select>
-            <button class="btn-margarita" style="background:var(--accent-blue);" onclick="cargarAperturaSeleccionada()">Cargar en Tablero</button>
-        </div>
-        <div id="infoApertura" style="color:var(--text-dim);font-size:0.9rem;"></div>
-    </div>
-
-    <!-- Terminal (sin cambios) -->
-    <div id="terminalBoard" class="terminal-output">SISTEMA LISTO. Esperando entrada de Manuel...</div>
-
-    <!-- Tooltip flotante del árbol -->
+        <!-- Tooltip flotante del árbol -->
     <div id="vt-tooltip"></div>
 
     <script>
@@ -2108,6 +2219,7 @@
         boardC = ChessBoard('boardCombat', {
             draggable: true, position: 'start',
             onDrop: handleMoveC, pieceTheme: PIECE_THEME,
+            resizable: true,
         });
 
         boardA = ChessBoard('boardAnalysis', {
@@ -2161,9 +2273,41 @@
 
         initSystem();
     });
+
+    /* ── Tabs del panel derecho ── */
+    function switchTab(tabId, btn) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        btn.classList.add('active');
+        // Si es el árbol, re-renderiza el SVG (puede haberse redimensionado)
+        if (tabId === 'tab-arbol') { try { VT.render(); } catch(e){} }
+    }
+
+    /* ── Terminal colapsable ── */
+    function toggleTerminal(btn) {
+        const term = document.getElementById('terminalBoard');
+        const open = term.classList.toggle('open');
+        btn.textContent = (open ? '▼' : '▶') + ' Terminal — click para ' + (open ? 'cerrar' : 'expandir');
+        btn.style.borderRadius = open ? '6px 6px 0 0' : '6px';
+    }
+
+    /* ── Auto-switch al tab de Nodo cuando se selecciona un nodo ── */
+    document.addEventListener('vt:selected', () => {
+        const tabBtn = document.querySelector('.tab-btn:nth-child(2)');
+        if (tabBtn) switchTab('tab-nodo', tabBtn);
+    });
+
+    /* ── Auto-switch al tab de Teoría cuando llegan datos de Lichess ── */
+    // (opcional, descomenta si quieres que cambie automáticamente)
+    // function autoSwitchTeoria() {
+    //     const tabBtn = document.querySelector('.tab-btn:nth-child(3)');
+    //     if (tabBtn) switchTab('tab-teoria', tabBtn);
+    // }
     </script>
 </body>
 </html>
+
 
 
 
