@@ -577,12 +577,16 @@
         }
 
         /* ── Barra de evaluación Stockfish ── */
+        .board-with-eval {
+            display: flex; gap: 6px; align-items: flex-start;
+        }
         #eval-bar-analysis {
-            width: 18px; height: 100%; min-height: 200px;
+            width: 18px; height: 380px;  /* fijo: se ajusta con JS al tamaño real del board */
             background: #1a1a2e; border: 1px solid var(--border);
             border-radius: 4px; overflow: hidden;
             position: relative; display: flex;
             flex-direction: column-reverse;
+            flex-shrink: 0;
         }
         #eval-bar-white {
             width: 100%; height: 50%;
@@ -616,6 +620,35 @@
         .estado-teoria  { background: rgba(52,152,219,0.2);  color: #7dd3fc; border: 1px solid #3498db; }
         .estado-variante{ background: rgba(239,83,80,0.2);   color: #fca5a5; border: 1px solid #ef5350; }
         .estado-visitado{ background: rgba(241,196,15,0.15); color: #fcd34d; border: 1px solid #f1c40f; }
+
+        /* ── Jaque: casilla del rey en rojo pulsante ── */
+        @keyframes jaque-pulse {
+            0%,100% { box-shadow: inset 0 0 0 4px rgba(239,83,80,1.0), 0 0 16px rgba(239,83,80,0.6); }
+            50%      { box-shadow: inset 0 0 0 4px rgba(239,83,80,0.5), 0 0 6px rgba(239,83,80,0.2); }
+        }
+        .sq-jaque { animation: jaque-pulse 0.8s ease-in-out infinite !important; }
+
+        /* ── Pantalla de resultado ── */
+        #resultado-overlay {
+            display: none; position: fixed; inset: 0; z-index: 9999;
+            background: rgba(2,4,8,0.88);
+            align-items: center; justify-content: center;
+        }
+        #resultado-overlay.visible { display: flex; }
+        .resultado-card {
+            background: var(--bg-panel); border-radius: 16px;
+            padding: 40px 60px; text-align: center;
+            border: 2px solid var(--accent);
+            box-shadow: 0 0 60px rgba(241,196,15,0.3);
+            animation: resultado-in 0.4s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes resultado-in {
+            from { opacity:0; transform: scale(0.8); }
+            to   { opacity:1; transform: scale(1); }
+        }
+        .resultado-emoji { font-size: 64px; margin-bottom: 12px; }
+        .resultado-titulo { font-size: 28px; font-weight: 900; color: var(--accent); margin-bottom: 8px; }
+        .resultado-subtitulo { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; }
 
         /* Animación pulso en casillas iluminadas (legacy) */
         @keyframes vt-pulse {
@@ -658,7 +691,7 @@
                 <!-- ANÁLISIS -->
                 <div class="board-card analysis">
                     <div class="module-label blue">🔬 Laboratorio Análisis</div>
-                    <div style="display:flex;gap:6px;align-items:stretch;">
+                    <div class="board-with-eval" id="board-analysis-wrapper">
                         <div id="eval-bar-analysis">
                             <div id="eval-bar-white"></div>
                             <div id="eval-bar-black"></div>
@@ -854,6 +887,20 @@
 
         <!-- Tooltip flotante del árbol -->
     <div id="vt-tooltip"></div>
+
+    <!-- Overlay de resultado (jaque mate / tablas / ahogado) -->
+    <div id="resultado-overlay">
+        <div class="resultado-card">
+            <div class="resultado-emoji" id="resultado-emoji">♟</div>
+            <div class="resultado-titulo" id="resultado-titulo">FIN DE PARTIDA</div>
+            <div class="resultado-subtitulo" id="resultado-subtitulo"></div>
+            <button class="btn-margarita" style="background:var(--accent);color:black;
+                padding:12px 32px;font-size:14px;margin-top:8px;"
+                onclick="gameReset();document.getElementById('resultado-overlay').classList.remove('visible')">
+                Nueva Partida
+            </button>
+        </div>
+    </div>
 
     <script>
     /* ════════════════════════════════════════════════════════════
@@ -2068,10 +2115,61 @@
         motorA.addEventListener('message', handler);
     }
 
+    /* ── Diálogo de promoción ── */
+    var _pendingPromotion = null;
+    function solicitarPromocion(source, target, callback) {
+        const piezas = [
+            { p: 'q', n: 'Dama',   s: '♛' },
+            { p: 'r', n: 'Torre',  s: '♜' },
+            { p: 'b', n: 'Alfil',  s: '♝' },
+            { p: 'n', n: 'Caballo',s: '♞' },
+        ];
+        // Diálogo simple inline
+        const dlg = document.createElement('div');
+        dlg.style.cssText = `position:fixed;inset:0;z-index:9998;background:rgba(2,4,8,0.85);
+            display:flex;align-items:center;justify-content:center;`;
+        dlg.innerHTML = `<div style="background:var(--bg-panel);border:2px solid var(--accent);
+            border-radius:12px;padding:24px;text-align:center;">
+            <div style="font-size:13px;color:var(--accent);font-weight:700;letter-spacing:2px;
+                text-transform:uppercase;margin-bottom:16px;">Coronación — Elige pieza</div>
+            <div style="display:flex;gap:12px;">
+                ${piezas.map(p => `<button onclick="document.body.removeChild(this.closest('[style*=fixed]'));(${callback.toString()})('${p.p}')"
+                    style="font-size:36px;background:transparent;border:2px solid var(--border);
+                    border-radius:8px;padding:8px 14px;cursor:pointer;color:var(--text-main);
+                    transition:border-color 0.2s;"
+                    onmouseover="this.style.borderColor='var(--accent)'"
+                    onmouseout="this.style.borderColor='var(--border)'"
+                    title="${p.n}">${p.s}</button>`).join('')}
+            </div>
+        </div>`;
+        document.body.appendChild(dlg);
+    }
+
     /* ── handleMoveC: tu jugada en COMBATE ── */
     function handleMoveC(source, target) {
-        const move = chessC.move({from:source, to:target, promotion:'q'});
-        if (move === null) return 'snapback';
+        // Detecta si es una coronación
+        const piece = chessC.get(source);
+        const isProm = piece?.type === 'p' &&
+            ((piece.color === 'w' && target[1] === '8') ||
+             (piece.color === 'b' && target[1] === '1'));
+
+        if (isProm) {
+            // Verifica que el movimiento es legal antes de mostrar el diálogo
+            const legal = chessC.moves({ square: source, verbose: true })
+                .some(m => m.to === target);
+            if (!legal) return 'snapback';
+            solicitarPromocion(source, target, function(prom) {
+                _ejecutarMovimientoCombate(source, target, prom);
+            });
+            return; // No retorna snapback — chessboard espera
+        }
+
+        _ejecutarMovimientoCombate(source, target, 'q');
+    }
+
+    function _ejecutarMovimientoCombate(source, target, prom) {
+        const move = chessC.move({from:source, to:target, promotion:prom});
+        if (move === null) { boardC.position(chessC.fen()); return; }
 
         // Empuja a nuestro array propio y limpia la variante
         combatMoveHistory.push(move.san);
@@ -2092,9 +2190,9 @@
         }, 'main');
         VT.combatId = VT.activeId;
 
-        estadoAnalisis = 'teoria'; // al jugar en combate, análisis muestra luz teórica
+        estadoAnalisis = 'teoria';
         consultarLichess(chessC.fen());
-        checkTablebase(chessC.fen()); // activa tablebase si ≤7 piezas
+        checkTablebase(chessC.fen());
         motorE.postMessage("position fen " + chessC.fen());
         motorE.postMessage("go movetime 1000");
     }
@@ -2418,8 +2516,9 @@
         list.innerHTML = html;
     }
 
-    // ── Indicador de turno: muestra ⬜ BLANCAS / ⬛ NEGRAS bajo cada tablero ──
+    // ── Indicador de turno + detección jaque + fin de partida ──
     function actualizarTurno() {
+        // Turno
         const turnoC = chessC.turn() === 'w' ? '⬜ Turno: BLANCAS' : '⬛ Turno: NEGRAS';
         const turnoA = chessA.turn() === 'w' ? '⬜ Turno: BLANCAS' : '⬛ Turno: NEGRAS';
         const colorC = chessC.turn() === 'w' ? '#e6edf3' : '#8b949e';
@@ -2428,6 +2527,82 @@
         const elA = document.getElementById('turno-analysis');
         if (elC) { elC.textContent = turnoC; elC.style.color = colorC; }
         if (elA) { elA.textContent = turnoA; elA.style.color = colorA; }
+
+        // Marcar rey en jaque
+        marcarJaque();
+
+        // Detectar fin de partida en combate
+        detectarFinPartida();
+    }
+
+    // Marca visualmente el rey en jaque con pulso rojo
+    function marcarJaque() {
+        // Limpia jaque anterior
+        document.querySelectorAll('.sq-jaque').forEach(el => el.classList.remove('sq-jaque'));
+
+        [{ chess: chessC, boardId: 'boardCombat' },
+         { chess: chessA, boardId: 'boardAnalysis' }].forEach(({ chess, boardId }) => {
+            if (!chess.in_check()) return;
+
+            // Encuentra la casilla del rey del bando activo
+            const turno = chess.turn(); // 'w' o 'b'
+            const board = chess.board();
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const piece = board[r][c];
+                    if (piece && piece.type === 'k' && piece.color === turno) {
+                        const files = ['a','b','c','d','e','f','g','h'];
+                        const ranks = ['8','7','6','5','4','3','2','1'];
+                        const sq    = files[c] + ranks[r];
+                        const el = document.querySelector(`#${boardId} .square-${sq}`);
+                        if (el) el.classList.add('sq-jaque');
+                    }
+                }
+            }
+        });
+    }
+
+    // Detecta jaque mate, ahogado y tablas en la partida de combate
+    function detectarFinPartida() {
+        if (!chessC.game_over()) return;
+
+        let emoji = '🤝', titulo = '', subtitulo = '';
+
+        if (chessC.in_checkmate()) {
+            const ganador = chessC.turn() === 'b' ? 'BLANCAS' : 'NEGRAS';
+            emoji     = ganador === 'BLANCAS' ? '🏆' : '🏴';
+            titulo    = `¡JAQUE MATE! Ganan las ${ganador}`;
+            subtitulo = ganador === 'NEGRAS' ? 'Stockfish te ha derrotado. ¡Sigue practicando!' : '¡Increíble! Has vencido a Stockfish.';
+        } else if (chessC.in_stalemate()) {
+            titulo    = 'AHOGADO — Tablas';
+            subtitulo = 'El rey no puede moverse. Tablas por ahogado.';
+        } else if (chessC.in_threefold_repetition()) {
+            titulo    = 'TABLAS — Triple repetición';
+            subtitulo = 'La misma posición se ha repetido 3 veces.';
+        } else if (chessC.insufficient_material()) {
+            titulo    = 'TABLAS — Material insuficiente';
+            subtitulo = 'Ninguno de los dos bandos puede dar mate.';
+        } else if (chessC.in_draw()) {
+            titulo    = 'TABLAS — Regla de los 50 movimientos';
+            subtitulo = '50 movimientos sin capturas ni peones.';
+        }
+
+        if (titulo) {
+            document.getElementById('resultado-emoji').textContent    = emoji;
+            document.getElementById('resultado-titulo').textContent   = titulo;
+            document.getElementById('resultado-subtitulo').textContent = subtitulo;
+            document.getElementById('resultado-overlay').classList.add('visible');
+            terminalLog(`⚑ ${titulo}`);
+        }
+    }
+
+    // Sincroniza la altura de la barra eval con la del tablero real
+    function sincronizarAlturaEvalBar() {
+        const board = document.getElementById('boardAnalysis');
+        const bar   = document.getElementById('eval-bar-analysis');
+        if (!board || !bar) return;
+        const h = board.offsetHeight;
+        if (h > 50) bar.style.height = h + 'px';
     }
 
     async function consultarLichess(fen) {
@@ -2576,6 +2751,10 @@
         VT.init('variant-tree-container', INITIAL_FEN);
 
         initSystem();
+
+        // Sincronizar altura de la barra de evaluación con el tablero
+        setTimeout(sincronizarAlturaEvalBar, 500);
+        window.addEventListener('resize', sincronizarAlturaEvalBar);
     });
 
     /* ── Tabs del panel derecho ── */
@@ -2611,6 +2790,7 @@
     </script>
 </body>
 </html>
+
 
 
 
