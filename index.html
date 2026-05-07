@@ -402,22 +402,19 @@
         }
         .path-num { color: var(--text-dim); font-size: 10px; margin-right: 2px; }
 
-        /* ── Tablebase: colores por destino de la partida ── */
-        @keyframes tb-pulse-win {
-            0%,100% { box-shadow: inset 0 0 0 4px rgba(76,175,80,0.9), 0 0 10px rgba(76,175,80,0.3); }
-            50%      { box-shadow: inset 0 0 0 4px rgba(76,175,80,0.4), 0 0 4px rgba(76,175,80,0.1); }
-        }
-        @keyframes tb-pulse-draw {
-            0%,100% { box-shadow: inset 0 0 0 4px rgba(255,193,7,0.9),  0 0 10px rgba(255,193,7,0.3); }
-            50%      { box-shadow: inset 0 0 0 4px rgba(255,193,7,0.4),  0 0 4px rgba(255,193,7,0.1); }
-        }
-        @keyframes tb-pulse-loss {
-            0%,100% { box-shadow: inset 0 0 0 4px rgba(239,83,80,0.9),  0 0 10px rgba(239,83,80,0.3); }
-            50%      { box-shadow: inset 0 0 0 4px rgba(239,83,80,0.4),  0 0 4px rgba(239,83,80,0.1); }
-        }
-        .tb-win  { animation: tb-pulse-win  1.6s ease-in-out infinite; }
-        .tb-draw { animation: tb-pulse-draw 1.6s ease-in-out infinite; }
-        .tb-loss { animation: tb-pulse-loss 1.6s ease-in-out infinite; }
+        /* ── Tablebase: semáforo de destinos al pasar el ratón ── */
+        /* Solo casillas del semáforo (no todo el tablero) */
+        .tb-sq-win  { box-shadow: inset 0 0 0 4px rgba(76,175,80,1.0),
+                      inset 0 0 20px rgba(76,175,80,0.25) !important; }
+        .tb-sq-draw { box-shadow: inset 0 0 0 4px rgba(255,193,7,1.0),
+                      inset 0 0 20px rgba(255,193,7,0.2)  !important; }
+        .tb-sq-loss { box-shadow: inset 0 0 0 4px rgba(239,83,80,1.0),
+                      inset 0 0 20px rgba(239,83,80,0.2)  !important; }
+        /* Casilla origen seleccionada */
+        .tb-sq-from { box-shadow: inset 0 0 0 3px rgba(255,215,0,0.8) !important; }
+        /* Flecha dorada SVG (se añade dinámicamente) */
+        .tb-arrow-svg { position:absolute; top:0; left:0; width:100%;
+                        height:100%; pointer-events:none; z-index:25; overflow:visible; }
 
         /* ── Panel Tablebase en el sidebar ── */
         #tab-tablebase { font-family: var(--font-mono); }
@@ -435,25 +432,48 @@
         .tb-verdict-text { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; }
         .tb-dtm { font-size: 15px; font-weight: 900; }
 
-        .tb-moves-list {
-            display: flex; flex-direction: column; gap: 3px;
-            max-height: 280px; overflow-y: auto;
+        /* Tabla de jugadas tablebase */
+        .tb-table {
+            width: 100%; border-collapse: collapse;
+            font-size: 11px; font-family: var(--font-mono);
         }
-        .tb-move-row {
-            display: flex; align-items: center; gap: 8px;
-            padding: 4px 8px; border-radius: 5px; cursor: default;
-            border: 1px solid transparent; font-size: 11px;
-            transition: background 0.15s;
+        .tb-table th {
+            color: var(--text-dim); font-size: 9px; text-transform: uppercase;
+            letter-spacing: 1px; padding: 4px 6px; text-align: left;
+            border-bottom: 1px solid var(--border);
         }
-        .tb-move-row:hover { background: rgba(255,255,255,0.04); }
-        .tb-move-row.win  { border-left: 3px solid #4caf50; }
-        .tb-move-row.draw { border-left: 3px solid #ffc107; }
-        .tb-move-row.loss { border-left: 3px solid #ef5350; }
-        .tb-move-san  { font-weight: 700; min-width: 36px; font-size: 12px; }
-        .tb-move-san.win  { color: #81c784; }
-        .tb-move-san.draw { color: #ffd54f; }
-        .tb-move-san.loss { color: #e57373; }
-        .tb-move-dtm  { color: var(--text-dim); font-size: 10px; margin-left: auto; }
+        .tb-table td {
+            padding: 5px 6px; border-bottom: 1px solid rgba(48,54,61,0.5);
+            vertical-align: middle;
+        }
+        .tb-table tr:hover td { background: rgba(255,255,255,0.03); cursor: default; }
+        .tb-table tr.tb-best td { background: rgba(241,196,15,0.06); }
+        .tb-san { font-weight: 700; font-size: 12px; }
+        .tb-san.win  { color: #81c784; }
+        .tb-san.draw { color: #ffd54f; }
+        .tb-san.loss { color: #e57373; }
+        .tb-cat { font-size: 9px; opacity: 0.75; }
+        .tb-dtm { text-align: right; color: var(--text-dim); font-size: 10px; }
+        .tb-best-arrow { color: #ffd700; font-size: 10px; }
+
+        /* Línea de la Verdad */
+        .tb-linea-verdad {
+            background: rgba(241,196,15,0.06);
+            border: 1px solid rgba(241,196,15,0.25);
+            border-radius: 6px; padding: 8px 10px;
+            margin-top: 8px; font-size: 11px;
+        }
+        .tb-linea-label {
+            color: #ffd700; font-size: 9px; font-weight: 700;
+            letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px;
+        }
+        .tb-linea-moves { color: var(--text-main); font-family: var(--font-mono); line-height: 1.6; }
+
+        /* Instrucción semáforo */
+        .tb-hint {
+            font-size: 9px; color: var(--text-dim); text-align: center;
+            padding: 4px; margin-bottom: 6px; letter-spacing: 0.5px;
+        }
         .tb-badge-syzygy {
             font-size: 9px; color: var(--text-dim);
             border-top: 1px solid var(--border);
@@ -462,8 +482,7 @@
         }
         .tb-legend {
             display: flex; gap: 10px; flex-wrap: wrap;
-            font-size: 9px; color: var(--text-dim);
-            margin-bottom: 8px;
+            font-size: 9px; color: var(--text-dim); margin-bottom: 8px;
         }
         .tb-legend-item { display: flex; align-items: center; gap: 4px; }
         .tb-legend-dot { width: 8px; height: 8px; border-radius: 50%; }
@@ -1439,47 +1458,42 @@
     }
 
     /* ══════════════════════════════════════════════════════════
-       TABLEBASE SYZYGY — Verdad Absoluta en Finales
+       TABLEBASE SYZYGY — Sistema Profesional
+       Filosofía: tablero limpio + flecha dorada + semáforo al hover
     ══════════════════════════════════════════════════════════ */
 
-    const TB_CACHE    = new Map(); // Cache LRU para no repetir consultas
+    const TB_CACHE      = new Map();
     const TB_MAX_PIEZAS = 7;
 
-    // Categorías de la API → clase CSS y emoji
+    // Datos actuales de tablebase (para el semáforo)
+    var tbDatos       = null;   // respuesta completa de la API
+    var tbFenActual   = null;   // FEN consultado
+
     const TB_CAT_MAP = {
-        'win':          { cls: 'win',  emoji: '🏆', txt: 'VICTORIA FORZADA' },
-        'syzygy-win':   { cls: 'win',  emoji: '✅', txt: 'Victoria probable' },
-        'cursed-win':   { cls: 'draw', emoji: '⚠️', txt: 'Victoria maldita (regla 50)' },
-        'draw':         { cls: 'draw', emoji: '🤝', txt: 'TABLAS ABSOLUTAS' },
-        'blessed-loss': { cls: 'draw', emoji: '🍀', txt: 'Derrota bendita (regla 50)' },
-        'syzygy-loss':  { cls: 'loss', emoji: '❌', txt: 'Derrota probable' },
-        'loss':         { cls: 'loss', emoji: '💀', txt: 'DERROTA FORZADA' },
+        'win':          { cls: 'win',  emoji: '🏆', txt: 'Victoria forzada',      order: 0 },
+        'syzygy-win':   { cls: 'win',  emoji: '✅', txt: 'Victoria probable',      order: 1 },
+        'cursed-win':   { cls: 'draw', emoji: '⚠️', txt: 'Victoria maldita',       order: 2 },
+        'draw':         { cls: 'draw', emoji: '🤝', txt: 'Tablas absolutas',       order: 3 },
+        'blessed-loss': { cls: 'draw', emoji: '🍀', txt: 'Derrota bendita',        order: 4 },
+        'syzygy-loss':  { cls: 'loss', emoji: '❌', txt: 'Derrota probable',       order: 5 },
+        'loss':         { cls: 'loss', emoji: '💀', txt: 'Derrota forzada',        order: 6 },
     };
 
-    // Cuenta las piezas en un FEN
     function contarPiezas(fen) {
         return fen.split(' ')[0].replace(/\d/g, '').replace(/\//g, '').length;
     }
 
-    // Consulta la API de Tablebase (con cache)
     async function fetchTablebase(fen) {
         if (contarPiezas(fen) > TB_MAX_PIEZAS) return null;
-
-        // Cache hit
         if (TB_CACHE.has(fen)) return TB_CACHE.get(fen);
-
         try {
             const res = await fetch(
                 `https://tablebase.lichess.ovh/standard?fen=${encodeURIComponent(fen)}`,
                 { headers: { 'Accept': 'application/json' } }
             );
-            if (!res.ok) throw new Error(`TB HTTP ${res.status}`);
+            if (!res.ok) throw new Error(`TB ${res.status}`);
             const data = await res.json();
-
-            // Cache LRU (máx 300 entradas)
-            if (TB_CACHE.size >= 300) {
-                TB_CACHE.delete(TB_CACHE.keys().next().value);
-            }
+            if (TB_CACHE.size >= 300) TB_CACHE.delete(TB_CACHE.keys().next().value);
             TB_CACHE.set(fen, data);
             return data;
         } catch (err) {
@@ -1488,133 +1502,263 @@
         }
     }
 
-    // Ilumina TODAS las casillas de destino con su color tablebase
-    function iluminarTablebase(movesData) {
-        // Limpia iluminaciones anteriores de tablebase
-        document.querySelectorAll('.tb-win, .tb-draw, .tb-loss').forEach(el => {
-            el.classList.remove('tb-win', 'tb-draw', 'tb-loss');
-        });
-        if (!movesData?.length) return;
-
-        movesData.forEach(m => {
-            if (!m.uci || m.uci.length < 4) return;
-            const toSq   = m.uci.slice(2, 4);
-            const cat    = TB_CAT_MAP[m.category];
-            if (!cat) return;
-
-            // Ilumina la casilla DESTINO en el tablero de análisis
-            const el = document.querySelector(`#boardAnalysis .square-${toSq}`);
-            if (el) el.classList.add(`tb-${cat.cls}`);
-
-            // También el tablero de combate si tiene la misma posición
-            const elC = document.querySelector(`#boardCombat .square-${toSq}`);
-            if (elC) elC.classList.add(`tb-${cat.cls}`);
+    // Ordena las jugadas: wins (menor DTM) → draws → losses
+    function tbOrdenarJugadas(moves) {
+        return [...(moves || [])].sort((a, b) => {
+            const oa = TB_CAT_MAP[a.category]?.order ?? 7;
+            const ob = TB_CAT_MAP[b.category]?.order ?? 7;
+            if (oa !== ob) return oa - ob;
+            if ((TB_CAT_MAP[a.category]?.cls) === 'win') {
+                return (Math.abs(a.dtm) || 999) - (Math.abs(b.dtm) || 999);
+            }
+            return 0;
         });
     }
 
-    // Limpia todas las casillas tablebase
+    // ── Flecha dorada para la mejor jugada ───────────────────
+    function dibujarFlechaDorada(uci, boardId) {
+        const board = document.getElementById(boardId);
+        if (!board || !uci || uci.length < 4) return;
+        // Elimina flecha anterior
+        board.querySelectorAll('.tb-arrow-svg').forEach(e => e.remove());
+
+        const from  = uci.slice(0, 2);
+        const to    = uci.slice(2, 4);
+        const fromEl = board.querySelector(`.square-${from}`);
+        const toEl   = board.querySelector(`.square-${to}`);
+        if (!fromEl || !toEl) return;
+
+        const br = board.getBoundingClientRect();
+        const fr = fromEl.getBoundingClientRect();
+        const tr = toEl.getBoundingClientRect();
+        const x1 = fr.left + fr.width / 2  - br.left;
+        const y1 = fr.top  + fr.height / 2 - br.top;
+        const x2 = tr.left + tr.width / 2  - br.left;
+        const y2 = tr.top  + tr.height / 2 - br.top;
+
+        const dx = x2 - x1, dy = y2 - y1;
+        const len = Math.sqrt(dx*dx + dy*dy);
+        const trim = 14;
+        const ex = x2 - (dx / len) * trim;
+        const ey = y2 - (dy / len) * trim;
+
+        const mid = `tbarr-${Date.now()}`;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.classList.add('tb-arrow-svg');
+        svg.innerHTML = `
+            <defs>
+                <marker id="${mid}" viewBox="0 -5 10 10" refX="9" refY="0"
+                        markerWidth="6" markerHeight="6" orient="auto">
+                    <path d="M0,-5L10,0L0,5" fill="#ffd700" opacity="0.95"/>
+                </marker>
+            </defs>
+            <line x1="${x1}" y1="${y1}" x2="${ex}" y2="${ey}"
+                  stroke="#ffd700" stroke-width="6" stroke-linecap="round"
+                  opacity="0.9" marker-end="url(#${mid})"/>
+            <circle cx="${x1}" cy="${y1}" r="5" fill="#ffd700" opacity="0.7"/>`;
+
+        board.style.position = 'relative';
+        board.appendChild(svg);
+    }
+
+    function limpiarFlechaDorada(boardId) {
+        document.getElementById(boardId)
+            ?.querySelectorAll('.tb-arrow-svg')
+            .forEach(e => e.remove());
+    }
+
+    // ── Semáforo al pasar ratón sobre una pieza ───────────────
+    function tbMouseoverSquare(square, boardId) {
+        if (!tbDatos?.moves) return;
+        // Limpia semáforo anterior
+        tbLimpiarSemaforo();
+        // Jugadas legales de esa casilla
+        const jugadasDesdeCasilla = tbDatos.moves.filter(m =>
+            m.uci && m.uci.slice(0, 2) === square
+        );
+        if (!jugadasDesdeCasilla.length) return;
+
+        // Resalta casilla origen
+        const board = document.getElementById(boardId);
+        board?.querySelector(`.square-${square}`)?.classList.add('tb-sq-from');
+
+        // Resalta destinos con su color
+        jugadasDesdeCasilla.forEach(m => {
+            const toSq = m.uci.slice(2, 4);
+            const cls  = TB_CAT_MAP[m.category]?.cls ?? 'draw';
+            board?.querySelector(`.square-${toSq}`)?.classList.add(`tb-sq-${cls}`);
+        });
+
+        // Oculta la flecha dorada mientras el ratón está sobre una pieza
+        board?.querySelectorAll('.tb-arrow-svg').forEach(e => e.style.opacity = '0.15');
+    }
+
+    function tbMouseoutSquare(boardId) {
+        tbLimpiarSemaforo();
+        // Restaura la flecha dorada
+        document.getElementById(boardId)
+            ?.querySelectorAll('.tb-arrow-svg')
+            .forEach(e => e.style.opacity = '1');
+    }
+
+    function tbLimpiarSemaforo() {
+        document.querySelectorAll('.tb-sq-win, .tb-sq-draw, .tb-sq-loss, .tb-sq-from')
+            .forEach(el => el.classList.remove('tb-sq-win', 'tb-sq-draw', 'tb-sq-loss', 'tb-sq-from'));
+    }
+
+    // ── Limpiar todo ─────────────────────────────────────────
     function limpiarTablebase() {
-        document.querySelectorAll('.tb-win, .tb-draw, .tb-loss').forEach(el => {
-            el.classList.remove('tb-win', 'tb-draw', 'tb-loss');
-        });
+        tbLimpiarSemaforo();
+        limpiarFlechaDorada('boardAnalysis');
+        limpiarFlechaDorada('boardCombat');
+        tbDatos     = null;
+        tbFenActual = null;
     }
 
-    // Renderiza el panel del tab Tablebase
-    function renderTablebasePanel(data, fen) {
-        const verdictEl  = document.getElementById('tb-verdict');
-        const dtmEl      = document.getElementById('tb-dtm-text');
-        const movesEl    = document.getElementById('tb-moves-list');
+    // ── Construir la "Línea de la Verdad" ────────────────────
+    // Sigue las mejores jugadas 4-5 movimientos usando el cache
+    async function construirLineaVerdad(fen, profundidad = 5) {
+        let fenActual = fen;
+        const linea   = [];
+        const chess   = new Chess();
+        chess.load(fen);
+
+        for (let i = 0; i < profundidad; i++) {
+            const datos = await fetchTablebase(fenActual);
+            if (!datos?.moves?.length) break;
+            const sorted = tbOrdenarJugadas(datos.moves);
+            const mejor  = sorted[0];
+            if (!mejor?.uci) break;
+
+            const move = chess.move({
+                from: mejor.uci.slice(0, 2),
+                to:   mejor.uci.slice(2, 4),
+                promotion: mejor.uci[4] || 'q',
+            });
+            if (!move) break;
+
+            linea.push(move.san);
+            fenActual = chess.fen();
+            if (chess.game_over()) break;
+        }
+        return linea;
+    }
+
+    // ── Panel principal ───────────────────────────────────────
+    async function renderTablebasePanel(data, fen) {
+        const verdictEl = document.getElementById('tb-verdict');
+        const movesEl   = document.getElementById('tb-moves-list');
         if (!verdictEl || !movesEl) return;
 
         if (!data) {
             verdictEl.className = 'tb-header-verdict tb-verdict-none';
             verdictEl.innerHTML = `<span class="tb-emoji">⏳</span>
-                <div><div class="tb-verdict-text">Sin datos de tablebase</div>
-                <div class="tb-dtm">—</div></div>`;
-            movesEl.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">Sin respuesta de la API.</div>';
+                <div><div class="tb-verdict-text">Sin datos de tablebase</div></div>`;
+            movesEl.innerHTML = '';
             return;
         }
 
-        // Veredicto principal
+        // Veredicto
         const cat  = TB_CAT_MAP[data.category] ?? { cls: 'none', emoji: '❓', txt: data.category };
-        const dtm  = data.dtm  ? `Mate en ${Math.abs(data.dtm)} jugadas` : '';
-        const dtz  = data.dtz  ? `DTZ: ${data.dtz}` : '';
-        const info = [dtm, dtz].filter(Boolean).join(' · ') || 'Con juego perfecto';
+        const dtm  = data.dtm ? `Mate en ${Math.abs(data.dtm)} movimientos` : '';
+        const info = dtm || 'Con juego perfecto';
 
         verdictEl.className = `tb-header-verdict tb-verdict-${cat.cls}`;
         verdictEl.innerHTML = `
             <span class="tb-emoji">${cat.emoji}</span>
             <div>
                 <div class="tb-verdict-text">${cat.txt}</div>
-                <div class="tb-dtm" id="tb-dtm-text">${info}</div>
+                <div class="tb-dtm">${info}</div>
             </div>`;
 
-        // Lista de jugadas legales ordenadas: wins → draws → losses
-        const moves = (data.moves || []).sort((a, b) => {
-            const order = { win: 0, 'syzygy-win': 1, 'cursed-win': 2, draw: 3, 'blessed-loss': 4, 'syzygy-loss': 5, loss: 6 };
-            const oa = order[a.category] ?? 7;
-            const ob = order[b.category] ?? 7;
-            if (oa !== ob) return oa - ob;
-            // Dentro de wins: menor DTM primero (mata antes)
-            if (a.category === 'win' && b.category === 'win') {
-                return (Math.abs(a.dtm) || 999) - (Math.abs(b.dtm) || 999);
-            }
-            return 0;
-        });
+        // Top 5 jugadas en tabla limpia
+        const sorted = tbOrdenarJugadas(data.moves).slice(0, 5);
 
-        movesEl.innerHTML = moves.map(m => {
+        let tablaHtml = `
+            <div class="tb-hint">🖱 Pasa el ratón sobre una pieza para ver sus opciones</div>
+            <table class="tb-table">
+                <thead><tr>
+                    <th></th><th>Jugada</th><th>Resultado</th><th>DTM</th>
+                </tr></thead>
+                <tbody>`;
+
+        sorted.forEach((m, i) => {
             const mc    = TB_CAT_MAP[m.category] ?? { cls: 'draw', emoji: '?' };
-            const dtmTx = m.dtm  ? `M${Math.abs(m.dtm)}` : (m.dtz ? `DTZ${m.dtz}` : '—');
-            return `<div class="tb-move-row ${mc.cls}"
-                onmouseenter="tbHoverMove('${m.uci}', '${mc.cls}')"
-                onmouseleave="tbClearHover()">
-                <span>${mc.emoji}</span>
-                <span class="tb-move-san ${mc.cls}">${m.san}</span>
-                <span style="color:var(--text-dim);font-size:10px;">${m.category.replace('-', ' ')}</span>
-                <span class="tb-move-dtm">${dtmTx}</span>
-            </div>`;
-        }).join('') || '<div style="color:var(--text-dim);font-size:11px;">Sin jugadas disponibles.</div>';
+            const dtmTx = m.dtm ? `M${Math.abs(m.dtm)}` : (m.dtz ? `Z${m.dtz}` : '—');
+            const isBest = i === 0;
+            tablaHtml += `
+                <tr class="${isBest ? 'tb-best' : ''}"
+                    onmouseenter="tbRowHover('${m.uci}', '${mc.cls}')"
+                    onmouseleave="tbRowHoverOut()">
+                    <td class="tb-best-arrow">${isBest ? '→' : ''}</td>
+                    <td><span class="tb-san ${mc.cls}">${m.san}</span></td>
+                    <td><span class="tb-cat">${mc.emoji} ${mc.txt}</span></td>
+                    <td class="tb-dtm">${dtmTx}</td>
+                </tr>`;
+        });
+
+        tablaHtml += `</tbody></table>`;
+        movesEl.innerHTML = tablaHtml;
+
+        // Línea de la Verdad (asíncrona, se añade cuando esté lista)
+        movesEl.insertAdjacentHTML('beforeend',
+            `<div class="tb-linea-verdad" id="tb-linea-container">
+                <div class="tb-linea-label">⚡ Línea de la verdad</div>
+                <div class="tb-linea-moves" id="tb-linea-moves" style="color:var(--text-dim)">
+                    Calculando...
+                </div>
+             </div>`
+        );
+
+        construirLineaVerdad(fen, 6).then(linea => {
+            const el = document.getElementById('tb-linea-moves');
+            if (el) {
+                el.style.color = '';
+                el.textContent = linea.length
+                    ? linea.map((san, i) => {
+                        const n = Math.floor(i / 2) + 1;
+                        return i % 2 === 0 ? `${n}.${san}` : san;
+                    }).join(' ')
+                    : 'Posición final alcanzada';
+            }
+        });
     }
 
-    // Hover sobre una jugada en el panel → ilumina casillas from/to
-    function tbHoverMove(uci, cls) {
-        document.querySelectorAll('.tb-hover-from, .tb-hover-to').forEach(el => {
-            el.classList.remove('tb-hover-from', 'tb-hover-to');
-        });
-        const from = uci.slice(0, 2);
-        const to   = uci.slice(2, 4);
-        [`#boardAnalysis .square-${from}`, `#boardCombat .square-${from}`].forEach(sel => {
-            const el = document.querySelector(sel);
-            if (el) el.classList.add('sq-hover-from');
-        });
-        [`#boardAnalysis .square-${to}`, `#boardCombat .square-${to}`].forEach(sel => {
-            const el = document.querySelector(sel);
-            if (el) el.classList.add(`tb-${cls}`);
+    // Hover sobre una fila del panel → ilumina casillas
+    function tbRowHover(uci, cls) {
+        tbLimpiarSemaforo();
+        if (!uci || uci.length < 4) return;
+        const boards = ['boardAnalysis', 'boardCombat'];
+        boards.forEach(id => {
+            const board = document.getElementById(id);
+            board?.querySelector(`.square-${uci.slice(0,2)}`)?.classList.add('tb-sq-from');
+            board?.querySelector(`.square-${uci.slice(2,4)}`)?.classList.add(`tb-sq-${cls}`);
         });
     }
-    function tbClearHover() {
-        document.querySelectorAll('.sq-hover-from').forEach(el => el.classList.remove('sq-hover-from'));
+    function tbRowHoverOut() {
+        tbLimpiarSemaforo();
     }
 
-    // Punto de entrada: detecta automáticamente si activar tablebase
+    // ── Punto de entrada principal ────────────────────────────
     async function checkTablebase(fen) {
         const piezas = contarPiezas(fen);
         if (piezas > TB_MAX_PIEZAS) {
             limpiarTablebase();
-            // Resetea panel si había datos
             const verdictEl = document.getElementById('tb-verdict');
+            const movesEl   = document.getElementById('tb-moves-list');
             if (verdictEl) {
                 verdictEl.className = 'tb-header-verdict tb-verdict-none';
                 verdictEl.innerHTML = `<span class="tb-emoji">⏳</span>
                     <div><div class="tb-verdict-text">Esperando final (≤7 piezas)</div>
                     <div class="tb-dtm">—</div></div>`;
-                document.getElementById('tb-moves-list').innerHTML =
-                    '<div style="color:var(--text-dim);font-size:11px;">Se activará automáticamente cuando queden 7 piezas o menos.</div>';
             }
+            if (movesEl) movesEl.innerHTML =
+                `<div style="color:var(--text-dim);font-size:11px;padding:8px 0;">
+                    Se activará cuando queden 7 piezas o menos.
+                 </div>`;
             return;
         }
 
-        // ≤7 piezas → activar tablebase
         // Auto-switch al tab de tablebase
         const tbBtn = document.getElementById('tb-tab-btn');
         if (tbBtn && !document.getElementById('tab-tablebase').classList.contains('active')) {
@@ -1622,8 +1766,19 @@
         }
 
         const data = await fetchTablebase(fen);
-        renderTablebasePanel(data, fen);
-        if (data?.moves) iluminarTablebase(data.moves);
+        tbDatos     = data;
+        tbFenActual = fen;
+
+        await renderTablebasePanel(data, fen);
+
+        // Flecha dorada hacia la mejor jugada
+        if (data?.moves?.length) {
+            const bestMove = tbOrdenarJugadas(data.moves)[0];
+            if (bestMove?.uci) {
+                dibujarFlechaDorada(bestMove.uci, 'boardAnalysis');
+                dibujarFlechaDorada(bestMove.uci, 'boardCombat');
+            }
+        }
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -2174,6 +2329,8 @@
         // Empuja a nuestro array propio y limpia la variante
         combatMoveHistory.push(move.san);
         analysisExtraMoves = [];
+        limpiarFlechaDorada('boardCombat');
+        limpiarFlechaDorada('boardAnalysis');
 
         boardC.position(chessC.fen());
         chessA.load(chessC.fen());
@@ -2696,10 +2853,22 @@
             draggable: true, position: 'start',
             onDrop: handleMoveC, pieceTheme: PIECE_THEME,
             resizable: true,
+            onMouseoverSquare: (sq) => {
+                if (tbDatos) tbMouseoverSquare(sq, 'boardCombat');
+            },
+            onMouseoutSquare: () => {
+                if (tbDatos) tbMouseoutSquare('boardCombat');
+            },
         });
 
         boardA = ChessBoard('boardAnalysis', {
             draggable: true, position: 'start', pieceTheme: PIECE_THEME,
+            onMouseoverSquare: (sq) => {
+                if (tbDatos) tbMouseoverSquare(sq, 'boardAnalysis');
+            },
+            onMouseoutSquare: () => {
+                if (tbDatos) tbMouseoutSquare('boardAnalysis');
+            },
             onDrop: (s, t) => {
                 const m = chessA.move({from:s, to:t, promotion:'q'});
                 if (m === null) return 'snapback';
@@ -2790,6 +2959,7 @@
     </script>
 </body>
 </html>
+
 
 
 
