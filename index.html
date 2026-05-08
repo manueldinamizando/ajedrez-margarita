@@ -640,6 +640,64 @@
         .estado-variante{ background: rgba(239,83,80,0.2);   color: #fca5a5; border: 1px solid #ef5350; }
         .estado-visitado{ background: rgba(241,196,15,0.15); color: #fcd34d; border: 1px solid #f1c40f; }
 
+        /* ══ PUZZLES ══ */
+        #tab-puzzles { font-family: var(--font-mono); }
+
+        /* Selector de modos */
+        .pz-mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+        .pz-mode-btn {
+            padding: 8px 4px; border: 1px solid var(--border);
+            border-radius: 8px; background: rgba(255,255,255,0.03);
+            color: var(--text-dim); cursor: pointer; font-size: 10px;
+            font-family: var(--font-mono); text-align: center;
+            transition: all 0.2s; line-height: 1.4;
+        }
+        .pz-mode-btn:hover  { border-color: var(--accent-blue); color: var(--text-main); }
+        .pz-mode-btn.active { border-color: var(--accent); background: rgba(241,196,15,0.1); color: var(--accent); }
+
+        /* Barra de progreso */
+        .pz-progress-wrap {
+            height: 6px; background: rgba(255,255,255,0.05);
+            border-radius: 3px; overflow: hidden; margin-bottom: 8px;
+        }
+        .pz-progress-bar {
+            height: 100%; width: 0%; background: linear-gradient(90deg, #4caf50, #81c784);
+            border-radius: 3px; transition: width 0.4s ease;
+        }
+
+        /* Estado del puzzle activo */
+        .pz-estado {
+            padding: 8px 10px; border-radius: 6px; margin-bottom: 8px;
+            font-size: 11px; text-align: center; font-weight: 700;
+        }
+        .pz-estado.esperando { background: rgba(31,111,235,0.12); color: var(--accent-blue); border: 1px solid #1f6feb; }
+        .pz-estado.correcto  { background: rgba(76,175,80,0.12);  color: #81c784; border: 1px solid #4caf50; }
+        .pz-estado.error     { background: rgba(239,83,80,0.12);  color: #e57373; border: 1px solid #ef5350; }
+        .pz-estado.resuelto  { background: rgba(241,196,15,0.12); color: var(--accent); border: 1px solid var(--accent); }
+
+        /* Info del puzzle */
+        .pz-info { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+        .pz-rating { font-size: 18px; font-weight: 900; color: var(--accent); }
+        .pz-tema { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent-blue); }
+
+        /* Botones del puzzle */
+        .pz-btn-row { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+        .pz-btn {
+            flex: 1; padding: 6px; border-radius: 6px; border: 1px solid var(--border);
+            background: transparent; color: var(--text-dim); cursor: pointer;
+            font-size: 10px; font-family: var(--font-mono); font-weight: 700;
+            transition: all 0.2s; white-space: nowrap;
+        }
+        .pz-btn:hover { border-color: var(--accent-blue); color: var(--text-main); }
+        .pz-btn.danger:hover { border-color: #ef5350; color: #e57373; }
+
+        /* Casilla iluminada por la pista */
+        @keyframes pz-hint-pulse {
+            0%,100% { box-shadow: inset 0 0 0 5px rgba(168,85,247,1.0), 0 0 15px rgba(168,85,247,0.5); }
+            50%      { box-shadow: inset 0 0 0 5px rgba(168,85,247,0.4), 0 0 5px rgba(168,85,247,0.1); }
+        }
+        .pz-hint-sq { animation: pz-hint-pulse 0.9s ease-in-out infinite !important; }
+
         /* ── Jaque: casilla del rey en rojo pulsante ── */
         @keyframes jaque-pulse {
             0%,100% { box-shadow: inset 0 0 0 4px rgba(239,83,80,1.0), 0 0 16px rgba(239,83,80,0.6); }
@@ -778,7 +836,8 @@
                 <button class="tab-btn" onclick="switchTab('tab-nodo', this)">📝 Nodo</button>
                 <button class="tab-btn" onclick="switchTab('tab-teoria', this)">📚 Teoría</button>
                 <button class="tab-btn" onclick="switchTab('tab-tablebase', this)" id="tb-tab-btn">♟ Final</button>
-                <button class="tab-btn" onclick="switchTab('tab-apertura', this)">📖 Apert.</button>
+                <button class="tab-btn" onclick="switchTab('tab-puzzles', this)" id="pz-tab-btn">🧩 Puzzle</button>
+                <button class="tab-btn" onclick="switchTab('tab-apertura', this)">📖</button>
             </div>
 
             <!-- TAB: Árbol -->
@@ -862,6 +921,96 @@
                 </div>
 
                 <div class="tb-badge-syzygy">⚡ Syzygy Tablebase · tablebase.lichess.ovh</div>
+            </div>
+
+            <!-- TAB: Puzzles -->
+            <div id="tab-puzzles" class="tab-content">
+
+                <!-- Selector de modo -->
+                <div class="pz-mode-grid" id="pz-modes">
+                    <button class="pz-mode-btn active" data-mode="normal" onclick="pzSeleccionarModo(this)">
+                        🎯<br>Normal
+                    </button>
+                    <button class="pz-mode-btn" data-mode="survival" onclick="pzSeleccionarModo(this)">
+                        💀<br>Survival
+                    </button>
+                    <button class="pz-mode-btn" data-mode="thematic" onclick="pzSeleccionarModo(this)">
+                        📚<br>Temático
+                    </button>
+                </div>
+
+                <!-- Temas (solo en modo temático) -->
+                <div id="pz-temas" style="display:none;margin-bottom:8px;">
+                    <select id="pz-tema-select" class="select-margarita" style="width:100%;font-size:11px;padding:5px;">
+                        <option value="mate">Jaque Mate</option>
+                        <option value="mateIn1">Mate en 1</option>
+                        <option value="mateIn2">Mate en 2</option>
+                        <option value="fork">Tenedor</option>
+                        <option value="pin">Clavada</option>
+                        <option value="skewer">Espetón</option>
+                        <option value="discoveredAttack">Ataque Descubierto</option>
+                        <option value="endgame">Final</option>
+                        <option value="kingsideAttack">Ataque al Rey</option>
+                        <option value="defensiveMove">Defensa</option>
+                        <option value="sacrifice">Sacrificio</option>
+                    </select>
+                </div>
+
+                <!-- Dificultad -->
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+                    <span style="font-size:10px;color:var(--text-dim);">Dificultad:</span>
+                    <select id="pz-dificultad" class="select-margarita" style="flex:1;font-size:11px;padding:4px;">
+                        <option value="easiest">Muy fácil</option>
+                        <option value="easy">Fácil</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="hard">Difícil</option>
+                        <option value="hardest">Muy difícil</option>
+                    </select>
+                </div>
+
+                <!-- Barra de progreso (Survival) -->
+                <div class="pz-progress-wrap" id="pz-progress-wrap" style="display:none;">
+                    <div class="pz-progress-bar" id="pz-progress-bar"></div>
+                </div>
+                <div id="pz-survival-score" style="font-size:10px;color:var(--text-dim);text-align:right;margin-bottom:4px;display:none;">
+                    Racha: <span id="pz-racha">0</span>
+                </div>
+
+                <!-- Botón de inicio -->
+                <button class="btn-margarita" style="background:var(--accent);color:black;width:100%;padding:10px;font-size:13px;"
+                    onclick="pzIniciar()">🧩 ¡Ponme a prueba!</button>
+
+                <!-- Estado y info del puzzle activo -->
+                <div id="pz-estado" class="pz-estado esperando" style="display:none;margin-top:8px;">
+                    Cargando puzzle...
+                </div>
+                <div id="pz-info" class="pz-info" style="display:none;margin-top:6px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div class="pz-rating" id="pz-rating">—</div>
+                            <div class="pz-tema" id="pz-temas-activos">—</div>
+                        </div>
+                        <div style="font-size:10px;color:var(--text-dim);">
+                            Puzzle <span id="pz-num">1</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones durante el puzzle -->
+                <div class="pz-btn-row" id="pz-acciones" style="display:none;">
+                    <button class="pz-btn" onclick="pzPista()">💡 Pista</button>
+                    <button class="pz-btn" onclick="pzSolucion()">👁 Solución</button>
+                    <button class="pz-btn danger" onclick="pzAbandonar()">✖ Salir</button>
+                </div>
+
+                <!-- Post-Mortem (aparece al fallar) -->
+                <div id="pz-postmortem" style="display:none;margin-top:8px;padding:8px;
+                    background:rgba(239,83,80,0.08);border:1px solid #ef5350;border-radius:6px;
+                    font-size:11px;">
+                    <div style="color:#e57373;font-weight:700;margin-bottom:4px;">📊 Análisis Post-Mortem</div>
+                    <div id="pz-postmortem-text" style="color:var(--text-dim);line-height:1.5;"></div>
+                </div>
+
             </div>
 
             <!-- TAB: Aperturas -->
@@ -2302,29 +2451,33 @@
 
     /* ── handleMoveC: tu jugada en COMBATE ── */
     function handleMoveC(source, target) {
-        // Detecta si es una coronación
+        // En modo puzzle, redirige al handler de puzzles
+        if (puzzleMode.activo) return puzzleMode.onDrop(source, target);
+
+        // Verifica legalidad ANTES de cualquier otra cosa
+        const movesLegales = chessC.moves({ square: source, verbose: true });
+        const esLegal = movesLegales.some(m => m.to === target);
+        if (!esLegal) return 'snapback';
+
+        // Detecta coronación
         const piece = chessC.get(source);
         const isProm = piece?.type === 'p' &&
             ((piece.color === 'w' && target[1] === '8') ||
              (piece.color === 'b' && target[1] === '1'));
 
         if (isProm) {
-            // Verifica que el movimiento es legal antes de mostrar el diálogo
-            const legal = chessC.moves({ square: source, verbose: true })
-                .some(m => m.to === target);
-            if (!legal) return 'snapback';
             solicitarPromocion(source, target, function(prom) {
                 _ejecutarMovimientoCombate(source, target, prom);
             });
-            return; // No retorna snapback — chessboard espera
+            return; // Deja caer la pieza visualmente, el diálogo confirma
         }
 
-        _ejecutarMovimientoCombate(source, target, 'q');
+        return _ejecutarMovimientoCombate(source, target, 'q');
     }
 
     function _ejecutarMovimientoCombate(source, target, prom) {
         const move = chessC.move({from:source, to:target, promotion:prom});
-        if (move === null) { boardC.position(chessC.fen()); return; }
+        if (move === null) return 'snapback';
 
         // Empuja a nuestro array propio y limpia la variante
         combatMoveHistory.push(move.san);
@@ -2926,6 +3079,286 @@
         window.addEventListener('resize', sincronizarAlturaEvalBar);
     });
 
+    /* ══════════════════════════════════════════════════════════
+       SISTEMA DE PUZZLES — Entrenamiento de Élite
+    ══════════════════════════════════════════════════════════ */
+
+    const puzzleMode = {
+        activo:      false,
+        data:        null,      // datos del puzzle de Lichess
+        solucion:    [],        // array UCI de la solución
+        paso:        0,         // índice actual en la solución
+        chess:       null,      // instancia chess.js del puzzle
+        modoActual:  'normal',
+        racha:       0,         // Survival: racha de aciertos
+        numPuzzle:   0,
+        falloUsado:  false,
+
+        // Limpia pistas visuales
+        limpiarPistas() {
+            document.querySelectorAll('.pz-hint-sq').forEach(e => e.classList.remove('pz-hint-sq'));
+        },
+
+        // Handler de movimiento mientras el puzzle está activo
+        onDrop(source, target) {
+            const uciJugada = source + target;
+
+            // Verifica legalidad
+            const legal = this.chess.moves({ square: source, verbose: true })
+                .some(m => m.to === target);
+            if (!legal) return 'snapback';
+
+            const esperado = this.solucion[this.paso];
+
+            // ¿Es correcto?
+            if (uciJugada === esperado || uciJugada === esperado.slice(0,4)) {
+                // Movimiento correcto
+                this.chess.move({ from: source, to: target, promotion: esperado[4] || 'q' });
+                boardC.position(this.chess.fen());
+                this.limpiarPistas();
+                this.paso++;
+
+                if (this.paso >= this.solucion.length) {
+                    // ✅ Puzzle resuelto
+                    pzResuelto();
+                } else {
+                    // Respuesta del "oponente"
+                    setTimeout(() => {
+                        const resp = this.solucion[this.paso];
+                        this.chess.move({
+                            from: resp.slice(0,2), to: resp.slice(2,4),
+                            promotion: resp[4] || 'q'
+                        });
+                        boardC.position(this.chess.fen());
+                        this.paso++;
+                        pzSetEstado('esperando', '¡Correcto! Sigue...');
+                        if (this.paso >= this.solucion.length) pzResuelto();
+                    }, 500);
+                    pzSetEstado('correcto', '✓ ¡Bien! Continúa...');
+                }
+            } else {
+                // ❌ Jugada incorrecta
+                this.falloUsado = true;
+                pzSetEstado('error', '✗ No es correcto. ¡Inténtalo de nuevo!');
+                if (this.modoActual === 'survival') {
+                    // En survival mode un fallo termina la racha
+                    setTimeout(() => pzGameOver(), 800);
+                }
+                return 'snapback';
+            }
+        }
+    };
+
+    // Selecciona modo de entrenamiento
+    function pzSeleccionarModo(btn) {
+        document.querySelectorAll('.pz-mode-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        puzzleMode.modoActual = btn.dataset.mode;
+
+        const temasDiv = document.getElementById('pz-temas');
+        const progressWrap = document.getElementById('pz-progress-wrap');
+        const survivalScore = document.getElementById('pz-survival-score');
+
+        temasDiv.style.display      = puzzleMode.modoActual === 'thematic' ? 'block' : 'none';
+        progressWrap.style.display  = puzzleMode.modoActual === 'survival'  ? 'block' : 'none';
+        survivalScore.style.display = puzzleMode.modoActual === 'survival'  ? 'block' : 'none';
+    }
+
+    // Construye los params para la API según el modo
+    function pzBuildParams() {
+        const dif = document.getElementById('pz-dificultad').value;
+        const params = new URLSearchParams({ difficulty: dif });
+        if (puzzleMode.modoActual === 'thematic') {
+            const tema = document.getElementById('pz-tema-select').value;
+            params.set('themes', tema);
+        }
+        return params;
+    }
+
+    // Carga un puzzle de Lichess
+    async function pzCargarPuzzle() {
+        pzSetEstado('esperando', 'Cargando puzzle...');
+        try {
+            const params = pzBuildParams();
+            const res = await fetch(`https://lichess.org/api/puzzle/next?${params}`, {
+                headers: { 'Accept': 'application/json' }
+            });
+            if (!res.ok) throw new Error(`Puzzle API ${res.status}`);
+            const data = await res.json();
+            return data;
+        } catch (err) {
+            pzSetEstado('error', 'Error cargando puzzle. Comprueba conexión.');
+            console.error('[Puzzle]', err);
+            return null;
+        }
+    }
+
+    // Inicia el puzzle
+    async function pzIniciar() {
+        const data = await pzCargarPuzzle();
+        if (!data?.puzzle) return;
+
+        puzzleMode.activo    = true;
+        puzzleMode.data      = data;
+        puzzleMode.solucion  = data.puzzle.solution; // array UCI
+        puzzleMode.paso      = 0;
+        puzzleMode.falloUsado = false;
+        puzzleMode.numPuzzle++;
+
+        // Carga la posición inicial del puzzle en el tablero de combate
+        const fen = data.puzzle.initialFen || data.game?.fen;
+        puzzleMode.chess = new Chess();
+        if (fen) puzzleMode.chess.load(fen);
+
+        // Coloca el tablero de combate en la posición del puzzle
+        boardC.position(puzzleMode.chess.fen());
+
+        // Orienta el tablero según quién juega
+        const turno = puzzleMode.chess.turn();
+        boardC.orientation(turno === 'w' ? 'white' : 'black');
+
+        // Desactiva Stockfish, tablebase y teoría durante el puzzle
+        limpiarTablebase();
+        Illuminator.clear();
+        if (motorE) motorE.postMessage('stop');
+
+        // Muestra info del puzzle
+        document.getElementById('pz-rating').textContent = data.puzzle.rating ?? '?';
+        document.getElementById('pz-temas-activos').textContent =
+            (data.puzzle.themes || []).slice(0,3).join(' · ');
+        document.getElementById('pz-num').textContent   = puzzleMode.numPuzzle;
+        document.getElementById('pz-info').style.display    = 'block';
+        document.getElementById('pz-acciones').style.display = 'flex';
+        document.getElementById('pz-postmortem').style.display = 'none';
+
+        // Auto-switch al tab puzzles
+        const pzBtn = document.getElementById('pz-tab-btn');
+        if (pzBtn) switchTab('tab-puzzles', pzBtn);
+
+        const colorJuega = turno === 'w' ? 'Blancas' : 'Negras';
+        pzSetEstado('esperando', `${colorJuega} juegan — Encuentra la mejor jugada`);
+        terminalLog(`🧩 Puzzle #${puzzleMode.numPuzzle} | Rating: ${data.puzzle.rating}`);
+    }
+
+    // Pista: ilumina la pieza a mover (no el destino)
+    function pzPista() {
+        if (!puzzleMode.activo) return;
+        const uci  = puzzleMode.solucion[puzzleMode.paso];
+        if (!uci) return;
+        const from = uci.slice(0, 2);
+        puzzleMode.limpiarPistas();
+        // Ilumina solo el origen (la pieza), no el destino
+        const el = document.querySelector(`#boardCombat .square-${from}`);
+        if (el) el.classList.add('pz-hint-sq');
+        pzSetEstado('esperando', '💡 Mira la pieza iluminada...');
+        puzzleMode.falloUsado = true;
+    }
+
+    // Muestra la solución completa (post-mortem automático)
+    function pzSolucion() {
+        if (!puzzleMode.activo) return;
+        puzzleMode.falloUsado = true;
+
+        // Reproduce la solución visualmente
+        let delay = 0;
+        const restantes = puzzleMode.solucion.slice(puzzleMode.paso);
+        restantes.forEach((uci, i) => {
+            setTimeout(() => {
+                puzzleMode.chess.move({
+                    from: uci.slice(0,2), to: uci.slice(2,4),
+                    promotion: uci[4] || 'q'
+                });
+                boardC.position(puzzleMode.chess.fen());
+                if (i === restantes.length - 1) pzActivarPostMortem();
+            }, delay);
+            delay += 700;
+        });
+    }
+
+    // Activa el análisis post-mortem con Stockfish
+    function pzActivarPostMortem() {
+        pzSetEstado('error', '📊 Analizando con el motor...');
+        const fen = puzzleMode.chess.fen();
+
+        // Activa Stockfish en el tablero de análisis
+        chessA.load(fen);
+        boardA.position(fen);
+        pedirAnalisisMotor(fen);
+
+        const pm = document.getElementById('pz-postmortem');
+        const pmTxt = document.getElementById('pz-postmortem-text');
+        pm.style.display = 'block';
+        pmTxt.innerHTML = `Stockfish analizando la posición final...
+            <br><span style="color:var(--text-dim);">Mira el tablero de Análisis →</span>`;
+
+        // Tras análisis, muestra la evaluación
+        const handler = (e) => {
+            if (e.data.includes('bestmove')) {
+                motorA.removeEventListener('message', handler);
+                const bm = e.data.split(' ')[1];
+                pmTxt.innerHTML = `La solución era: <strong style="color:#81c784;">
+                    ${puzzleMode.solucion.join(' ')}</strong><br>
+                    Stockfish recomienda desde aquí: <strong style="color:var(--accent);">${bm}</strong>`;
+            }
+        };
+        motorA.addEventListener('message', handler);
+    }
+
+    // Puzzle resuelto con éxito
+    function pzResuelto() {
+        puzzleMode.limpiarPistas();
+        puzzleMode.racha++;
+
+        const perfecto = !puzzleMode.falloUsado;
+        pzSetEstado('resuelto', perfecto ? '🏆 ¡Perfecto! Resuelto sin pistas' : '✓ Resuelto');
+
+        // Actualiza Survival
+        if (puzzleMode.modoActual === 'survival') {
+            document.getElementById('pz-racha').textContent = puzzleMode.racha;
+            const pct = Math.min((puzzleMode.racha / 10) * 100, 100);
+            document.getElementById('pz-progress-bar').style.width = pct + '%';
+        }
+
+        terminalLog(`✅ Puzzle resuelto${perfecto ? ' ¡PERFECTO!' : ''} | Racha: ${puzzleMode.racha}`);
+
+        // Auto-carga siguiente en modo survival/normal (con delay)
+        if (puzzleMode.modoActual !== 'thematic') {
+            setTimeout(() => pzIniciar(), 1800);
+        }
+    }
+
+    // Game over en modo Survival
+    function pzGameOver() {
+        puzzleMode.activo = false;
+        pzSetEstado('error', `💀 ¡GAME OVER! Racha: ${puzzleMode.racha}`);
+        document.getElementById('pz-progress-bar').style.width = '0%';
+        document.getElementById('pz-racha').textContent = '0';
+        puzzleMode.racha = 0;
+        boardC.orientation('white');
+        pzActivarPostMortem();
+    }
+
+    // Abandona el puzzle actual
+    function pzAbandonar() {
+        puzzleMode.activo = false;
+        puzzleMode.racha  = 0;
+        puzzleMode.limpiarPistas();
+        boardC.orientation('white');
+        document.getElementById('pz-info').style.display     = 'none';
+        document.getElementById('pz-acciones').style.display = 'none';
+        document.getElementById('pz-postmortem').style.display = 'none';
+        pzSetEstado('esperando', 'Puzzle abandonado. Elige otro modo.');
+        terminalLog('🧩 Puzzle abandonado');
+    }
+
+    function pzSetEstado(tipo, texto) {
+        const el = document.getElementById('pz-estado');
+        if (!el) return;
+        el.style.display = 'block';
+        el.className     = `pz-estado ${tipo}`;
+        el.textContent   = texto;
+    }
+
     /* ── Tabs del panel derecho ── */
     function switchTab(tabId, btn) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -2959,6 +3392,7 @@
     </script>
 </body>
 </html>
+
 
 
 
