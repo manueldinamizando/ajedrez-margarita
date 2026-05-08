@@ -2452,7 +2452,7 @@
     /* ── handleMoveC: tu jugada en COMBATE ── */
     function handleMoveC(source, target) {
         // En modo puzzle, redirige al handler de puzzles
-        if (puzzleMode.activo) return puzzleMode.onDrop(source, target);
+        // El puzzle usa el tablero de ANÁLISIS, no el de combate
 
         // Verifica legalidad ANTES de cualquier otra cosa
         const movesLegales = chessC.moves({ square: source, verbose: true });
@@ -3023,6 +3023,9 @@
                 if (tbDatos) tbMouseoutSquare('boardAnalysis');
             },
             onDrop: (s, t) => {
+                // Si hay un puzzle activo, el handler del puzzle toma el control
+                if (puzzleMode.activo) return puzzleMode.onDrop(s, t);
+
                 const m = chessA.move({from:s, to:t, promotion:'q'});
                 if (m === null) return 'snapback';
 
@@ -3099,49 +3102,49 @@
             document.querySelectorAll('.pz-hint-sq').forEach(e => e.classList.remove('pz-hint-sq'));
         },
 
-        // Handler de movimiento mientras el puzzle está activo
+        // Handler de movimiento: se usa en onDrop del tablero de ANÁLISIS
         onDrop(source, target) {
             const uciJugada = source + target;
 
-            // Verifica legalidad
+            // Verifica legalidad contra la instancia chess del puzzle
             const legal = this.chess.moves({ square: source, verbose: true })
                 .some(m => m.to === target);
             if (!legal) return 'snapback';
 
             const esperado = this.solucion[this.paso];
 
-            // ¿Es correcto?
-            if (uciJugada === esperado || uciJugada === esperado.slice(0,4)) {
-                // Movimiento correcto
+            if (uciJugada === esperado || uciJugada === esperado.slice(0, 4)) {
+                // ✅ Movimiento correcto
                 this.chess.move({ from: source, to: target, promotion: esperado[4] || 'q' });
-                boardC.position(this.chess.fen());
+                chessA.load(this.chess.fen());       // sincroniza chessA
+                boardA.position(this.chess.fen());   // actualiza tablero análisis
                 this.limpiarPistas();
                 this.paso++;
 
                 if (this.paso >= this.solucion.length) {
-                    // ✅ Puzzle resuelto
                     pzResuelto();
                 } else {
-                    // Respuesta del "oponente"
+                    pzSetEstado('correcto', '✓ ¡Bien! Continúa...');
+                    // Respuesta automática del oponente
                     setTimeout(() => {
                         const resp = this.solucion[this.paso];
+                        if (!resp) return;
                         this.chess.move({
-                            from: resp.slice(0,2), to: resp.slice(2,4),
+                            from: resp.slice(0, 2), to: resp.slice(2, 4),
                             promotion: resp[4] || 'q'
                         });
-                        boardC.position(this.chess.fen());
+                        chessA.load(this.chess.fen());
+                        boardA.position(this.chess.fen());
                         this.paso++;
-                        pzSetEstado('esperando', '¡Correcto! Sigue...');
+                        pzSetEstado('esperando', 'Turno del oponente jugado — ¡Sigue!');
                         if (this.paso >= this.solucion.length) pzResuelto();
-                    }, 500);
-                    pzSetEstado('correcto', '✓ ¡Bien! Continúa...');
+                    }, 600);
                 }
             } else {
                 // ❌ Jugada incorrecta
                 this.falloUsado = true;
-                pzSetEstado('error', '✗ No es correcto. ¡Inténtalo de nuevo!');
+                pzSetEstado('error', '✗ Incorrecto — ¡Inténtalo de nuevo!');
                 if (this.modoActual === 'survival') {
-                    // En survival mode un fallo termina la racha
                     setTimeout(() => pzGameOver(), 800);
                 }
                 return 'snapback';
@@ -3193,43 +3196,75 @@
         }
     }
 
-    // Inicia el puzzle
+    // Reconstruye el FEN del puzzle desde el PGN hasta initialPly
+    function pzReconstruirFEN(pgn, initialPly) {
+        const temp = new Chess();
+        try {
+            // Limpia el PGN de notaciones extra (resultado, comentarios)
+            const cleanPgn = pgn.replace(/\{[^}]*\}/g, '')
+                                .replace(/\([^)]*\)/g, '')
+                                .replace(/\d+\.\.\./g, '')
+                                .replace(/\s+/g, ' ').trim();
+            // Extrae solo las jugadas (sin números ni resultado)
+            const tokens = cleanPgn.split(' ').filter(t =>
+                t && !t.match(/^\d+\./) && !t.match(/^(1-0|0-1|1\/2|\*)/)
+            );
+            for (let i = 0; i < initialPly && i < tokens.length; i++) {
+                const m = temp.move(tokens[i], { sloppy: true });
+                if (!m) break;
+            }
+        } catch(e) {
+            console.warn('[Puzzle] Error parseando PGN:', e);
+        }
+        return temp.fen();
+    }
+
+    // Inicia el puzzle — usa el tablero de ANÁLISIS
     async function pzIniciar() {
         const data = await pzCargarPuzzle();
         if (!data?.puzzle) return;
 
-        puzzleMode.activo    = true;
-        puzzleMode.data      = data;
-        puzzleMode.solucion  = data.puzzle.solution; // array UCI
-        puzzleMode.paso      = 0;
+        // ── Reconstruir FEN desde PGN ─────────────────────────
+        // La API de Lichess no devuelve initialFen directamente.
+        // Hay que reproducir el PGN hasta puzzle.initialPly.
+        const pgn        = data.game?.pgn || '';
+        const initialPly = data.puzzle?.initialPly ?? 0;
+        const fen        = pzReconstruirFEN(pgn, initialPly);
+
+        puzzleMode.activo     = true;
+        puzzleMode.data       = data;
+        puzzleMode.solucion   = data.puzzle.solution;
+        puzzleMode.paso       = 0;
         puzzleMode.falloUsado = false;
         puzzleMode.numPuzzle++;
+        puzzleMode.chess      = new Chess();
+        puzzleMode.chess.load(fen);
 
-        // Carga la posición inicial del puzzle en el tablero de combate
-        const fen = data.puzzle.initialFen || data.game?.fen;
-        puzzleMode.chess = new Chess();
-        if (fen) puzzleMode.chess.load(fen);
+        // ── Carga en el tablero de ANÁLISIS (no combate) ──────
+        chessA.load(fen);
+        boardA.position(fen);
 
-        // Coloca el tablero de combate en la posición del puzzle
-        boardC.position(puzzleMode.chess.fen());
-
-        // Orienta el tablero según quién juega
+        // Orienta el tablero según quién juega en el puzzle
         const turno = puzzleMode.chess.turn();
-        boardC.orientation(turno === 'w' ? 'white' : 'black');
+        boardA.orientation(turno === 'w' ? 'white' : 'black');
 
-        // Desactiva Stockfish, tablebase y teoría durante el puzzle
+        // Desactiva ayudas: tablebase, flechas teoría y motor análisis
         limpiarTablebase();
         Illuminator.clear();
-        if (motorE) motorE.postMessage('stop');
+        if (motorA) motorA.postMessage('stop');
 
-        // Muestra info del puzzle
-        document.getElementById('pz-rating').textContent = data.puzzle.rating ?? '?';
-        document.getElementById('pz-temas-activos').textContent =
-            (data.puzzle.themes || []).slice(0,3).join(' · ');
-        document.getElementById('pz-num').textContent   = puzzleMode.numPuzzle;
-        document.getElementById('pz-info').style.display    = 'block';
-        document.getElementById('pz-acciones').style.display = 'flex';
-        document.getElementById('pz-postmortem').style.display = 'none';
+        // Actualiza el panel de jugadas de análisis limpio
+        analysisExtraMoves = [];
+        refrescarPaneles();
+
+        // Info del puzzle en el panel
+        document.getElementById('pz-rating').textContent         = data.puzzle.rating ?? '?';
+        document.getElementById('pz-temas-activos').textContent  =
+            (data.puzzle.themes || []).slice(0, 3).join(' · ');
+        document.getElementById('pz-num').textContent            = puzzleMode.numPuzzle;
+        document.getElementById('pz-info').style.display         = 'block';
+        document.getElementById('pz-acciones').style.display     = 'flex';
+        document.getElementById('pz-postmortem').style.display   = 'none';
 
         // Auto-switch al tab puzzles
         const pzBtn = document.getElementById('pz-tab-btn');
@@ -3237,7 +3272,7 @@
 
         const colorJuega = turno === 'w' ? 'Blancas' : 'Negras';
         pzSetEstado('esperando', `${colorJuega} juegan — Encuentra la mejor jugada`);
-        terminalLog(`🧩 Puzzle #${puzzleMode.numPuzzle} | Rating: ${data.puzzle.rating}`);
+        terminalLog(`🧩 Puzzle #${puzzleMode.numPuzzle} cargado | Rating: ${data.puzzle.rating}`);
     }
 
     // Pista: ilumina la pieza a mover (no el destino)
@@ -3248,7 +3283,7 @@
         const from = uci.slice(0, 2);
         puzzleMode.limpiarPistas();
         // Ilumina solo el origen (la pieza), no el destino
-        const el = document.querySelector(`#boardCombat .square-${from}`);
+        const el = document.querySelector(`#boardAnalysis .square-${from}`);
         if (el) el.classList.add('pz-hint-sq');
         pzSetEstado('esperando', '💡 Mira la pieza iluminada...');
         puzzleMode.falloUsado = true;
@@ -3268,7 +3303,8 @@
                     from: uci.slice(0,2), to: uci.slice(2,4),
                     promotion: uci[4] || 'q'
                 });
-                boardC.position(puzzleMode.chess.fen());
+                chessA.load(puzzleMode.chess.fen());
+                boardA.position(puzzleMode.chess.fen());
                 if (i === restantes.length - 1) pzActivarPostMortem();
             }, delay);
             delay += 700;
@@ -3334,7 +3370,7 @@
         document.getElementById('pz-progress-bar').style.width = '0%';
         document.getElementById('pz-racha').textContent = '0';
         puzzleMode.racha = 0;
-        boardC.orientation('white');
+        boardA.orientation('white');
         pzActivarPostMortem();
     }
 
@@ -3343,7 +3379,12 @@
         puzzleMode.activo = false;
         puzzleMode.racha  = 0;
         puzzleMode.limpiarPistas();
-        boardC.orientation('white');
+        // Restaura el tablero de análisis a la posición del combate
+        boardA.orientation('white');
+        chessA.load(chessC.fen());
+        boardA.position(chessC.fen());
+        analysisExtraMoves = [];
+        refrescarPaneles();
         document.getElementById('pz-info').style.display     = 'none';
         document.getElementById('pz-acciones').style.display = 'none';
         document.getElementById('pz-postmortem').style.display = 'none';
@@ -3392,6 +3433,7 @@
     </script>
 </body>
 </html>
+
 
 
 
