@@ -3087,15 +3087,16 @@
     ══════════════════════════════════════════════════════════ */
 
     const puzzleMode = {
-        activo:      false,
-        data:        null,      // datos del puzzle de Lichess
-        solucion:    [],        // array UCI de la solución
-        paso:        0,         // índice actual en la solución
-        chess:       null,      // instancia chess.js del puzzle
-        modoActual:  'normal',
-        racha:       0,         // Survival: racha de aciertos
-        numPuzzle:   0,
-        falloUsado:  false,
+        activo:       false,
+        data:         null,      // datos del puzzle de Lichess
+        solucion:     [],        // array UCI de la solución
+        paso:         0,         // índice actual en la solución
+        chess:        null,      // instancia chess.js del puzzle
+        modoActual:   'normal',
+        racha:        0,         // Survival: racha de aciertos
+        numPuzzle:    0,
+        falloUsado:   false,
+        colorJugador: 'w',       // 'w' o 'b' — color del jugador en este puzzle
 
         // Limpia pistas visuales
         limpiarPistas() {
@@ -3106,7 +3107,11 @@
         onDrop(source, target) {
             const uciJugada = source + target;
 
-            // Verifica legalidad contra la instancia chess del puzzle
+            // Verifica que el jugador mueve su propio color
+            const pieza = this.chess.get(source);
+            if (!pieza || pieza.color !== this.colorJugador) return 'snapback';
+
+            // Verifica legalidad
             const legal = this.chess.moves({ square: source, verbose: true })
                 .some(m => m.to === target);
             if (!legal) return 'snapback';
@@ -3224,68 +3229,121 @@
         const data = await pzCargarPuzzle();
         if (!data?.puzzle) return;
 
-        // ── Reconstruir FEN desde PGN ─────────────────────────
-        // La API de Lichess no devuelve initialFen directamente.
-        // Hay que reproducir el PGN hasta puzzle.initialPly.
         const pgn        = data.game?.pgn || '';
         const initialPly = data.puzzle?.initialPly ?? 0;
-        const fen        = pzReconstruirFEN(pgn, initialPly);
 
-        puzzleMode.activo     = true;
-        puzzleMode.data       = data;
-        puzzleMode.solucion   = data.puzzle.solution;
-        puzzleMode.paso       = 0;
-        puzzleMode.falloUsado = false;
+        // Reconstruimos el FEN en initialPly
+        let fen = pzReconstruirFEN(pgn, initialPly);
+
+        // ── Detectar el color del jugador del puzzle ───────────
+        // En lugar de usar chess.turn() (que puede estar desfasado),
+        // miramos QUÉ PIEZA mueve solution[0].
+        // La pieza en el from-square de solution[0] es la del jugador.
+        const tempChess = new Chess();
+        tempChess.load(fen);
+        const primerMovUCI = data.puzzle.solution?.[0];
+        let colorJugador = tempChess.turn(); // fallback
+
+        if (primerMovUCI && primerMovUCI.length >= 4) {
+            const fromSq = primerMovUCI.slice(0, 2);
+            const pieza  = tempChess.get(fromSq);
+            if (pieza) {
+                colorJugador = pieza.color; // 'w' o 'b'
+            } else {
+                // Si no hay pieza en from → estamos un ply antes.
+                // Jugamos un ply más (la jugada "mala" del oponente).
+                const movsPosibles = tempChess.moves({ verbose: true });
+                if (movsPosibles.length > 0) {
+                    // Intentamos cargar un ply adicional
+                    const fenExtra = pzReconstruirFEN(pgn, initialPly + 1);
+                    const tempExtra = new Chess();
+                    tempExtra.load(fenExtra);
+                    const piezaExtra = tempExtra.get(fromSq);
+                    if (piezaExtra) {
+                        fen           = fenExtra;
+                        colorJugador  = piezaExtra.color;
+                    }
+                }
+            }
+        }
+
+        puzzleMode.activo      = true;
+        puzzleMode.data        = data;
+        puzzleMode.solucion    = data.puzzle.solution;
+        puzzleMode.paso        = 0;
+        puzzleMode.falloUsado  = false;
+        puzzleMode.colorJugador = colorJugador; // 'w' o 'b'
         puzzleMode.numPuzzle++;
-        puzzleMode.chess      = new Chess();
+        puzzleMode.chess       = new Chess();
         puzzleMode.chess.load(fen);
 
-        // ── Carga en el tablero de ANÁLISIS (no combate) ──────
+        // Carga en el tablero de ANÁLISIS
         chessA.load(fen);
         boardA.position(fen);
 
-        // Orienta el tablero según quién juega en el puzzle
-        const turno = puzzleMode.chess.turn();
-        boardA.orientation(turno === 'w' ? 'white' : 'black');
+        // ★ Orienta el tablero para que TÚ estés siempre abajo
+        boardA.orientation(colorJugador === 'w' ? 'white' : 'black');
 
-        // Desactiva ayudas: tablebase, flechas teoría y motor análisis
+        // Desactiva ayudas durante el puzzle
         limpiarTablebase();
         Illuminator.clear();
         if (motorA) motorA.postMessage('stop');
 
-        // Actualiza el panel de jugadas de análisis limpio
         analysisExtraMoves = [];
         refrescarPaneles();
 
-        // Info del puzzle en el panel
-        document.getElementById('pz-rating').textContent         = data.puzzle.rating ?? '?';
-        document.getElementById('pz-temas-activos').textContent  =
+        // Info en el panel
+        document.getElementById('pz-rating').textContent        = data.puzzle.rating ?? '?';
+        document.getElementById('pz-temas-activos').textContent =
             (data.puzzle.themes || []).slice(0, 3).join(' · ');
-        document.getElementById('pz-num').textContent            = puzzleMode.numPuzzle;
-        document.getElementById('pz-info').style.display         = 'block';
-        document.getElementById('pz-acciones').style.display     = 'flex';
-        document.getElementById('pz-postmortem').style.display   = 'none';
+        document.getElementById('pz-num').textContent           = puzzleMode.numPuzzle;
+        document.getElementById('pz-info').style.display        = 'block';
+        document.getElementById('pz-acciones').style.display    = 'flex';
+        document.getElementById('pz-postmortem').style.display  = 'none';
 
-        // Auto-switch al tab puzzles
         const pzBtn = document.getElementById('pz-tab-btn');
         if (pzBtn) switchTab('tab-puzzles', pzBtn);
 
-        const colorJuega = turno === 'w' ? 'Blancas' : 'Negras';
-        pzSetEstado('esperando', `${colorJuega} juegan — Encuentra la mejor jugada`);
-        terminalLog(`🧩 Puzzle #${puzzleMode.numPuzzle} cargado | Rating: ${data.puzzle.rating}`);
+        // ★ Indicador claro: TÚ juegas con BLANCAS/NEGRAS
+        const nombreColor = colorJugador === 'w' ? '⬜ BLANCAS' : '⬛ NEGRAS';
+        const elTurnoA = document.getElementById('turno-analysis');
+        if (elTurnoA) {
+            elTurnoA.textContent = `Tú juegas con ${nombreColor}`;
+            elTurnoA.style.color = colorJugador === 'w' ? '#e6edf3' : '#8b949e';
+        }
+
+        pzSetEstado('esperando',
+            `Tú juegas con ${nombreColor} — Encuentra la mejor jugada`);
+        terminalLog(`🧩 Puzzle #${puzzleMode.numPuzzle} | Rating: ${data.puzzle.rating} | Juegas con ${nombreColor}`);
     }
 
-    // Pista: ilumina la pieza a mover (no el destino)
+    // Pista: ilumina SIEMPRE una pieza del color del jugador del puzzle
     function pzPista() {
         if (!puzzleMode.activo) return;
-        const uci  = puzzleMode.solucion[puzzleMode.paso];
-        if (!uci) return;
+        const uci = puzzleMode.solucion[puzzleMode.paso];
+        if (!uci || uci.length < 4) return;
+
         const from = uci.slice(0, 2);
+
+        // Verificación extra: la pieza en from debe ser del color del jugador
+        const pieza = puzzleMode.chess.get(from);
+        if (!pieza) {
+            console.warn('[Puzzle] Pista: no hay pieza en', from);
+            pzSetEstado('esperando', '💡 Busca la jugada clave...');
+            return;
+        }
+        if (pieza.color !== puzzleMode.colorJugador) {
+            console.warn('[Puzzle] Pista: pieza del color equivocado en', from);
+            pzSetEstado('esperando', '💡 Es tu turno — mueve una pieza tuya');
+            return;
+        }
+
         puzzleMode.limpiarPistas();
-        // Ilumina solo el origen (la pieza), no el destino
         const el = document.querySelector(`#boardAnalysis .square-${from}`);
         if (el) el.classList.add('pz-hint-sq');
-        pzSetEstado('esperando', '💡 Mira la pieza iluminada...');
+
+        const nombrePieza = { p:'Peón', n:'Caballo', b:'Alfil', r:'Torre', q:'Dama', k:'Rey' };
+        pzSetEstado('esperando', `💡 Mueve el ${nombrePieza[pieza.type] || 'pieza'} iluminado`);
         puzzleMode.falloUsado = true;
     }
 
@@ -3379,8 +3437,10 @@
         puzzleMode.activo = false;
         puzzleMode.racha  = 0;
         puzzleMode.limpiarPistas();
-        // Restaura el tablero de análisis a la posición del combate
+        // Restaura el tablero de análisis y el indicador de turno
         boardA.orientation('white');
+        const elTurnoA = document.getElementById('turno-analysis');
+        if (elTurnoA) elTurnoA.textContent = '⬜ Turno: BLANCAS';
         chessA.load(chessC.fen());
         boardA.position(chessC.fen());
         analysisExtraMoves = [];
@@ -3433,6 +3493,7 @@
     </script>
 </body>
 </html>
+
 
 
 
