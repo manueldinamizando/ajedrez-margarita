@@ -3201,27 +3201,52 @@
         }
     }
 
-    // Reconstruye el FEN del puzzle desde el PGN hasta initialPly
-    function pzReconstruirFEN(pgn, initialPly) {
-        const temp = new Chess();
+    // Reconstruye el FEN usando chess.js load_pgn (más fiable que parsear a mano)
+    function pzReconstruirFEN(pgn, targetPly) {
         try {
-            // Limpia el PGN de notaciones extra (resultado, comentarios)
-            const cleanPgn = pgn.replace(/\{[^}]*\}/g, '')
-                                .replace(/\([^)]*\)/g, '')
-                                .replace(/\d+\.\.\./g, '')
-                                .replace(/\s+/g, ' ').trim();
-            // Extrae solo las jugadas (sin números ni resultado)
-            const tokens = cleanPgn.split(' ').filter(t =>
-                t && !t.match(/^\d+\./) && !t.match(/^(1-0|0-1|1\/2|\*)/)
-            );
-            for (let i = 0; i < initialPly && i < tokens.length; i++) {
-                const m = temp.move(tokens[i], { sloppy: true });
-                if (!m) break;
+            // Cargamos el PGN completo con chess.js
+            const full = new Chess();
+            full.load_pgn(pgn, { sloppy: true });
+            const historia = full.history({ verbose: true });
+
+            // Reproducimos hasta targetPly movimientos
+            const chess2 = new Chess();
+            for (let i = 0; i < targetPly && i < historia.length; i++) {
+                chess2.move(historia[i]);
             }
+            return chess2.fen();
         } catch(e) {
-            console.warn('[Puzzle] Error parseando PGN:', e);
+            console.warn('[Puzzle] pzReconstruirFEN error:', e);
+            return new Chess().fen();
         }
-        return temp.fen();
+    }
+
+    // Encuentra la posición correcta del puzzle garantizando que
+    // chess.turn() === color de la pieza en solution[0].
+    // Prueba initialPly, initialPly+1, initialPly-1 hasta encontrar coincidencia.
+    function pzEncontrarPosicion(pgn, initialPly, solution) {
+        const fromSq = solution?.[0]?.slice(0, 2);
+        if (!fromSq) return { fen: new Chess().fen(), color: 'w' };
+
+        for (const offset of [0, 1, -1, 2]) {
+            const ply = initialPly + offset;
+            if (ply < 0) continue;
+            const fen   = pzReconstruirFEN(pgn, ply);
+            const chess = new Chess();
+            chess.load(fen);
+            const pieza = chess.get(fromSq);
+            // ★ Condición clave: la pieza existe Y es del bando que tiene el turno
+            if (pieza && pieza.color === chess.turn()) {
+                console.log(`[Puzzle] Posición encontrada en ply ${ply} (offset ${offset}), turno: ${chess.turn()}`);
+                return { fen, color: pieza.color };
+            }
+        }
+        // Fallback: usamos initialPly y el turno que toque
+        const fenFallback = pzReconstruirFEN(pgn, initialPly);
+        const chessFallback = new Chess();
+        chessFallback.load(fenFallback);
+        console.warn('[Puzzle] Usando fallback, turno:', chessFallback.turn());
+        return { fen: fenFallback, color: chessFallback.turn() };
     }
 
     // Inicia el puzzle — usa el tablero de ANÁLISIS
@@ -3231,51 +3256,25 @@
 
         const pgn        = data.game?.pgn || '';
         const initialPly = data.puzzle?.initialPly ?? 0;
+        const solution   = data.puzzle?.solution   ?? [];
 
-        // Reconstruimos el FEN en initialPly
-        let fen = pzReconstruirFEN(pgn, initialPly);
+        // ★ Encuentra la posición donde chess.turn() === color del jugador
+        const { fen, color: colorJugador } = pzEncontrarPosicion(pgn, initialPly, solution);
 
-        // ── Detectar el color del jugador del puzzle ───────────
-        // En lugar de usar chess.turn() (que puede estar desfasado),
-        // miramos QUÉ PIEZA mueve solution[0].
-        // La pieza en el from-square de solution[0] es la del jugador.
-        const tempChess = new Chess();
-        tempChess.load(fen);
-        const primerMovUCI = data.puzzle.solution?.[0];
-        let colorJugador = tempChess.turn(); // fallback
-
-        if (primerMovUCI && primerMovUCI.length >= 4) {
-            const fromSq = primerMovUCI.slice(0, 2);
-            const pieza  = tempChess.get(fromSq);
-            if (pieza) {
-                colorJugador = pieza.color; // 'w' o 'b'
-            } else {
-                // Si no hay pieza en from → estamos un ply antes.
-                // Jugamos un ply más (la jugada "mala" del oponente).
-                const movsPosibles = tempChess.moves({ verbose: true });
-                if (movsPosibles.length > 0) {
-                    // Intentamos cargar un ply adicional
-                    const fenExtra = pzReconstruirFEN(pgn, initialPly + 1);
-                    const tempExtra = new Chess();
-                    tempExtra.load(fenExtra);
-                    const piezaExtra = tempExtra.get(fromSq);
-                    if (piezaExtra) {
-                        fen           = fenExtra;
-                        colorJugador  = piezaExtra.color;
-                    }
-                }
-            }
-        }
-
-        puzzleMode.activo      = true;
-        puzzleMode.data        = data;
-        puzzleMode.solucion    = data.puzzle.solution;
-        puzzleMode.paso        = 0;
-        puzzleMode.falloUsado  = false;
-        puzzleMode.colorJugador = colorJugador; // 'w' o 'b'
+        puzzleMode.activo       = true;
+        puzzleMode.data         = data;
+        puzzleMode.solucion     = solution;
+        puzzleMode.paso         = 0;
+        puzzleMode.falloUsado   = false;
+        puzzleMode.colorJugador = colorJugador;
         puzzleMode.numPuzzle++;
-        puzzleMode.chess       = new Chess();
+        puzzleMode.chess        = new Chess();
         puzzleMode.chess.load(fen);
+
+        // Verificación de consistencia en consola (para debug)
+        console.log('[Puzzle] FEN:', fen);
+        console.log('[Puzzle] chess.turn():', puzzleMode.chess.turn(), '| colorJugador:', colorJugador);
+        console.log('[Puzzle] solution[0]:', solution[0]);
 
         // Carga en el tablero de ANÁLISIS
         chessA.load(fen);
@@ -3493,6 +3492,7 @@
     </script>
 </body>
 </html>
+
 
 
 
