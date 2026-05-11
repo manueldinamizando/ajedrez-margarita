@@ -698,6 +698,62 @@
         }
         .pz-hint-sq { animation: pz-hint-pulse 0.9s ease-in-out infinite !important; }
 
+        /* ── Panel de Análisis Humano ── */
+        #analisis-humano {
+            display: none;
+            margin-top: 10px;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+        .ah-seccion {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(48,54,61,0.5);
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        .ah-seccion:last-child { border-bottom: none; }
+        .ah-icono { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+        .ah-titulo {
+            font-size: 9px; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-dim);
+            margin-bottom: 2px;
+        }
+        .ah-texto { color: var(--text-main); }
+        .ah-texto.bueno    { color: #81c784; }
+        .ah-texto.malo     { color: #e57373; }
+        .ah-texto.neutro   { color: var(--text-dim); }
+        .ah-texto.alerta   { color: #ffd54f; }
+        .ah-mejora {
+            font-size: 10px; font-weight: 700;
+            padding: 1px 5px; border-radius: 3px; margin-left: 4px;
+        }
+        .ah-mejora.pos { background: rgba(76,175,80,0.2);  color: #81c784; }
+        .ah-mejora.neg { background: rgba(239,83,80,0.2);  color: #e57373; }
+        .ah-mejora.neu { background: rgba(120,144,156,0.2);color: #90a4ae; }
+
+        #btn-analizar {
+            width: 100%; margin-top: 10px;
+            padding: 7px; border-radius: 6px;
+            border: 1px solid var(--accent-blue);
+            background: rgba(31,111,235,0.08);
+            color: var(--accent-blue);
+            font-size: 11px; font-family: var(--font-mono);
+            font-weight: 700; cursor: pointer; letter-spacing: 1px;
+            transition: all 0.2s;
+        }
+        #btn-analizar:hover {
+            background: rgba(31,111,235,0.18);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        #btn-analizar.cargando {
+            opacity: 0.6; cursor: wait;
+            animation: motor-blink 0.8s ease-in-out infinite;
+        }
+
         /* ── Jaque: casilla del rey en rojo pulsante ── */
         @keyframes jaque-pulse {
             0%,100% { box-shadow: inset 0 0 0 4px rgba(239,83,80,1.0), 0 0 16px rgba(239,83,80,0.6); }
@@ -1585,6 +1641,10 @@
             ${opHtml}
             ${pildorasHtml}
             ${actHtml}
+            <button id="btn-analizar" onclick="analizarPosicion()">
+                🔍 Analizar posición
+            </button>
+            <div id="analisis-humano"></div>
         `;
 
         // ═══════════════════════════════════════════════════════
@@ -3459,6 +3519,299 @@
         el.textContent   = texto;
     }
 
+    /* ══════════════════════════════════════════════════════════
+       SISTEMA DE ANÁLISIS HUMANO — Sin IA, 100% local
+    ══════════════════════════════════════════════════════════ */
+
+    // ── Capa 1: Evaluar la posición y comparar con el padre ──
+    function ah_evaluacion(node) {
+        const ev     = node.eval ?? 0;
+        const evAbs  = Math.abs(ev / 100).toFixed(2);
+        const turno  = chessA.turn();
+
+        // Texto de evaluación absoluta
+        let textoEval = '';
+        if      (ev >=  300) textoEval = `Ventaja decisiva para BLANCAS (+${evAbs})`;
+        else if (ev >=  100) textoEval = `Ventaja clara para BLANCAS (+${evAbs})`;
+        else if (ev >=   30) textoEval = `Ligera ventaja blanca (+${evAbs})`;
+        else if (ev >=  -30) textoEval = `Posición igualada (${ev >= 0 ? '+' : ''}${evAbs})`;
+        else if (ev >= -100) textoEval = `Ligera ventaja negra (${evAbs})`;
+        else if (ev >= -300) textoEval = `Ventaja clara para NEGRAS (-${evAbs})`;
+        else                 textoEval = `Ventaja decisiva para NEGRAS (-${evAbs})`;
+
+        // Comparación con el nodo padre
+        let mejora = '', clsMejora = 'neu', textoMejora = '';
+        const padre = VT.nodeMap.get(node.parentId);
+        if (padre && padre.eval !== undefined && padre.eval !== 0) {
+            const diff = ev - padre.eval;
+            const diffAbs = (Math.abs(diff) / 100).toFixed(2);
+            const esTuJugada = (node.side !== turno); // la jugada fue del otro bando
+
+            if (Math.abs(diff) < 15) {
+                textoMejora = 'Sin cambio respecto a la jugada anterior';
+                clsMejora = 'neu';
+            } else if (diff > 0) {
+                textoMejora = `Mejora de +${diffAbs} respecto a la jugada anterior`;
+                clsMejora = 'pos';
+            } else {
+                textoMejora = `Empeora ${diffAbs} respecto a la jugada anterior`;
+                clsMejora = 'neg';
+            }
+
+            // Calificativo de la jugada
+            const diffPov = node.side === 'b' ? -diff : diff; // desde perspectiva del que jugó
+            if      (diffPov >= 150) mejora = 'Jugada excelente ✨';
+            else if (diffPov >=  50) mejora = 'Jugada sólida';
+            else if (diffPov >= -50) mejora = 'Jugada neutral';
+            else if (diffPov >= -150)mejora = 'Jugada imprecisa ⚠️';
+            else                     mejora = 'Error importante ❌';
+        }
+
+        return { textoEval, textoMejora, clsMejora, mejora, ev };
+    }
+
+    // ── Capa 2: Detectar táctica con Chess.js ──
+    function ah_tactica() {
+        const alertas = [];
+        const chess   = new Chess();
+        chess.load(chessA.fen());
+        const turno   = chess.turn(); // quién mueve ahora
+        const rival   = turno === 'w' ? 'b' : 'w';
+
+        // Piezas en el tablero
+        const board = chess.board();
+        const NOMBRE = { p:'Peón', n:'Caballo', b:'Alfil', r:'Torre', q:'Dama', k:'Rey' };
+        const FILES  = ['a','b','c','d','e','f','g','h'];
+
+        // Capturas disponibles (material que se puede ganar)
+        const capturas = chess.moves({ verbose: true }).filter(m => m.flags.includes('c'));
+        if (capturas.length > 0) {
+            const cap = capturas[0];
+            alertas.push({
+                tipo:  'captura',
+                texto: `Hay una captura disponible: ${NOMBRE[cap.piece]} puede capturar en ${cap.to}`,
+                cls:   'alerta'
+            });
+        }
+
+        // Detectar piezas sin defender del bando rival (simplificado)
+        // Una pieza está "colgada" si puede ser capturada y el que captura no pierde material
+        const piezasColgadas = [];
+        capturas.forEach(cap => {
+            // Simula la captura y comprueba si el capturador está en peligro
+            const temp = new Chess();
+            temp.load(chess.fen());
+            temp.move(cap);
+            const responsTas = temp.moves({ verbose: true }).filter(m => m.to === cap.to);
+            if (responsTas.length === 0) {
+                piezasColgadas.push(`${NOMBRE[cap.captured]} rival en ${cap.to}`);
+            }
+        });
+        if (piezasColgadas.length > 0) {
+            alertas.push({
+                tipo:  'colgada',
+                texto: `Pieza sin defender: ${piezasColgadas[0]}`,
+                cls:   'bueno'
+            });
+        }
+
+        // Rey en jaque
+        if (chess.in_check()) {
+            alertas.push({
+                tipo:  'jaque',
+                texto: `El rey está en jaque — respuesta obligatoria`,
+                cls:   'malo'
+            });
+        }
+
+        // Amenaza de mate (si Stockfish tiene mate en la PV)
+        const pv1 = motorPVs['1'];
+        if (pv1?.evalType === 'mate') {
+            const m = pv1.evalNum;
+            alertas.push({
+                tipo:  'mate',
+                texto: m > 0
+                    ? `¡Hay mate forzado en ${Math.abs(m)} jugadas!`
+                    : `El rival tiene mate en ${Math.abs(m)} jugadas`,
+                cls:   m > 0 ? 'bueno' : 'malo'
+            });
+        }
+
+        // Si no hay alertas tácticas
+        if (alertas.length === 0) {
+            alertas.push({
+                tipo:  'tranquilo',
+                texto: 'No hay amenazas inmediatas — posición estable',
+                cls:   'neutro'
+            });
+        }
+
+        return alertas;
+    }
+
+    // ── Capa 3: Plan estratégico desde la PV de Stockfish ──
+    function ah_plan() {
+        const pv1 = motorPVs['1'];
+        if (!pv1?.moves?.length) return null;
+
+        const chess = new Chess();
+        chess.load(chessA.fen());
+
+        // Convierte la PV a SAN (primeras 4 jugadas)
+        const sans = [];
+        const tempChess = new Chess();
+        tempChess.load(chessA.fen());
+        pv1.moves.slice(0, 4).forEach(uci => {
+            const m = tempChess.move({
+                from: uci.slice(0,2), to: uci.slice(2,4),
+                promotion: uci[4] || 'q'
+            });
+            if (m) sans.push(m.san);
+        });
+
+        if (!sans.length) return null;
+
+        // Detecta el tipo de plan de la primera jugada
+        const primera = pv1.moves[0];
+        const pieza   = chess.get(primera.slice(0,2));
+        const NOMBRE  = { p:'Peón', n:'Caballo', b:'Alfil', r:'Torre', q:'Dama', k:'Rey' };
+        const esCaptura = pv1.moves[0] && chess.get(primera.slice(2,4)) !== null;
+
+        let descripcion = '';
+        if (esCaptura) {
+            descripcion = `Capturar en ${primera.slice(2,4)} con el ${NOMBRE[pieza?.type] || 'pieza'}`;
+        } else if (pieza?.type === 'k') {
+            const col = parseInt(primera[2]);
+            descripcion = col < 4 ? 'Enrocar o activar el rey' : 'Mover el rey a zona segura';
+        } else if (pieza?.type === 'p') {
+            descripcion = `Avanzar el peón a ${primera.slice(2,4)}`;
+        } else {
+            descripcion = `Llevar el ${NOMBRE[pieza?.type] || 'pieza'} a ${primera.slice(2,4)}`;
+        }
+
+        return {
+            descripcion,
+            linea: sans.join(' '),
+            depth: pv1.depth
+        };
+    }
+
+    // ── Capa 4: Contexto (apertura / fase / final) ──
+    function ah_contexto(node) {
+        // Cuenta piezas para determinar la fase
+        const fen    = chessA.fen();
+        const piezas = fen.split(' ')[0].replace(/\d/g,'').replace(/\//g,'');
+        const num    = piezas.length;
+
+        let fase = '';
+        if      (num >= 28) fase = 'Apertura — desarrollo de piezas';
+        else if (num >= 16) fase = 'Medio juego — batalla por el centro';
+        else if (num >= 8)  fase = 'Final — activar el rey';
+        else                fase = 'Final profundo — precisión absoluta';
+
+        // Tablebase activa
+        if (tbDatos) {
+            const cat = TB_CAT_MAP[tbDatos.category];
+            if (cat) return { texto: `Final: ${cat.txt}`, fase: 'Final Syzygy' };
+        }
+
+        // Apertura conocida
+        const opening = node?.opening;
+        if (opening && num >= 24) {
+            return { texto: `${opening.eco} — ${opening.name}`, fase };
+        }
+
+        return { texto: fase, fase };
+    }
+
+    // ── Función principal: ensambla todo y renderiza ──
+    function analizarPosicion() {
+        const node = VT.activeNode;
+        const panel = document.getElementById('analisis-humano');
+        const btn   = document.getElementById('btn-analizar');
+        if (!panel || !node) return;
+
+        // Estado cargando
+        btn.classList.add('cargando');
+        btn.textContent = '⏳ Analizando...';
+
+        // Pequeño delay para que Stockfish haya procesado
+        setTimeout(() => {
+            try {
+                const capa1 = ah_evaluacion(node);
+                const capa2 = ah_tactica();
+                const capa3 = ah_plan();
+                const capa4 = ah_contexto(node);
+
+                // ── Sección 1: Evaluación ──
+                const clasEval = capa1.ev >= 30 ? 'bueno' : capa1.ev <= -30 ? 'malo' : 'neutro';
+                let evalHtml = `
+                    <div class="ah-seccion">
+                        <span class="ah-icono">📊</span>
+                        <div>
+                            <div class="ah-titulo">Evaluación</div>
+                            <div class="ah-texto ${clasEval}">${capa1.textoEval}</div>
+                            ${capa1.textoMejora ? `<div class="ah-texto ${capa1.clsMejora}" style="margin-top:2px;">
+                                ${capa1.textoMejora}
+                                ${capa1.mejora ? `<span class="ah-mejora ${capa1.clsMejora === 'pos' ? 'pos' : capa1.clsMejora === 'neg' ? 'neg' : 'neu'}">${capa1.mejora}</span>` : ''}
+                            </div>` : ''}
+                        </div>
+                    </div>`;
+
+                // ── Sección 2: Táctica ──
+                let tacticaHtml = capa2.map(a => `
+                    <div class="ah-seccion">
+                        <span class="ah-icono">${a.tipo === 'jaque' ? '⚠️' : a.tipo === 'mate' ? '🎯' : a.tipo === 'colgada' ? '💡' : a.tipo === 'captura' ? '⚔️' : 'ℹ️'}</span>
+                        <div>
+                            <div class="ah-titulo">Táctica</div>
+                            <div class="ah-texto ${a.cls}">${a.texto}</div>
+                        </div>
+                    </div>`).join('');
+
+                // ── Sección 3: Plan ──
+                let planHtml = '';
+                if (capa3) {
+                    planHtml = `
+                        <div class="ah-seccion">
+                            <span class="ah-icono">🎯</span>
+                            <div>
+                                <div class="ah-titulo">Plan recomendado</div>
+                                <div class="ah-texto">${capa3.descripcion}</div>
+                                <div class="ah-texto neutro" style="margin-top:2px;font-size:10px;">
+                                    Línea: ${capa3.linea}
+                                    <span style="opacity:0.5;margin-left:4px;">(d${capa3.depth})</span>
+                                </div>
+                            </div>
+                        </div>`;
+                }
+
+                // ── Sección 4: Contexto ──
+                let contextoHtml = `
+                    <div class="ah-seccion">
+                        <span class="ah-icono">📖</span>
+                        <div>
+                            <div class="ah-titulo">Contexto</div>
+                            <div class="ah-texto">${capa4.texto}</div>
+                            ${capa4.fase !== capa4.texto ? `<div class="ah-texto neutro" style="margin-top:2px;">${capa4.fase}</div>` : ''}
+                        </div>
+                    </div>`;
+
+                panel.innerHTML = evalHtml + tacticaHtml + planHtml + contextoHtml;
+                panel.style.display = 'block';
+
+            } catch(e) {
+                console.error('[Análisis]', e);
+                panel.innerHTML = `<div style="color:var(--text-dim);font-size:11px;">
+                    Error al analizar. Asegúrate de que Stockfish está activo.
+                </div>`;
+                panel.style.display = 'block';
+            }
+
+            btn.classList.remove('cargando');
+            btn.textContent = '🔍 Analizar posición';
+        }, 300);
+    }
+
     /* ── Tabs del panel derecho ── */
     function switchTab(tabId, btn) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -3492,6 +3845,7 @@
     </script>
 </body>
 </html>
+
 
 
 
