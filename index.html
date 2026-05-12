@@ -754,6 +754,68 @@
             animation: motor-blink 0.8s ease-in-out infinite;
         }
 
+        /* ── Sección ChessDB ── */
+        .cdb-section {
+            margin-top: 10px;
+            border-top: 1px dashed rgba(168,85,247,0.4);
+            padding-top: 10px;
+        }
+        .cdb-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .cdb-title {
+            font-size: 9px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; color: #a855f7;
+        }
+        .cdb-depth {
+            font-size: 9px; color: var(--text-dim);
+            font-family: var(--font-mono);
+        }
+        .cdb-move-row {
+            padding: 6px 8px; margin-bottom: 4px;
+            border-radius: 5px; border-left: 3px solid transparent;
+            background: rgba(255,255,255,0.02);
+            font-size: 11px;
+        }
+        .cdb-move-row.best { border-left-color: #a855f7; background: rgba(168,85,247,0.06); }
+        .cdb-move-row.good { border-left-color: #4f9eff; }
+        .cdb-move-row.rest { border-left-color: #30363d; }
+        .cdb-move-top {
+            display: flex; align-items: center; gap: 8px; margin-bottom: 3px;
+        }
+        .cdb-san {
+            font-weight: 700; font-size: 13px;
+            font-family: var(--font-mono); color: var(--text-main);
+            min-width: 32px;
+        }
+        .cdb-score {
+            font-weight: 700; font-size: 11px;
+            font-family: var(--font-mono);
+        }
+        .cdb-score.pos { color: #81c784; }
+        .cdb-score.neg { color: #e57373; }
+        .cdb-score.neu { color: #90a4ae; }
+        .cdb-note {
+            display: inline-block; font-size: 9px; font-weight: 700;
+            padding: 1px 6px; border-radius: 10px; margin-left: auto;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .cdb-note.main     { background: rgba(241,196,15,0.15); color: #ffd700; }
+        .cdb-note.strong   { background: rgba(76,175,80,0.15);  color: #81c784; }
+        .cdb-note.novelty  { background: rgba(168,85,247,0.15); color: #c084fc; }
+        .cdb-note.interest { background: rgba(79,158,255,0.15); color: #7dd3fc; }
+        .cdb-note.dubious  { background: rgba(255,152,0,0.15);  color: #ffb74d; }
+        .cdb-note.mistake  { background: rgba(239,83,80,0.15);  color: #e57373; }
+        .cdb-pv {
+            font-family: var(--font-mono); font-size: 10px;
+            color: var(--text-dim); line-height: 1.5;
+        }
+        .cdb-no-data {
+            font-size: 11px; color: var(--text-dim);
+            padding: 6px 0; font-style: italic;
+        }
+
         /* ── Jaque: casilla del rey en rojo pulsante ── */
         @keyframes jaque-pulse {
             0%,100% { box-shadow: inset 0 0 0 4px rgba(239,83,80,1.0), 0 0 16px rgba(239,83,80,0.6); }
@@ -3796,8 +3858,28 @@
                         </div>
                     </div>`;
 
+                // Muestra las 4 capas locales
                 panel.innerHTML = evalHtml + tacticaHtml + planHtml + contextoHtml;
                 panel.style.display = 'block';
+
+                // Añade placeholder ChessDB mientras carga
+                panel.innerHTML += `
+                    <div class="cdb-section" id="cdb-loading">
+                        <div class="cdb-header">
+                            <span class="cdb-title">🌐 ChessDB</span>
+                            <span class="cdb-depth" style="animation:motor-blink 1s infinite">
+                                consultando...
+                            </span>
+                        </div>
+                    </div>`;
+
+                // Consulta ChessDB de forma asíncrona (no bloquea)
+                const fenActual = chessA.fen();
+                fetchChessDB(fenActual).then(datos => {
+                    const loadingEl = document.getElementById('cdb-loading');
+                    if (loadingEl) loadingEl.remove();
+                    cdb_renderizar(datos, fenActual, panel);
+                });
 
             } catch(e) {
                 console.error('[Análisis]', e);
@@ -3810,6 +3892,164 @@
             btn.classList.remove('cargando');
             btn.textContent = '🔍 Analizar posición';
         }, 300);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       CHESSDB — Base de datos de élite (50 mil millones de posiciones)
+       Sin clave API, profundidad hasta 42, notas de Grandes Maestros
+    ══════════════════════════════════════════════════════════ */
+
+    const CDB_CACHE = new Map();
+
+    // Mapeo de notes inglesas → español + clase CSS
+    const CDB_NOTES = {
+        'main line':           { txt: 'Línea principal',    cls: 'main'     },
+        'theoretical novelty': { txt: '¡Novedad teórica!', cls: 'novelty'  },
+        'very strong move':    { txt: 'Jugada muy fuerte',  cls: 'strong'   },
+        'strong move':         { txt: 'Jugada fuerte',      cls: 'strong'   },
+        'good move':           { txt: 'Buena jugada',       cls: 'strong'   },
+        'interesting move':    { txt: 'Jugada interesante', cls: 'interest' },
+        'dubious move':        { txt: 'Jugada dudosa',      cls: 'dubious'  },
+        'mistake':             { txt: 'Error',              cls: 'mistake'  },
+        'blunder':             { txt: 'Grave error',        cls: 'mistake'  },
+    };
+
+    // Parsea la respuesta de texto de ChessDB
+    function cdb_parsear(texto) {
+        if (!texto || texto.trim() === 'unknown' || texto.trim() === 'nobestmove') return [];
+        return texto.split('|').map(entry => {
+            const obj = {};
+            // Separa por comas SOLO fuera del campo pv (que puede tener espacios)
+            // El formato es: move:x,score:x,depth:x,pv:x x x,note:x
+            const pvMatch    = entry.match(/pv:([^,]+(?:\s[^,]+)*?)(?=,note:|$)/);
+            const noteMatch  = entry.match(/note:(.+)$/);
+            const moveMatch  = entry.match(/move:([a-h][1-8][a-h][1-8][qrbn]?)/);
+            const scoreMatch = entry.match(/score:(-?\d+)/);
+            const depthMatch = entry.match(/depth:(\d+)/);
+            const sanMatch   = entry.match(/san:(\S+)/);
+
+            if (!moveMatch) return null;
+            obj.uci   = moveMatch[1];
+            obj.score = scoreMatch  ? parseInt(scoreMatch[1])  : 0;
+            obj.depth = depthMatch  ? parseInt(depthMatch[1])  : 0;
+            obj.pv    = pvMatch     ? pvMatch[1].trim()        : obj.uci;
+            obj.note  = noteMatch   ? noteMatch[1].trim().toLowerCase() : null;
+            obj.san   = sanMatch    ? sanMatch[1] : null;
+            return obj;
+        }).filter(Boolean);
+    }
+
+    // Convierte array de UCI moves a SAN usando chess.js
+    function cdb_pv_a_san(pvString, fen) {
+        const chess = new Chess();
+        chess.load(fen);
+        const ucis = pvString.split(' ').slice(0, 6);
+        const sans = [];
+        ucis.forEach((uci, i) => {
+            if (!uci || uci.length < 4) return;
+            const m = chess.move({
+                from: uci.slice(0,2), to: uci.slice(2,4),
+                promotion: uci[4] || 'q'
+            });
+            if (!m) return;
+            // Añade número de jugada para blancas
+            const ply = chess.history().length;
+            if (m.color === 'w') {
+                sans.push(`${Math.ceil(ply/2)}.${m.san}`);
+            } else {
+                sans.push(m.san);
+            }
+        });
+        return sans.join(' ');
+    }
+
+    // Llama a la API de ChessDB
+    async function fetchChessDB(fen) {
+        if (CDB_CACHE.has(fen)) return CDB_CACHE.get(fen);
+        try {
+            const url = `https://www.chessdb.cn/chessdb.php?action=queryall&board=${encodeURIComponent(fen)}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`CDB HTTP ${res.status}`);
+            const texto = await res.text();
+            const datos = cdb_parsear(texto);
+
+            if (CDB_CACHE.size >= 200) CDB_CACHE.delete(CDB_CACHE.keys().next().value);
+            CDB_CACHE.set(fen, datos);
+            return datos;
+        } catch(err) {
+            console.warn('[ChessDB]', err.message);
+            return null;
+        }
+    }
+
+    // Renderiza la sección ChessDB dentro del panel de análisis
+    function cdb_renderizar(datos, fen, contenedor) {
+        if (!datos?.length) {
+            contenedor.innerHTML += `
+                <div class="cdb-section">
+                    <div class="cdb-header">
+                        <span class="cdb-title">🌐 ChessDB</span>
+                    </div>
+                    <div class="cdb-no-data">
+                        Posición no encontrada en la base de datos de ChessDB.
+                        (Posición muy poco común o fuera de teoría)
+                    </div>
+                </div>`;
+            return;
+        }
+
+        // Máxima profundidad encontrada
+        const maxDepth = Math.max(...datos.map(d => d.depth));
+
+        // Top 3 jugadas
+        const top3 = datos.slice(0, 3);
+
+        const movesHtml = top3.map((m, i) => {
+            // Score formateado
+            const scoreVal = (m.score / 100).toFixed(2);
+            const scoreCls = m.score > 15 ? 'pos' : m.score < -15 ? 'neg' : 'neu';
+            const scoreStr = m.score >= 0 ? `+${scoreVal}` : scoreVal;
+
+            // Note en español
+            const noteInfo = m.note ? (CDB_NOTES[m.note] ?? { txt: m.note, cls: 'interest' }) : null;
+            const noteHtml = noteInfo
+                ? `<span class="cdb-note ${noteInfo.cls}">${noteInfo.txt}</span>`
+                : '';
+
+            // PV en SAN
+            const pvSan = cdb_pv_a_san(m.pv, fen);
+
+            // Clase de la fila
+            const rowCls = i === 0 ? 'best' : i === 1 ? 'good' : 'rest';
+
+            // SAN de la primera jugada (si no la tenemos, usamos el UCI)
+            const primerMove = new Chess();
+            primerMove.load(fen);
+            const moveObj = primerMove.move({
+                from: m.uci.slice(0,2), to: m.uci.slice(2,4),
+                promotion: m.uci[4] || 'q'
+            });
+            const sanDisplay = moveObj?.san || m.uci;
+
+            return `<div class="cdb-move-row ${rowCls}">
+                <div class="cdb-move-top">
+                    <span class="cdb-san">${sanDisplay}</span>
+                    <span class="cdb-score ${scoreCls}">${scoreStr}</span>
+                    <span style="font-size:9px;color:var(--text-dim);">d${m.depth}</span>
+                    ${noteHtml}
+                </div>
+                ${pvSan ? `<div class="cdb-pv">${pvSan}</div>` : ''}
+            </div>`;
+        }).join('');
+
+        contenedor.innerHTML += `
+            <div class="cdb-section">
+                <div class="cdb-header">
+                    <span class="cdb-title">🌐 ChessDB — Base de élite</span>
+                    <span class="cdb-depth">profundidad ${maxDepth}</span>
+                </div>
+                ${movesHtml}
+            </div>`;
     }
 
     /* ── Tabs del panel derecho ── */
@@ -3845,6 +4085,7 @@
     </script>
 </body>
 </html>
+
 
 
 
