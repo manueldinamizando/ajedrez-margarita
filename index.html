@@ -3901,17 +3901,19 @@
 
     const CDB_CACHE = new Map();
 
-    // Mapeo de notes inglesas → español + clase CSS
     const CDB_NOTES = {
-        'main line':           { txt: 'Línea principal',    cls: 'main'     },
-        'theoretical novelty': { txt: '¡Novedad teórica!', cls: 'novelty'  },
-        'very strong move':    { txt: 'Jugada muy fuerte',  cls: 'strong'   },
-        'strong move':         { txt: 'Jugada fuerte',      cls: 'strong'   },
-        'good move':           { txt: 'Buena jugada',       cls: 'strong'   },
-        'interesting move':    { txt: 'Jugada interesante', cls: 'interest' },
-        'dubious move':        { txt: 'Jugada dudosa',      cls: 'dubious'  },
-        'mistake':             { txt: 'Error',              cls: 'mistake'  },
-        'blunder':             { txt: 'Grave error',        cls: 'mistake'  },
+        // Notas simbólicas (las que vienen de la API)
+        '!':                 { txt: '¡Excelente!',     cls: 'strong'  },
+        '!!':                { txt: '¡Brillante!',     cls: 'strong'  },
+        '*':                 { txt: 'Libro / Teoría',  cls: 'main'    },
+        '?':                 { txt: 'Error',           cls: 'mistake' },
+        '??':                { txt: 'Grave error',     cls: 'mistake' },
+        '!?':                { txt: 'Interesante',     cls: 'interest'},
+        
+        // Notas textuales (fallback)
+        'main line':         { txt: 'Línea principal', cls: 'main'    },
+        'theoretical novelty': { txt: '¡Novedad!',     cls: 'novelty' },
+        'very strong move':  { txt: 'Muy fuerte',      cls: 'strong'  }
     };
 
     // Parsea la respuesta de texto de ChessDB
@@ -3934,9 +3936,8 @@
             // FIX PV: captura todo desde 'pv:' hasta ',note:' o fin de entrada
             const pvMatch   = entry.match(/pv:(.+?)(?=,note:|,rank:|$)/s);
 
-            // FIX NOTE: usa [^\r\n|]+ para no capturar saltos de línea ni separadores
-            const noteMatch = entry.match(/,note:([^\r\n|,]+)/);
-
+            // Busca el símbolo !, *, ? etc, ignorando los números entre paréntesis
+            const noteMatch = entry.match(/,note:([!*?]+)/);
             if (!moveMatch) return null;
 
             const obj = {
@@ -4059,9 +4060,14 @@
             const scoreVal = (m.score / 100).toFixed(2);
             const scoreCls = m.score > 15 ? 'pos' : m.score < -15 ? 'neg' : 'neu';
             const scoreStr = m.score >= 0 ? `+${scoreVal}` : scoreVal;
+            
 
             // Note en español
-            const noteInfo = m.note ? (CDB_NOTES[m.note] ?? { txt: m.note, cls: 'interest' }) : null;
+            // Primero limpiamos el símbolo (de "! (14-01)" sacamos solo "!")
+            const símbolo = m.note ? m.note.split(' ')[0] : null;
+
+            // Ahora buscamos ese símbolo en tu lista de CDB_NOTES
+            const noteInfo = símbolo ? (CDB_NOTES[símbolo] ?? { txt: m.note, cls: 'interest' }) : null;
             const noteHtml = noteInfo
                 ? `<span class="cdb-note ${noteInfo.cls}">${noteInfo.txt}</span>`
                 : '';
@@ -4135,6 +4141,7 @@
     </script>
 </body>
 </html>
+
 
 
 
