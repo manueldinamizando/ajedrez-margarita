@@ -3917,24 +3917,39 @@
     // Parsea la respuesta de texto de ChessDB
     function cdb_parsear(texto) {
         if (!texto || texto.trim() === 'unknown' || texto.trim() === 'nobestmove') return [];
+
+        // Log para depuración — ver respuesta cruda
+        console.log('[ChessDB] Respuesta cruda:', texto.slice(0, 300));
+
         return texto.split('|').map(entry => {
-            const obj = {};
-            // Separa por comas SOLO fuera del campo pv (que puede tener espacios)
-            // El formato es: move:x,score:x,depth:x,pv:x x x,note:x
-            const pvMatch    = entry.match(/pv:([^,]+(?:\s[^,]+)*?)(?=,note:|$)/);
-            const noteMatch  = entry.match(/note:(.+)$/);
+            entry = entry.trim();
+            if (!entry) return null;
+
+            // FIX: Regex más robustos que manejan \r\n y no cortan antes de tiempo
             const moveMatch  = entry.match(/move:([a-h][1-8][a-h][1-8][qrbn]?)/);
             const scoreMatch = entry.match(/score:(-?\d+)/);
             const depthMatch = entry.match(/depth:(\d+)/);
             const sanMatch   = entry.match(/san:(\S+)/);
 
+            // FIX PV: captura todo desde 'pv:' hasta ',note:' o fin de entrada
+            const pvMatch   = entry.match(/pv:(.+?)(?=,note:|,rank:|$)/s);
+
+            // FIX NOTE: usa [^\r\n|]+ para no capturar saltos de línea ni separadores
+            const noteMatch = entry.match(/,note:([^\r\n|,]+)/);
+
             if (!moveMatch) return null;
-            obj.uci   = moveMatch[1];
-            obj.score = scoreMatch  ? parseInt(scoreMatch[1])  : 0;
-            obj.depth = depthMatch  ? parseInt(depthMatch[1])  : 0;
-            obj.pv    = pvMatch     ? pvMatch[1].trim()        : obj.uci;
-            obj.note  = noteMatch   ? noteMatch[1].trim().toLowerCase() : null;
-            obj.san   = sanMatch    ? sanMatch[1] : null;
+
+            const obj = {
+                uci:   moveMatch[1],
+                score: scoreMatch ? parseInt(scoreMatch[1])  : 0,
+                depth: depthMatch ? parseInt(depthMatch[1])  : 0,
+                pv:    pvMatch    ? pvMatch[1].trim()        : moveMatch[1],
+                note:  noteMatch  ? noteMatch[1].trim().toLowerCase() : null,
+                san:   sanMatch   ? sanMatch[1] : null,
+            };
+
+            // Log cada entrada para depuración
+            console.log('[ChessDB] Entrada:', { uci: obj.uci, score: obj.score, note: obj.note, depth: obj.depth });
             return obj;
         }).filter(Boolean);
     }
@@ -3952,7 +3967,6 @@
                 promotion: uci[4] || 'q'
             });
             if (!m) return;
-            // Añade número de jugada para blancas
             const ply = chess.history().length;
             if (m.color === 'w') {
                 sans.push(`${Math.ceil(ply/2)}.${m.san}`);
@@ -3963,15 +3977,51 @@
         return sans.join(' ');
     }
 
-    // Llama a la API de ChessDB
+    // Llama a la API de ChessDB — intenta JSON primero, texto como fallback
     async function fetchChessDB(fen) {
         if (CDB_CACHE.has(fen)) return CDB_CACHE.get(fen);
         try {
-            const url = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1`;
+            // Primero intenta con json=1 para respuesta estructurada
+            const url = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1&json=1`;
+            console.log('[ChessDB] URL:', url);
             const res = await fetch(url);
             if (!res.ok) throw new Error(`CDB HTTP ${res.status}`);
+
             const texto = await res.text();
-            const datos = cdb_parsear(texto);
+            console.log('[ChessDB] Respuesta completa:', texto.slice(0, 500));
+
+            let datos = null;
+
+            // Intenta parsear como JSON
+            try {
+                const json = JSON.parse(texto);
+                if (json?.moves?.length) {
+                    datos = json.moves.map(m => ({
+                        uci:   m.uci || m.move,
+                        score: m.score ?? 0,
+                        depth: m.depth ?? 0,
+                        pv:    m.pv   || m.uci || '',
+                        note:  m.note ? m.note.trim().toLowerCase() : null,
+                        san:   m.san  || null,
+                    }));
+                    console.log('[ChessDB] Parseado como JSON, jugadas:', datos.length);
+                }
+            } catch(e) {
+                // No es JSON — parsea como texto plano
+                console.log('[ChessDB] No es JSON, parseando como texto...');
+                datos = cdb_parsear(texto);
+            }
+
+            // Si json=1 no devuelve notas, reintenta sin json para el texto plano
+            const tieneNotas = datos?.some(d => d.note);
+            if (!tieneNotas && datos?.length) {
+                console.log('[ChessDB] Sin notas en JSON, reintentando en texto plano...');
+                const url2 = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1`;
+                const res2 = await fetch(url2);
+                const texto2 = await res2.text();
+                const datos2 = cdb_parsear(texto2);
+                if (datos2?.some(d => d.note)) datos = datos2;
+            }
 
             if (CDB_CACHE.size >= 200) CDB_CACHE.delete(CDB_CACHE.keys().next().value);
             CDB_CACHE.set(fen, datos);
@@ -4085,6 +4135,7 @@
     </script>
 </body>
 </html>
+
 
 
 
