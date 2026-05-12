@@ -3967,7 +3967,7 @@
     async function fetchChessDB(fen) {
         if (CDB_CACHE.has(fen)) return CDB_CACHE.get(fen);
         try {
-            const url = `https://www.chessdb.cn/chessdb.php?action=queryall&board=${encodeURIComponent(fen)}`;
+            const url = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1`;
             const res = await fetch(url);
             if (!res.ok) throw new Error(`CDB HTTP ${res.status}`);
             const texto = await res.text();
@@ -4085,6 +4085,7 @@
     </script>
 </body>
 </html>
+
 
 
 
