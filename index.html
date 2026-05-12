@@ -3959,7 +3959,7 @@
     function cdb_pv_a_san(pvString, fen) {
         const chess = new Chess();
         chess.load(fen);
-        const ucis = pvString.split(' ').slice(0, 6);
+        const ucis = pvString.split(' ').slice(0, 12);
         const sans = [];
         ucis.forEach((uci, i) => {
             if (!uci || uci.length < 4) return;
@@ -3983,7 +3983,7 @@
         if (CDB_CACHE.has(fen)) return CDB_CACHE.get(fen);
         try {
             // Primero intenta con json=1 para respuesta estructurada
-            const url = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1&json=1`;
+            const url = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1&json=1&pv=1`;
             console.log('[ChessDB] URL:', url);
             const res = await fetch(url);
             if (!res.ok) throw new Error(`CDB HTTP ${res.status}`);
@@ -4053,9 +4053,9 @@
         const maxDepth = Math.max(...datos.map(d => d.depth));
 
         // Top 3 jugadas
-        const top3 = datos.slice(0, 3);
+        const top5 = datos.slice(0, 5);
 
-        const movesHtml = top3.map((m, i) => {
+        const movesHtml = top5.map((m, i) => {
             // Score formateado
             const scoreVal = (m.score / 100).toFixed(2);
             const scoreCls = m.score > 15 ? 'pos' : m.score < -15 ? 'neg' : 'neu';
@@ -4094,7 +4094,14 @@
                     <span style="font-size:9px;color:var(--text-dim);">d${m.depth}</span>
                     ${noteHtml}
                 </div>
-                ${pvSan ? `<div class="cdb-pv">${pvSan}</div>` : ''}
+                ${pvSan ? `
+                    <div class="cdb-explanation" style="margin-top:8px; border-top: 1px dashed #555; padding-top:8px;">
+                        <span style="color: #aaa; font-size: 11px; font-weight: bold;">ANÁLISIS DE LA LÍNEA:</span>
+                        <div style="color: #eee; font-size: 13px; line-height: 1.4; margin-top: 4px;">
+                            ${pvSan}
+                        </div>
+                    </div>` 
+                : ''}
             </div>`;
         }).join('');
 
@@ -4141,6 +4148,7 @@
     </script>
 </body>
 </html>
+
 
 
 
