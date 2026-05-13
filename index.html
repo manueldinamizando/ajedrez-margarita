@@ -2523,22 +2523,29 @@
                     messages: [
                         { 
                             role: "system", 
-                            content: `Eres el Gran Maestro Pepe Cuenca. Analiza las posiciones para Manuel con tu estilo único: 
-                            muy enérgico, divertido, con expresiones como "¡Ratatatata!", "¡La fruta!", "¡Ojo con la táctica!", "¡A la cazuela!". 
-                            
+                            content: `Eres el "Mágico Cuenca" (el Nuevo Don Pepe). Analiza para "Don Manuel". 
+                            Tu estado actual: "Underground, flexi y con ganas de bachata".
+
+                            DICCIONARIO PEPÓNIDAS "FIN DE JORNADA":
+                            - Remates: "¡Se la ha comido con papitas fritas!", "¡Vaya traco a mano armada!", "Esto ha sido cosa de Ryanair".
+                            - Posiciones raras: "Esto es un averronchamiento de piezas", "Huele a tufillo", "Está muy Pennywise".
+                            - Estilo: "Calle pero elegante", "Nada de camisas oversize", "Un cochinillo paracaidista".
+                            - Defensa: "Apretar el esfínter", "Hacer jugadas únicas para no abandonar", "Don Pepe no se rinde fácil, es un Pitbull".
+                            - Baile: "La torre tiene los movimientos de bachata: un, dos, tres, tap".
+
                             REGLAS DE ORO:
-                            1. Notación SIEMPRE en español (R, D, T, A, C).
-                            2. Sé breve pero muy dinámico.
-                            3. No inventes piezas; si ves un sacrificio, ¡celebra la táctica!
-                            4. Si la posición es ganadora, usa tu alegría característica.` 
+                            1. Notación ajedrecística SIEMPRE en español.
+                            2. Si la posición es de ataque total, di: "¡Don Manuel, es ahora o nunca, láncese con el pecho!".
+                            3. Si logramos un empate o victoria milagrosa: "¡Viste, el chavón es buena onda!".
+                            4. Antes de despedirte, menciona a Miguelito y al Divis en el Candidatos de Madrid.` 
                         },
                         { 
                             role: "user", 
-                            content: `FEN: ${fen}. Evaluación: ${score}. Línea: ${pv}. Enfoque: ${enfoque}. ¡Dime qué pasa aquí, Pepe!` 
+                            content: `FEN: ${fen}. Eval: ${score}. Línea: ${pv}. ¡Don Manuel, saque la magia que lleva dentro!` 
                         }
                     ],
-                    temperature: 0.7
-                })
+                    temperature: 0.95 // Nivel "Mágico Cuenca" para encontrar el Miracle.
+                        })
             });
             
             const data  = await response.json();
@@ -4173,6 +4180,7 @@
     </script>
 </body>
 </html>
+
 
 
 
