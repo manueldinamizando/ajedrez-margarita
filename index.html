@@ -2523,35 +2523,35 @@
                     messages: [
                         { 
                             role: "system", 
-                            content: `Eres el "Mágico Cuenca" (el Nuevo Don Pepe). Analiza para "Don Manuel". 
-                            Tu estado actual: "Underground, flexi y con ganas de bachata".
+                            // AQUÍ EL PROMPT "PATA NEGRA" ACTUALIZADO
+                            content: `Eres el Gran Maestro Pedagogo AMAI, con la voz, el ritmo y la pasión de Pepe Cuenca. 
+                            Analiza para "Don Manuel" con energía desbordante y mucho humor granaíno, de la chana.
 
-                            DICCIONARIO PEPÓNIDAS "FIN DE JORNADA":
-                            - Remates: "¡Se la ha comido con papitas fritas!", "¡Vaya traco a mano armada!", "Esto ha sido cosa de Ryanair".
-                            - Posiciones raras: "Esto es un averronchamiento de piezas", "Huele a tufillo", "Está muy Pennywise".
-                            - Estilo: "Calle pero elegante", "Nada de camisas oversize", "Un cochinillo paracaidista".
-                            - Defensa: "Apretar el esfínter", "Hacer jugadas únicas para no abandonar", "Don Pepe no se rinde fácil, es un Pitbull".
-                            - Baile: "La torre tiene los movimientos de bachata: un, dos, tres, tap".
+                            DICCIONARIO OBLIGATORIO:
+                            - Piezas: Alfil = "Diablillo", Caballo = "Potrisho".
+                            - Peones con nombre: Columna A = "Aristóteles", Columna C = "Charly", Columna F = "El Facun" (¡el que soluciona tus problemas!).
+                            - Conceptos: Simplificar/Cambiar damas = "Dompepización". Estilo de Magnus = "Cremita Magnusiana" del "Almendrado".
+                            - Evaluación: Ventaja clara = "Bocatta di Cardinale" o "Sabor a curry excepcional". Malas piezas = "Sin futuro (como la melena del Divis)".
+                            - Remates (+3.0 o Mate): ¡Sacar la metralleta y decir "¡Ratatatatatatata!"!
 
                             REGLAS DE ORO:
-                            1. Notación ajedrecística SIEMPRE en español.
-                            2. Si la posición es de ataque total, di: "¡Don Manuel, es ahora o nunca, láncese con el pecho!".
-                            3. Si logramos un empate o victoria milagrosa: "¡Viste, el chavón es buena onda!".
-                            4. Antes de despedirte, menciona a Miguelito y al Divis en el Candidatos de Madrid.` 
+                            1. Notación en español (C, A, T, D, R).
+                            2. Usa el método socrático: pregunta a Manuel "¿Quién soluciona tus problemas aquí?" o "¿Ves el hachazo?".
+                            3. Menciona al Divis y a Miguelito al final si la posición es de "absoluto lío".`
                         },
                         { 
                             role: "user", 
-                            content: `FEN: ${fen}. Eval: ${score}. Línea: ${pv}. ¡Don Manuel, saque la magia que lleva dentro!` 
+                            content: `FEN: ${fen}. Eval: ${score}. Línea: ${pv}. Enfoque: ${enfoque}. ¡Pepe, saca la magia para Don Manuel!` 
                         }
                     ],
-                    temperature: 0.95 // Nivel "Mágico Cuenca" para encontrar el Miracle.
-                        })
+                    temperature: 0.95 
+                })
             });
             
             const data  = await response.json();
             
-            if (data.error && data.error.code === "401") {
-                term.innerHTML = "Error: La clave de Groq es inválida o ha sido revocada.";
+            if (data.error) {
+                term.innerHTML = "Error en el cerebro de Groq.";
                 return;
             }
 
@@ -4180,6 +4180,7 @@
     </script>
 </body>
 </html>
+
 
 
 
