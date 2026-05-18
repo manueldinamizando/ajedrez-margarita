@@ -753,6 +753,10 @@
             opacity: 0.6; cursor: wait;
             animation: motor-blink 0.8s ease-in-out infinite;
         }
+        #btn-pepe:hover {
+            background: rgba(241,196,15,0.18) !important;
+            border-color: #ffd700 !important;
+        }
 
         /* ── Sección ChessDB ── */
         .cdb-section {
@@ -876,10 +880,11 @@
                         letter-spacing:2px;padding:4px 0;margin-top:4px;font-family:var(--font-mono);">
                         ⬜ Turno: BLANCAS
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:6px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-top:6px;">
                         <button class="btn-margarita" style="background:#da3633;" onclick="gameReset()">↺ Reset</button>
                         <button class="btn-margarita" style="background:#1f6feb;" onclick="gameUndo()">← Des</button>
                         <button class="btn-margarita" style="background:#238636;" onclick="gameRedo()">Av →</button>
+                        <button class="btn-margarita" style="background:#57606a;" onclick="flipCombatBoard()">⇅ Girar</button>
                     </div>
                 </div>
 
@@ -923,11 +928,9 @@
                         </div>
                         <div id="motor-lineas"><div class="motor-thinking">Esperando posición...</div></div>
                     </div>
-                    <!-- Botones Llama -->
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-top:6px;">
-                        <button class="btn-margarita" style="background:var(--accent);color:black;" onclick="triggerLlamaAnalysis('Táctica')">Táctica</button>
-                        <button class="btn-margarita" style="background:var(--accent-blue);" onclick="triggerLlamaAnalysis('Estrategia')">Estrategia</button>
-                        <button class="btn-margarita" style="background:#57606a;" onclick="flipAnalysisBoard()">⇅ Girar</button>
+                    <!-- Botón Girar tablero análisis -->
+                    <div style="margin-top:6px;">
+                        <button class="btn-margarita" style="background:#57606a;width:100%;" onclick="flipAnalysisBoard()">⇅ Girar tablero</button>
                     </div>
                 </div>
 
@@ -1707,6 +1710,13 @@
             <button id="btn-analizar" onclick="analizarPosicion()">
                 🔍 Analizar posición
             </button>
+            <button id="btn-pepe" onclick="analizarConPepe()" style="
+                width:100%; margin-top:6px; padding:7px; border-radius:6px;
+                border:1px solid var(--accent); background:rgba(241,196,15,0.08);
+                color:var(--accent); font-size:11px; font-family:var(--font-mono);
+                font-weight:700; cursor:pointer; letter-spacing:1px; transition:all 0.2s;">
+                🎭 Análisis Pepe Cuenca
+            </button>
             <div id="analisis-humano"></div>
         `;
 
@@ -2361,7 +2371,9 @@
         // para evitar desfases entre el estado de chessA y las candidatas mostradas
         if (fenParaPildoras) chessA.load(fenParaPildoras);
 
-        const move = chessA.move({ from, to, promotion: prom || 'q' });
+        // FIX enroque: solo pasar promotion si es coronación real (uci[4] existe)
+        const moveOpts = prom ? { from, to, promotion: prom } : { from, to };
+        const move = chessA.move(moveOpts);
         if (!move) {
             console.warn('[pillDblClick] Movimiento ilegal:', uci, 'FEN:', chessA.fen());
             return;
@@ -2719,6 +2731,115 @@
     }
 
     function flipAnalysisBoard() { boardA.orientation('flip'); terminalLog("Vista cambiada."); }
+    function flipCombatBoard()   { boardC.orientation('flip'); terminalLog("Tablero combate girado."); }
+
+    /* ── Análisis Pepe Cuenca — muestra en el panel Nodo ── */
+    async function analizarConPepe() {
+        const panel = document.getElementById('analisis-humano');
+        const btn   = document.getElementById('btn-pepe');
+        if (!panel || !btn) return;
+
+        btn.style.opacity = '0.6';
+        btn.textContent   = '⏳ Consultando al Mágico...';
+
+        const fen = chessA.fen();
+        motorA.postMessage(`position fen ${fen}`);
+        motorA.postMessage('go depth 15');
+
+        const handler = async (e) => {
+            if (!e.data.includes("pv")) return;
+            motorA.removeEventListener('message', handler);
+
+            const pv    = e.data.split(" pv ")[1]?.split(" ").slice(0,7).join(" ") || '';
+            const score = e.data.includes("cp")
+                ? (parseInt(e.data.match(/score cp (-?\d+)/)[1]) / 100).toFixed(1)
+                : "Mate";
+
+            // Muestra estado "cargando" en el panel
+            panel.style.display = 'block';
+            panel.innerHTML = `
+                <div style="border-top:1px solid var(--accent);padding-top:10px;margin-top:10px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span style="font-size:16px;">🎭</span>
+                        <span style="font-size:9px;font-weight:700;letter-spacing:2px;
+                            text-transform:uppercase;color:var(--accent);">Pepe Cuenca</span>
+                        <span style="font-size:9px;color:var(--text-dim);margin-left:auto;">
+                            eval: ${score}
+                        </span>
+                    </div>
+                    <div style="color:var(--text-dim);font-size:11px;
+                        animation:motor-blink 1s infinite;">Consultando al Mágico Cuenca...</div>
+                </div>`;
+
+            try {
+                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Authorization":`Bearer ${GROQ_API_KEY}`, "Content-Type":"application/json" },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: [
+                            {
+                                role: "system",
+                                content: `Eres el "Mágico Cuenca" (el Nuevo Don Pepe). Analiza para "Don Manuel".
+                                Tu estado actual: "Underground, flexi y con ganas de bachata".
+
+                                DICCIONARIO PEPÓNIDAS "FIN DE JORNADA":
+                                - Remates: "¡Se la ha comido con papitas fritas!", "¡Vaya traco a mano armada!", "Esto ha sido cosa de Ryanair".
+                                - Posiciones raras: "Esto es un averronchamiento de piezas", "Huele a tufillo", "Está muy Pennywise".
+                                - Estilo: "Calle pero elegante", "Nada de camisas oversize", "Un cochinillo paracaidista".
+                                - Defensa: "Apretar el esfínter", "Hacer jugadas únicas para no abandonar", "Don Pepe no se rinde fácil, es un Pitbull".
+                                - Baile: "La torre tiene los movimientos de bachata: un, dos, tres, tap".
+
+                                REGLAS DE ORO:
+                                1. Notación ajedrecística SIEMPRE en español.
+                                2. Si la posición es de ataque total, di: "¡Don Manuel, es ahora o nunca, láncese con el pecho!".
+                                3. Si logramos un empate o victoria milagrosa: "¡Viste, el chavón es buena onda!".
+                                4. Antes de despedirte, menciona a Miguelito y al Divis en el Candidatos de Madrid.
+                                5. Responde en máximo 150 palabras, conciso y directo.`
+                            },
+                            {
+                                role: "user",
+                                content: `FEN: ${fen}. Eval: ${score}. Línea: ${pv}. ¡Don Manuel, saque la magia que lleva dentro!`
+                            }
+                        ],
+                        temperature: 0.95
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message);
+                const texto = data.choices[0].message.content;
+
+                panel.innerHTML = `
+                    <div style="border-top:1px solid var(--accent);padding-top:10px;margin-top:10px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                            <span style="font-size:18px;">🎭</span>
+                            <span style="font-size:9px;font-weight:700;letter-spacing:2px;
+                                text-transform:uppercase;color:var(--accent);">Análisis Pepe Cuenca</span>
+                            <span style="font-size:9px;color:var(--text-dim);
+                                background:rgba(241,196,15,0.1);padding:1px 6px;border-radius:3px;
+                                margin-left:auto;">${score}</span>
+                        </div>
+                        <div style="font-size:11px;line-height:1.7;color:var(--text-main);">
+                            ${texto.replace(/
+/g,'<br>')}
+                        </div>
+                    </div>`;
+
+            } catch(err) {
+                panel.innerHTML = `
+                    <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px;">
+                        <div style="color:#e57373;font-size:11px;">
+                            ❌ Error conectando con Groq: ${err.message}
+                        </div>
+                    </div>`;
+            }
+
+            btn.style.opacity = '1';
+            btn.textContent   = '🎭 Análisis Pepe Cuenca';
+        };
+        motorA.addEventListener('message', handler);
+    }
 
     function cargarAperturaSeleccionada() {
         const fen = document.getElementById('selectApertura').value;
@@ -4182,6 +4303,7 @@
     </script>
 </body>
 </html>
+
 
 
 
