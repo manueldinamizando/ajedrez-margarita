@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Margarita: Laboratorio Botvínnik SUPREMO - Fase 8 Groq Edition</title>
+    <title>Laboratorio de análisis </title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
@@ -904,7 +904,12 @@
                         ⬜ Turno: BLANCAS
                     </div>
                     <!-- Navegación -->
-                    <div style="display:flex;gap:4px;margin-top:6px;">
+                    <!-- Hint de teclado -->
+                    <div style="font-size:9px;color:var(--text-dim);text-align:center;
+                        padding:3px 0;letter-spacing:0.5px;">
+                        ← → Navegar · Home/End · Inicio/Final
+                    </div>
+                    <div style="display:flex;gap:4px;margin-top:4px;">
                         <button id="btn-analysis-start" onclick="analysisGoTo(0)"
                             style="padding:5px 8px;background:#161b22;border:1px solid var(--border);
                             border-radius:5px;color:var(--text-dim);cursor:pointer;font-size:13px;" title="Inicio">⏮</button>
@@ -2509,23 +2514,145 @@
         });
     }
 
+    /* ══════════════════════════════════════════════════════════
+       LLAMA CON CONTEXTO RICO — usa las 4 capas del análisis
+    ══════════════════════════════════════════════════════════ */
+
+    /* Construye el contexto pre-masticado para Llama */
+    function construirContextoLlama() {
+        const node = VT.activeNode;
+        if (!node) return null;
+
+        const ev    = node.eval ?? 0;
+        const evNum = (Math.abs(ev) / 100).toFixed(2);
+        const quien = ev >= 30 ? 'BLANCAS' : ev <= -30 ? 'NEGRAS' : 'ninguno (igualdad)';
+        const ventaja = Math.abs(ev) >= 300 ? 'ventaja decisiva'
+                      : Math.abs(ev) >= 100 ? 'ventaja clara'
+                      : Math.abs(ev) >= 30  ? 'ligera ventaja'
+                      : 'posición igualada';
+
+        // Cambio respecto a jugada anterior
+        let cambioEval = '';
+        const padre = VT.nodeMap.get(node.parentId);
+        if (padre && padre.eval !== undefined && Math.abs(ev - padre.eval) > 15) {
+            const diff = ev - padre.eval;
+            cambioEval = diff > 0
+                ? `La última jugada mejoró la posición en +${(diff/100).toFixed(2)}.`
+                : `La última jugada empeoró la posición en ${(Math.abs(diff)/100).toFixed(2)}.`;
+        }
+
+        // Táctica inmediata
+        const chess = new Chess();
+        chess.load(chessA.fen());
+        const capturas = chess.moves({ verbose: true }).filter(m => m.flags.includes('c'));
+        const NOMBRE = { p:'Peón', n:'Caballo', b:'Alfil', r:'Torre', q:'Dama', k:'Rey' };
+        let tactica = chess.in_check()
+            ? 'El rey está en JAQUE — respuesta obligatoria.'
+            : capturas.length > 0
+                ? `Hay ${capturas.length} captura(s). Ejemplo: ${NOMBRE[capturas[0].piece]} captura en ${capturas[0].to}.`
+                : 'Sin amenazas inmediatas — posición estratégica.';
+
+        // Plan de Stockfish (SAN)
+        let plan = '';
+        const pv1 = motorPVs['1'];
+        if (pv1?.moves?.length) {
+            const tmp = new Chess(); tmp.load(chessA.fen());
+            const sans = [];
+            pv1.moves.slice(0,5).forEach(uci => {
+                const m = tmp.move({ from:uci.slice(0,2), to:uci.slice(2,4), promotion:uci[4]||'q' });
+                if (m) sans.push(m.san);
+            });
+            if (sans.length) plan = `Motor recomienda: ${sans.join(' ')}.`;
+        }
+
+        // Contexto (fase + apertura)
+        const np = chessA.fen().split(' ')[0].replace(/\d/g,'').replace(/\//g,'').length;
+        const fase = np >= 28 ? 'apertura' : np >= 16 ? 'medio juego' : np >= 8 ? 'final' : 'final profundo';
+        const apertura = node.opening ? `${node.opening.eco} — ${node.opening.name}` : 'fuera de libro';
+
+        return { ev, ventaja, quien, cambioEval, tactica, plan, fase, apertura };
+    }
+
+    /* Llama a Groq con contexto rico — persona 'pepe' o 'tecnico' */
+    async function _llamarGroqConContexto(ctx, persona, panelEl, btnEl) {
+        if (!GROQ_API_KEY) {
+            if (panelEl) panelEl.innerHTML = '<div style="color:#e57373;font-size:11px;">Sin clave Groq.</div>';
+            return;
+        }
+
+        const userPrompt = [
+            `Apertura: ${ctx.apertura}.`,
+            `Fase: ${ctx.fase}.`,
+            `Evaluación: ${ctx.ev >= 0 ? '+' : ''}${(ctx.ev/100).toFixed(2)} — ${ctx.ventaja} para ${ctx.quien}.`,
+            ctx.cambioEval,
+            `Táctica: ${ctx.tactica}`,
+            ctx.plan,
+            persona === 'pepe'
+                ? '¡Pepe, saca la magia para Don Manuel!'
+                : 'Explica esta posición de forma pedagógica y concisa.'
+        ].filter(Boolean).join(' ');
+
+        const systemPrompt = persona === 'pepe'
+            ? `Eres el Gran Maestro Pedagogo AMAI, con la pasión de Pepe Cuenca.
+               Analiza para "Manuel" con energía y humor granaíno. DICCIONARIO:
+               Alfil="Diablillo", Caballo="Potrisho". Peones: A="Aristóteles", C="Charly", F="El Facun".
+               Ventaja = "Bocatta di Cardinale". Remate = "¡Ratatatatatatata!".
+               REGLAS: notación española (C,A,T,D,R), método socrático, máximo 120 palabras.`
+            : `Eres un entrenador de ajedrez experto. Explica la posición en español claro,
+               sin tecnicismos innecesarios. Notación: C=Caballo, A=Alfil, T=Torre, D=Dama, R=Rey.
+               Máximo 100 palabras, directo y útil.`;
+
+        try {
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "llama-3.3-70b-versatile",
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user",   content: userPrompt   }
+                    ],
+                    temperature: persona === 'pepe' ? 0.9 : 0.3,
+                    max_tokens: 300,
+                })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message);
+            const texto = data.choices[0].message.content;
+            const color = persona === 'pepe' ? 'var(--accent)' : 'var(--accent-blue)';
+            const titulo = persona === 'pepe' ? '🎭 PEPE CUENCA' : '🤖 ANÁLISIS TÉCNICO';
+            if (panelEl) panelEl.innerHTML = `
+                <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px;">
+                    <div style="font-size:9px;font-weight:700;letter-spacing:2px;
+                        text-transform:uppercase;color:${color};margin-bottom:8px;">${titulo}</div>
+                    <div style="font-size:11px;line-height:1.7;color:var(--text-main);">
+                        ${texto.replace(/\n/g,'<br>')}
+                    </div>
+                </div>`;
+        } catch(err) {
+            if (panelEl) panelEl.innerHTML = `<div style="color:#e57373;font-size:11px;">❌ ${err.message}</div>`;
+        }
+        if (btnEl) { btnEl.style.opacity = '1'; btnEl.textContent = btnEl._originalText || btnEl.textContent; }
+    }
+
     async function triggerLlamaAnalysis(enfoque) {
+        // Redirige al nuevo sistema con contexto rico
+        analizarConPepe();
+    }
+
+    async function _triggerLlamaLegacy(enfoque) {
     const term = document.getElementById('terminalBoard');
     const fen  = chessA.fen();
-    term.innerHTML = `<div style="color:var(--accent)">Margarita consultando a Pepe Cuenca (Groq)...</div>`;
-
+    term.innerHTML = `<div style="color:var(--accent)">Consultando a Groq...</div>`;
     motorA.postMessage(`position fen ${fen}`);
     motorA.postMessage('go depth 15');
-
     const handler = async (e) => {
         if (!e.data.includes("pv")) return;
         motorA.removeEventListener('message', handler);
-
         const pv    = e.data.split(" pv ")[1]?.split(" ").slice(0,7).join(" ") || '';
         const score = e.data.includes("cp")
             ? (parseInt(e.data.match(/score cp (-?\d+)/)[1]) / 100).toFixed(1)
             : "Mate";
-
         try {
             const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
                 method: "POST",
@@ -2558,7 +2685,7 @@
                             content: `FEN: ${fen}. Eval: ${score}. Línea: ${pv}. Enfoque: ${enfoque}. ¡Pepe, saca la magia para Don Manuel!` 
                         }
                     ],
-                    temperature: 0.95 
+                    temperature: persona === 'pepe' ? 0.9 : 0.3,
                 })
             });
             
@@ -2733,111 +2860,33 @@
     function flipAnalysisBoard() { boardA.orientation('flip'); terminalLog("Vista cambiada."); }
     function flipCombatBoard()   { boardC.orientation('flip'); terminalLog("Tablero combate girado."); }
 
-    /* ── Análisis Pepe Cuenca — muestra en el panel Nodo ── */
+    /* ── Análisis Pepe Cuenca — usa contexto rico ── */
     async function analizarConPepe() {
         const panel = document.getElementById('analisis-humano');
         const btn   = document.getElementById('btn-pepe');
-        if (!panel || !btn) return;
+        if (!panel) return;
 
-        btn.style.opacity = '0.6';
-        btn.textContent   = '⏳ Consultando al Mágico...';
+        const contexto = construirContextoLlama();
+        if (!contexto) return;
 
-        const fen = chessA.fen();
-        motorA.postMessage(`position fen ${fen}`);
-        motorA.postMessage('go depth 15');
+        // Muestra placeholder mientras carga
+        panel.style.display = 'block';
+        // Limpia solo la sección Llama, mantiene el análisis técnico si estaba
+        const existente = panel.querySelector('.llama-result');
+        if (existente) existente.remove();
 
-        const handler = async (e) => {
-            if (!e.data.includes("pv")) return;
-            motorA.removeEventListener('message', handler);
+        const placeholder = document.createElement('div');
+        placeholder.className = 'llama-result';
+        placeholder.style.cssText = 'border-top:1px solid var(--border);padding-top:10px;margin-top:10px;';
+        placeholder.innerHTML = `
+            <div style="color:var(--accent);font-size:10px;animation:motor-blink 1s infinite;">
+                🎭 Consultando al Mágico Cuenca...
+            </div>`;
+        panel.appendChild(placeholder);
 
-            const pv    = e.data.split(" pv ")[1]?.split(" ").slice(0,7).join(" ") || '';
-            const score = e.data.includes("cp")
-                ? (parseInt(e.data.match(/score cp (-?\d+)/)[1]) / 100).toFixed(1)
-                : "Mate";
+        if (btn) { btn._originalText = btn.textContent; btn.style.opacity = '0.6'; btn.textContent = '⏳ Consultando...'; }
 
-            // Muestra estado "cargando" en el panel
-            panel.style.display = 'block';
-            panel.innerHTML = `
-                <div style="border-top:1px solid var(--accent);padding-top:10px;margin-top:10px;">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                        <span style="font-size:16px;">🎭</span>
-                        <span style="font-size:9px;font-weight:700;letter-spacing:2px;
-                            text-transform:uppercase;color:var(--accent);">Pepe Cuenca</span>
-                        <span style="font-size:9px;color:var(--text-dim);margin-left:auto;">
-                            eval: ${score}
-                        </span>
-                    </div>
-                    <div style="color:var(--text-dim);font-size:11px;
-                        animation:motor-blink 1s infinite;">Consultando al Mágico Cuenca...</div>
-                </div>`;
-
-            try {
-                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                    method: "POST",
-                    headers: { "Authorization":`Bearer ${GROQ_API_KEY}`, "Content-Type":"application/json" },
-                    body: JSON.stringify({
-                        model: "llama-3.3-70b-versatile",
-                        messages: [
-                            {
-                                role: "system",
-                                content: `Eres el "Mágico Cuenca" (el Nuevo Don Pepe). Analiza para "Don Manuel".
-                                Tu estado actual: "Underground, flexi y con ganas de bachata".
-
-                                DICCIONARIO PEPÓNIDAS "FIN DE JORNADA":
-                                - Remates: "¡Se la ha comido con papitas fritas!", "¡Vaya traco a mano armada!", "Esto ha sido cosa de Ryanair".
-                                - Posiciones raras: "Esto es un averronchamiento de piezas", "Huele a tufillo", "Está muy Pennywise".
-                                - Estilo: "Calle pero elegante", "Nada de camisas oversize", "Un cochinillo paracaidista".
-                                - Defensa: "Apretar el esfínter", "Hacer jugadas únicas para no abandonar", "Don Pepe no se rinde fácil, es un Pitbull".
-                                - Baile: "La torre tiene los movimientos de bachata: un, dos, tres, tap".
-
-                                REGLAS DE ORO:
-                                1. Notación ajedrecística SIEMPRE en español.
-                                2. Si la posición es de ataque total, di: "¡Don Manuel, es ahora o nunca, láncese con el pecho!".
-                                3. Si logramos un empate o victoria milagrosa: "¡Viste, el chavón es buena onda!".
-                                4. Antes de despedirte, menciona a Miguelito y al Divis en el Candidatos de Madrid.
-                                5. Responde en máximo 150 palabras, conciso y directo.`
-                            },
-                            {
-                                role: "user",
-                                content: `FEN: ${fen}. Eval: ${score}. Línea: ${pv}. ¡Don Manuel, saque la magia que lleva dentro!`
-                            }
-                        ],
-                        temperature: 0.95
-                    })
-                });
-
-                const data = await response.json();
-                if (data.error) throw new Error(data.error.message);
-                const texto = data.choices[0].message.content;
-
-                panel.innerHTML = `
-                    <div style="border-top:1px solid var(--accent);padding-top:10px;margin-top:10px;">
-                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-                            <span style="font-size:18px;">🎭</span>
-                            <span style="font-size:9px;font-weight:700;letter-spacing:2px;
-                                text-transform:uppercase;color:var(--accent);">Análisis Pepe Cuenca</span>
-                            <span style="font-size:9px;color:var(--text-dim);
-                                background:rgba(241,196,15,0.1);padding:1px 6px;border-radius:3px;
-                                margin-left:auto;">${score}</span>
-                        </div>
-                        <div style="font-size:11px;line-height:1.7;color:var(--text-main);">
-                            ${texto.replace(/\n/g, '<br>')}
-                        </div>
-                    </div>`;
-
-            } catch(err) {
-                panel.innerHTML = `
-                    <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px;">
-                        <div style="color:#e57373;font-size:11px;">
-                            ❌ Error conectando con Groq: ${err.message}
-                        </div>
-                    </div>`;
-            }
-
-            btn.style.opacity = '1';
-            btn.textContent   = '🎭 Análisis Pepe Cuenca';
-        };
-        motorA.addEventListener('message', handler);
+        await _llamarGroqConContexto(contexto, 'pepe', placeholder, btn);
     }
 
     function cargarAperturaSeleccionada() {
@@ -3356,6 +3405,34 @@
         // Sincronizar altura de la barra de evaluación con el tablero
         setTimeout(sincronizarAlturaEvalBar, 500);
         window.addEventListener('resize', sincronizarAlturaEvalBar);
+
+        // ★ Navegación por teclado
+        document.addEventListener('keydown', (e) => {
+            // No interceptar si el foco está en un input, select o textarea
+            const tag = document.activeElement?.tagName?.toLowerCase();
+            if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+            // No interceptar si hay un puzzle activo (el puzzle usa las piezas)
+            if (puzzleMode.activo) return;
+
+            switch(e.key) {
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    analysisPrev();
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    analysisNext();
+                    break;
+                case 'Home':
+                    e.preventDefault();
+                    analysisGoTo(0);
+                    break;
+                case 'End':
+                    e.preventDefault();
+                    analysisGoTo(-1);
+                    break;
+            }
+        });
     });
 
     /* ══════════════════════════════════════════════════════════
@@ -4302,6 +4379,7 @@
     </script>
 </body>
 </html>
+
 
 
 
