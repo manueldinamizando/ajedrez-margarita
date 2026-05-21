@@ -1236,16 +1236,30 @@
             <div id="tab-estudio" class="tab-content">
 
                 <!-- Importar PGN -->
-                <div class="estudio-seccion">
+                <<div class="estudio-seccion">
                     <div class="estudio-label">📥 Importar partida</div>
-                    <input type="text" id="lichess-id-input" class="estudio-input"
-                        placeholder="ID partida Lichess (ej: AbCd1234)" style="height:30px;resize:none;">
-                    <button class="estudio-btn" onclick="importarDesdeLichess()">
-                        ♟ Importar desde Lichess
-                    </button>
-                    <textarea id="pgn-input" class="estudio-input" rows="4"
+                    
+                    <div style="margin-bottom: 12px;">
+                        <input type="text" id="lichess-id-input" class="estudio-input"
+                            placeholder="ID o enlace de Lichess (ej: ihKtOeN1)" style="height:30px;resize:none;">
+                        <button class="estudio-btn" onclick="procesarLichessEntrante()">
+                            ♟ Importar por ID / Enlace
+                        </button>
+                    </div>
+
+                    <div style="margin-bottom: 15px; border-top: 1px dashed #444; padding-top: 12px;">
+                        <input type="text" id="lichess-user-input" class="estudio-input"
+                            placeholder="Usuario de Lichess (ej: loboestepario31)" style="height:30px;resize:none;">
+                        <button class="estudio-btn" onclick="cargarUltimasDeLichess()">
+                            🗂 Cargar mi última partida
+                        </button>
+                    </div>
+                    
+                    <div style="border-top: 1px dashed #444; padding-top: 12px;">
+                        <textarea id="pgn-input" class="estudio-input" rows="4"
                                 placeholder="Pega aquí tu PGN...&#10;1. e4 e5 2. Nf3 Nc6..."></textarea>
-                        <button class="estudio-btn" onclick="procesarPgnEntrante()">📥 Importar PGN</button>
+                        <button class="estudio-btn" onclick="procesarPgnEntrante()">📥 Importar PGN Manual</button>
+                    </div>
                 </div>
 
                 <!-- Guardar estudio -->
@@ -4709,6 +4723,40 @@
             terminalLog('❌ Error importando de Lichess: ' + e.message);
         }
     }
+    async function cargarUltimasDeLichess() {
+    const usuario = document.getElementById('lichess-user-input')?.value?.trim();
+    if (!usuario) { 
+        terminalLog('⚠️ Introduce un nombre de usuario de Lichess.'); 
+        return; 
+    }
+
+    terminalLog(`📡 Buscando la última partida de ${usuario}...`);
+    
+    try {
+        // Pedimos a Lichess solo la ÚLTIMA partida (max=1) en formato PGN
+        const url = `https://lichess.org/api/games/user/${usuario}?max=1&clocks=false&evals=false`;
+        
+        const res = await fetch(url, {
+            headers: { 'Accept': 'application/x-chess-pgn' }
+        });
+        
+        if (!res.ok) throw new Error(`No se encontró el usuario o hubo un error (HTTP ${res.status})`);
+        
+        const pgnDescargado = await res.text();
+        
+        if (!pgnDescargado.trim()) {
+            terminalLog(`⚠️ No se encontraron partidas recientes para el usuario: ${usuario}`);
+            return;
+        }
+        
+        // Se lo mandamos a tu función estrella que ya analiza e inicializa el tablero
+        importarPGN(pgnDescargado);
+        
+    } catch(e) {
+        terminalLog('❌ Error al conectar con el usuario: ' + e.message);
+        console.error(e);
+    }
+}
 
     /* ══════════════════════════════════════════════════════════
        GUARDAR / CARGAR ESTUDIOS en localStorage
@@ -4800,6 +4848,7 @@
     </script>
 </body>
 </html>
+
 
 
 
