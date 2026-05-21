@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laboratorio de análisis </title>
+    <title>Margarita: Laboratorio Botvínnik SUPREMO - Fase 8 Groq Edition</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
@@ -849,6 +849,70 @@
         .resultado-titulo { font-size: 28px; font-weight: 900; color: var(--accent); margin-bottom: 8px; }
         .resultado-subtitulo { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; }
 
+        /* ── Tab Estudio ── */
+        .estudio-seccion {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px; margin-bottom: 10px;
+        }
+        .estudio-label {
+            font-size: 9px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--accent-blue);
+            margin-bottom: 6px;
+        }
+        .estudio-input {
+            width: 100%; padding: 6px 8px; border-radius: 5px;
+            background: #010409; border: 1px solid var(--border);
+            color: var(--text-main); font-size: 11px;
+            font-family: var(--font-mono); resize: vertical;
+            margin-bottom: 5px;
+        }
+        .estudio-input:focus { border-color: var(--accent-blue); outline: none; }
+        .estudio-btn {
+            width: 100%; padding: 6px; border-radius: 5px;
+            border: 1px solid var(--accent-blue);
+            background: rgba(31,111,235,0.08);
+            color: var(--accent-blue); font-size: 11px;
+            font-family: var(--font-mono); font-weight: 700;
+            cursor: pointer; transition: all 0.2s; margin-bottom: 4px;
+        }
+        .estudio-btn:hover { background: rgba(31,111,235,0.18); }
+        .estudio-btn.green { border-color: #4caf50; background: rgba(76,175,80,0.08); color: #81c784; }
+        .estudio-btn.green:hover { background: rgba(76,175,80,0.18); }
+        .estudio-btn.gold  { border-color: var(--accent); background: rgba(241,196,15,0.08); color: var(--accent); }
+        .estudio-btn.gold:hover  { background: rgba(241,196,15,0.18); }
+        .estudio-item {
+            display: flex; align-items: center; gap: 6px;
+            padding: 5px 8px; border-radius: 5px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            margin-bottom: 4px; font-size: 11px;
+        }
+        .estudio-item-name { flex: 1; color: var(--text-main); font-weight: 700; }
+        .estudio-item-date { font-size: 9px; color: var(--text-dim); }
+        .estudio-item-btn  {
+            padding: 2px 7px; border-radius: 3px; border: 1px solid var(--border);
+            background: transparent; color: var(--text-dim);
+            cursor: pointer; font-size: 9px; transition: all 0.15s;
+        }
+        .estudio-item-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
+        .estudio-item-btn.del:hover { border-color: #ef5350; color: #e57373; }
+
+        /* ── Gráfico de evaluación ── */
+        #eval-graph-wrap {
+            border-top: 1px solid var(--border);
+            padding-top: 8px; margin-top: 8px;
+        }
+        #eval-graph-label {
+            font-size: 9px; font-weight: 700; letter-spacing: 2px;
+            text-transform: uppercase; color: var(--accent-blue);
+            margin-bottom: 4px;
+        }
+        #eval-graph-container {
+            width: 100%; height: 64px;
+            background: rgba(0,0,0,0.3); border-radius: 4px;
+            overflow: hidden; cursor: pointer;
+        }
+
         /* Animación pulso en casillas iluminadas (legacy) */
         @keyframes vt-pulse {
             0%,100% { opacity: 0.55; }
@@ -964,6 +1028,7 @@
                 <button class="tab-btn" onclick="switchTab('tab-tablebase', this)" id="tb-tab-btn">♟ Final</button>
                 <button class="tab-btn" onclick="switchTab('tab-puzzles', this)" id="pz-tab-btn">🧩 Puzzle</button>
                 <button class="tab-btn" onclick="switchTab('tab-apertura', this)">📖</button>
+                <button class="tab-btn" onclick="switchTab('tab-estudio', this)" id="estudio-tab-btn">💾</button>
             </div>
 
             <!-- TAB: Árbol -->
@@ -985,7 +1050,12 @@
                     <div style="color:var(--accent-blue);font-size:0.68rem;font-weight:700;
                         letter-spacing:2px;text-transform:uppercase;margin-bottom:5px;">🗺 Ruta activa</div>
                     <div id="analysis-path-list" style="font-family:var(--font-mono);font-size:11px;
-                        max-height:130px;overflow-y:auto;"></div>
+                        max-height:100px;overflow-y:auto;"></div>
+                </div>
+                <!-- Gráfico de evaluación -->
+                <div id="eval-graph-wrap">
+                    <div id="eval-graph-label">📈 Evaluación de la línea</div>
+                    <div id="eval-graph-container"></div>
                 </div>
             </div>
 
@@ -1160,6 +1230,41 @@
                 <button class="btn-margarita" style="background:var(--accent-blue);width:100%;padding:8px;"
                     onclick="cargarAperturaSeleccionada()">Cargar en Tablero</button>
                 <div id="infoApertura" style="color:var(--text-dim);font-size:0.8rem;margin-top:6px;"></div>
+            </div>
+
+            <!-- TAB: Estudio -->
+            <div id="tab-estudio" class="tab-content">
+
+                <!-- Importar PGN -->
+                <div class="estudio-seccion">
+                    <div class="estudio-label">📥 Importar partida</div>
+                    <input type="text" id="lichess-id-input" class="estudio-input"
+                        placeholder="ID partida Lichess (ej: AbCd1234)" style="height:30px;resize:none;">
+                    <button class="estudio-btn" onclick="importarDesdeLichess()">
+                        ♟ Importar desde Lichess
+                    </button>
+                    <textarea id="pgn-input" class="estudio-input" rows="4"
+                        placeholder="Pega aquí tu PGN...&#10;1. e4 e5 2. Nf3 Nc6..."></textarea>
+                    <button class="estudio-btn" onclick="importarPGN()">📥 Importar PGN</button>
+                </div>
+
+                <!-- Guardar estudio -->
+                <div class="estudio-seccion">
+                    <div class="estudio-label">💾 Guardar estudio</div>
+                    <input type="text" id="estudio-nombre" class="estudio-input"
+                        placeholder="Nombre del estudio..." style="height:30px;resize:none;">
+                    <button class="estudio-btn green" onclick="guardarEstudio()">💾 Guardar en navegador</button>
+                    <button class="estudio-btn gold"  onclick="exportarPGN()">📤 Descargar .pgn</button>
+                </div>
+
+                <!-- Mis estudios -->
+                <div>
+                    <div class="estudio-label">📂 Mis estudios guardados</div>
+                    <div id="estudios-lista">
+                        <div style="color:var(--text-dim);font-size:11px;">Sin estudios guardados.</div>
+                    </div>
+                </div>
+
             </div>
 
         </div><!-- /right-panel -->
@@ -2299,6 +2404,8 @@
 
         // Guarda en el nodo activo del árbol
         VT.updateEval(VT.activeId, cp);
+        // Actualiza el gráfico de evaluación
+        renderEvalGraph();
     }
 
     /* ── Detecta si el nodo activo tiene hijos visitados ── */
@@ -2971,6 +3078,7 @@
         actualizarListaJugadas('moveListAnalysis', null, true);
         actualizarPathList();
         actualizarBotonesNav();
+        renderEvalGraph();
     }
 
     // ══════════════════════════════════════════════════════
@@ -3405,6 +3513,11 @@
         // Sincronizar altura de la barra de evaluación con el tablero
         setTimeout(sincronizarAlturaEvalBar, 500);
         window.addEventListener('resize', sincronizarAlturaEvalBar);
+
+        // Cargar lista de estudios guardados
+        renderEstudiosList();
+        // Renderizar gráfico inicial
+        setTimeout(renderEvalGraph, 600);
 
         // ★ Navegación por teclado
         document.addEventListener('keydown', (e) => {
@@ -4346,14 +4459,286 @@
             </div>`;
     }
 
+    /* ══════════════════════════════════════════════════════════
+       GRÁFICO DE EVALUACIÓN — Muestra eval de la línea activa
+    ══════════════════════════════════════════════════════════ */
+    function renderEvalGraph() {
+        const container = document.getElementById('eval-graph-container');
+        if (!container) return;
+
+        const path = getAnalysisPath();
+        if (!path.length) {
+            container.innerHTML = '<div style="color:var(--text-dim);font-size:10px;padding:22px 8px;text-align:center;">Sin jugadas analizadas</div>';
+            return;
+        }
+
+        const W = container.clientWidth || 260;
+        const H = 64;
+        const pad = { t: 6, r: 8, b: 14, l: 26 };
+        const cW  = W - pad.l - pad.r;
+        const cH  = H - pad.t - pad.b;
+        const MAX_EV = 500; // ±5 peones como máximo visible
+
+        const n = path.length;
+        const xOf = (i) => pad.l + (n > 1 ? (i / (n - 1)) * cW : cW / 2);
+        const yOf = (ev) => pad.t + cH / 2 - (Math.max(-MAX_EV, Math.min(MAX_EV, ev || 0)) / MAX_EV) * (cH / 2);
+
+        // Línea de la ruta
+        const pts = path.map((nd, i) => `${xOf(i).toFixed(1)},${yOf(nd.eval || 0).toFixed(1)}`);
+        const polyline = pts.join(' ');
+
+        // Área rellena desde cero
+        const zero = yOf(0).toFixed(1);
+        const areaPoints = pts.map((p, i) => p).join(' ') +
+            ` ${xOf(n-1).toFixed(1)},${zero} ${xOf(0).toFixed(1)},${zero}`;
+
+        // Índice del nodo activo
+        const activeIdx = path.findIndex(nd => nd.id === VT.activeId);
+        const dotIdx    = activeIdx >= 0 ? activeIdx : n - 1;
+        const dotX      = xOf(dotIdx).toFixed(1);
+        const dotY      = yOf(path[dotIdx]?.eval || 0).toFixed(1);
+        const dotEv     = path[dotIdx]?.eval || 0;
+        const dotColor  = dotEv > 30 ? '#4caf50' : dotEv < -30 ? '#ef5350' : '#9e9e9e';
+        const dotLabel  = `${dotEv >= 0 ? '+' : ''}${(dotEv / 100).toFixed(1)}`;
+
+        // Puntos clicables
+        const circles = path.map((nd, i) => {
+            const ev  = nd.eval || 0;
+            const col = ev > 30 ? '#4caf5088' : ev < -30 ? '#ef535088' : '#78909c88';
+            return `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(ev).toFixed(1)}" r="3"
+                fill="${col}" style="cursor:pointer"
+                onclick="evalGraphClick('${nd.id}')"/>`;
+        }).join('');
+
+        container.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}">
+            <rect x="${pad.l}" y="${pad.t}" width="${cW}" height="${cH}" fill="rgba(0,0,0,0.2)" rx="3"/>
+            <line x1="${pad.l}" y1="${zero}" x2="${pad.l+cW}" y2="${zero}"
+                  stroke="#30363d" stroke-width="1" stroke-dasharray="3,2"/>
+            ${n > 1 ? `<polygon points="${areaPoints}" fill="rgba(31,111,235,0.12)"/>` : ''}
+            ${n > 1 ? `<polyline points="${polyline}" fill="none" stroke="#1f6feb" stroke-width="1.5" opacity="0.8"/>` : ''}
+            ${circles}
+            <circle cx="${dotX}" cy="${dotY}" r="5" fill="${dotColor}" opacity="0.95"/>
+            <circle cx="${dotX}" cy="${dotY}" r="5" fill="none" stroke="white" stroke-width="1.2" opacity="0.5"/>
+            <text x="${pad.l-2}" y="${pad.t+7}" fill="#57606a" font-size="7" text-anchor="end">+5</text>
+            <text x="${pad.l-2}" y="${pad.t+cH+2}" fill="#57606a" font-size="7" text-anchor="end">-5</text>
+            <text x="${parseFloat(dotX)+7}" y="${parseFloat(dotY)+4}"
+                  fill="${dotColor}" font-size="9" font-family="monospace">${dotLabel}</text>
+        </svg>`;
+    }
+
+    function evalGraphClick(nodeId) {
+        analysisGoToNode(nodeId);
+        renderEvalGraph();
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       GENERAR PGN desde el árbol de variantes
+    ══════════════════════════════════════════════════════════ */
+    function generarPGN() {
+        if (!VT.rootData) return '*';
+        const fecha = new Date().toISOString().split('T')[0].replace(/-/g,'.');
+
+        function nodeText(node, needsNum) {
+            const hijos = (node.children || []).filter(c => c.type !== 'discarded');
+            if (!hijos.length) return '';
+
+            const main     = hijos.find(c => c.type === 'main') || hijos[0];
+            const laterales = hijos.filter(c => c !== main);
+
+            const isW  = main.side === 'w';
+            const mn   = Math.ceil(main.moveNum / 2);
+            const ev   = main.eval ? ` {${main.eval >= 0?'+':''}${(main.eval/100).toFixed(2)}}` : '';
+
+            let txt = '';
+            if (isW || needsNum) txt += mn + (isW ? '. ' : '... ');
+            txt += main.san + ev + ' ';
+
+            // Variantes entre paréntesis
+            laterales.forEach(v => {
+                const vIsW = v.side === 'w';
+                const vmn  = Math.ceil(v.moveNum / 2);
+                const vev  = v.eval ? ` {${v.eval >= 0?'+':''}${(v.eval/100).toFixed(2)}}` : '';
+                txt += '( ';
+                txt += vmn + (vIsW ? '. ' : '... ');
+                txt += v.san + vev + ' ';
+                txt += nodeText(v, false);
+                txt += ') ';
+            });
+
+            txt += nodeText(main, laterales.length > 0);
+            return txt;
+        }
+
+        const headers = `[Event "Margarita Lab"]
+[Date "${fecha}"]
+[White "Manuel"]
+[Black "Stockfish"]
+[Result "*"]
+
+`;
+        return headers + nodeText(VT.rootData, false).trim() + ' *';
+    }
+
+    function exportarPGN() {
+        const pgn = generarPGN();
+        const blob = new Blob([pgn], { type: 'application/x-chess-pgn' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `margarita-${Date.now()}.pgn`;
+        a.click();
+        URL.revokeObjectURL(url);
+        terminalLog('📤 PGN exportado correctamente.');
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       IMPORTAR PGN — carga en el tablero de análisis
+    ══════════════════════════════════════════════════════════ */
+    function importarPGN(pgnTexto) {
+        const texto = pgnTexto || document.getElementById('pgn-input')?.value?.trim();
+        if (!texto) { terminalLog('⚠️ Pega un PGN primero.'); return; }
+
+        const chess = new Chess();
+        try {
+            if (!chess.load_pgn(texto, { sloppy: true })) {
+                terminalLog('❌ PGN inválido. Comprueba el formato.'); return;
+            }
+        } catch(e) {
+            terminalLog('❌ Error parseando PGN: ' + e.message); return;
+        }
+
+        const historia = chess.history({ verbose: true });
+        if (!historia.length) { terminalLog('⚠️ PGN sin jugadas.'); return; }
+
+        // Reinicia el árbol y el tablero de análisis
+        gameReset();
+
+        // Determina si hay FEN inicial (partida desde posición especial)
+        const fenMatch = texto.match(/\[FEN "([^"]+)"\]/);
+        const fenInicial = fenMatch ? fenMatch[1] : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+        chessC.load(fenInicial);
+        chessA.load(fenInicial);
+        boardC.position(fenInicial);
+        boardA.position(fenInicial);
+
+        // Reproduce las jugadas en el árbol
+        const replayChess = new Chess();
+        replayChess.load(fenInicial);
+
+        historia.forEach((mv, i) => {
+            const moved = replayChess.move(mv);
+            if (!moved) return;
+            combatMoveHistory.push(moved.san);
+            VT.addMove({
+                san:     moved.san,
+                uci:     mv.from + mv.to + (mv.promotion || ''),
+                fen:     replayChess.fen(),
+                moveNum: i + 1,
+                side:    moved.color,
+                eval:    0,
+            }, 'main');
+            VT.combatId = VT.activeId;
+        });
+
+        // Actualiza ambos tableros a la posición final
+        chessC.load(replayChess.fen());
+        chessA.load(replayChess.fen());
+        boardC.position(replayChess.fen());
+        boardA.position(replayChess.fen());
+
+        // Navega al inicio para ver la partida desde el principio
+        analysisGoTo(0);
+        refrescarPaneles();
+
+        if (document.getElementById('pgn-input')) document.getElementById('pgn-input').value = '';
+        terminalLog(`✅ PGN importado: ${historia.length} jugadas.`);
+    }
+
+    /* Importar desde Lichess por ID de partida */
+    async function importarDesdeLichess() {
+        const id = document.getElementById('lichess-id-input')?.value?.trim();
+        if (!id) { terminalLog('⚠️ Introduce el ID de la partida.'); return; }
+
+        terminalLog(`📡 Descargando partida ${id} de Lichess...`);
+        try {
+            const res = await fetch(`https://lichess.org/game/export/${id}?clocks=false&evals=false&opening=false`, {
+                headers: { 'Accept': 'application/x-chess-pgn' }
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const pgn = await res.text();
+            if (document.getElementById('lichess-id-input')) document.getElementById('lichess-id-input').value = '';
+            importarPGN(pgn);
+        } catch(e) {
+            terminalLog('❌ Error importando de Lichess: ' + e.message);
+        }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       GUARDAR / CARGAR ESTUDIOS en localStorage
+    ══════════════════════════════════════════════════════════ */
+    const ESTUDIOS_KEY = 'margarita_estudios_v1';
+
+    function guardarEstudio() {
+        const nombre = document.getElementById('estudio-nombre')?.value?.trim();
+        if (!nombre) { terminalLog('⚠️ Escribe un nombre para el estudio.'); return; }
+
+        const pgn  = generarPGN();
+        const data = JSON.parse(localStorage.getItem(ESTUDIOS_KEY) || '{}');
+        data[nombre] = { pgn, fecha: new Date().toLocaleDateString('es-ES') };
+        localStorage.setItem(ESTUDIOS_KEY, JSON.stringify(data));
+
+        if (document.getElementById('estudio-nombre')) document.getElementById('estudio-nombre').value = '';
+        renderEstudiosList();
+        terminalLog(`💾 Estudio "${nombre}" guardado.`);
+    }
+
+    function cargarEstudio(nombre) {
+        const data    = JSON.parse(localStorage.getItem(ESTUDIOS_KEY) || '{}');
+        const estudio = data[nombre];
+        if (!estudio) return;
+        importarPGN(estudio.pgn);
+        terminalLog(`📂 Estudio "${nombre}" cargado.`);
+    }
+
+    function eliminarEstudio(nombre) {
+        const data = JSON.parse(localStorage.getItem(ESTUDIOS_KEY) || '{}');
+        delete data[nombre];
+        localStorage.setItem(ESTUDIOS_KEY, JSON.stringify(data));
+        renderEstudiosList();
+        terminalLog(`🗑 Estudio "${nombre}" eliminado.`);
+    }
+
+    function renderEstudiosList() {
+        const el   = document.getElementById('estudios-lista');
+        if (!el) return;
+        const data = JSON.parse(localStorage.getItem(ESTUDIOS_KEY) || '{}');
+        const keys = Object.keys(data);
+
+        if (!keys.length) {
+            el.innerHTML = '<div style="color:var(--text-dim);font-size:11px;">Sin estudios guardados.</div>';
+            return;
+        }
+
+        el.innerHTML = keys.map(nombre => `
+            <div class="estudio-item">
+                <div>
+                    <div class="estudio-item-name">${nombre}</div>
+                    <div class="estudio-item-date">${data[nombre].fecha || ''}</div>
+                </div>
+                <button class="estudio-item-btn" onclick="cargarEstudio('${nombre}')">Cargar</button>
+                <button class="estudio-item-btn del" onclick="eliminarEstudio('${nombre}')">🗑</button>
+            </div>`).join('');
+    }
+
     /* ── Tabs del panel derecho ── */
     function switchTab(tabId, btn) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
         btn.classList.add('active');
-        // Si es el árbol, re-renderiza el SVG (puede haberse redimensionado)
-        if (tabId === 'tab-arbol') { try { VT.render(); } catch(e){} }
+        if (tabId === 'tab-arbol')   { try { VT.render(); renderEvalGraph(); } catch(e){} }
+        if (tabId === 'tab-estudio') { renderEstudiosList(); }
     }
 
     /* ── Terminal colapsable ── */
@@ -4379,6 +4764,7 @@
     </script>
 </body>
 </html>
+
 
 
 
