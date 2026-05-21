@@ -4595,67 +4595,72 @@
        VERSION NUEVA / CORREGIDA (Para pruebas futuras)
     ══════════════════════════════════════════════════════════ */
     function importarPGN(pgnTexto) {
-        const texto = pgnTexto || document.getElementById('pgn-input')?.value?.trim();
-        if (!texto) { terminalLog('⚠️ Pega un PGN primero.'); return; }
+    const texto = pgnTexto || document.getElementById('pgn-input')?.value?.trim();
+    if (!texto) { terminalLog('⚠️ Pega un PGN primero.'); return; }
 
-        const chess = new Chess();
-        try {
-            if (!chess.load_pgn(texto)) {
-                terminalLog('❌ PGN inválido. Comprueba el formato.'); return;
-            }
-        } catch(e) {
-            terminalLog('❌ Error parseando PGN: ' + e.message); return;
+    const chess = new Chess();
+    try {
+        if (!chess.load_pgn(texto)) {
+            terminalLog('❌ PGN inválido. Comprueba el formato.'); return;
         }
-
-        const historia = chess.history({ verbose: true });
-        if (!historia.length) { terminalLog('⚠️ PGN sin jugadas.'); return; }
-
-        if (typeof gameReset === "function") gameReset();
-
-        const fenMatch = texto.match(/\[FEN "([^"]+)"\]/);
-        const fenInicial = fenMatch ? fenMatch[1] : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-
-        if (typeof chessC !== 'undefined') chessC.load(fenInicial);
-        if (typeof chessA !== 'undefined') chessA.load(fenInicial);
-        if (typeof boardC !== 'undefined') boardC.position(fenInicial);
-        if (typeof boardA !== 'undefined') boardA.position(fenInicial);
-
-        const replayChess = new Chess();
-        replayChess.load(fenInicial);
-
-        if (typeof combatMoveHistory !== 'undefined') combatMoveHistory = [];
-
-        historia.forEach((mv, i) => {
-            const moved = replayChess.move(mv);
-            if (!moved) return;
-            
-            if (typeof combatMoveHistory !== 'undefined') combatMoveHistory.push(moved.san);
-            
-            if (typeof VT !== 'undefined' && typeof VT.addMove === 'function') {
-                VT.addMove({
-                    san:     moved.san,
-                    uci:     mv.from + mv.to + (mv.promotion || ''),
-                    fen:     replayChess.fen(),
-                    moveNum: i + 1,
-                    side:    moved.color,
-                    eval:    0,
-                }, 'main');
-                VT.combatId = VT.activeId;
-            }
-        });
-
-        if (typeof chessC !== 'undefined') chessC.load(replayChess.fen());
-        if (typeof chessA !== 'undefined') chessA.load(replayChess.fen());
-        if (typeof boardC !== 'undefined') boardC.position(replayChess.fen());
-        if (typeof boardA !== 'undefined') boardA.position(replayChess.fen());
-
-        if (typeof analysisGoTo === 'function') analysisGoTo(0);
-        if (typeof refrescarPaneles === 'function') refrescarPaneles();
-
-        if (document.getElementById('pgn-input')) document.getElementById('pgn-input').value = '';
-        terminalLog(`✅ PGN importado: ${historia.length} jugadas.`);
+    } catch(e) {
+        terminalLog('❌ Error parseando PGN: ' + e.message); return;
     }
+
+    const historia = chess.history({ verbose: true });
+    if (!historia.length) { terminalLog('⚠️ PGN sin jugadas.'); return; }
+
+    // Reiniciamos los paneles antes de cargar la nueva partida
+    if (typeof gameReset === "function") gameReset();
+
+    // Detectamos si el PGN empieza desde una posición especial (FEN) o desde el inicio estándar
+    const fenMatch = texto.match(/\[FEN "([^"]+)"\]/);
+    const fenInicial = fenMatch ? fenMatch[1] : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+    // Cargamos la posición inicial en el motor y tablero de ANÁLISIS (A). El combate (C) no se toca.
+    if (typeof chessA !== 'undefined') chessA.load(fenInicial);
+    if (typeof boardA !== 'undefined') boardA.position(fenInicial);
+
+    // Motor auxiliar para ir reproduciendo y guardando las jugadas en el árbol
+    const replayChess = new Chess();
+    replayChess.load(fenInicial);
+
+    historia.forEach((mv, i) => {
+        const moved = replayChess.move(mv);
+        if (!moved) return;
+        
+        // Inyectamos cada movimiento en tu árbol de variantes (VT)
+        if (typeof VT !== 'undefined' && typeof VT.addMove === 'function') {
+            VT.addMove({
+                san:     moved.san,
+                uci:     mv.from + mv.to + (mv.promotion || ''),
+                fen:     replayChess.fen(),
+                moveNum: i + 1,
+                side:    moved.color,
+                eval:    0,
+            }, 'main');
+        }
+    });
+
+    // ══════════════════════════════════════════════════════════
+    // EL REMATE PROFESIONAL:
+    // ══════════════════════════════════════════════════════════
+    // El motor (chessA) memoriza la posición final para tener todo el recorrido...
+    if (typeof chessA !== 'undefined') chessA.load(replayChess.fen());
     
+    // ...¡pero el tablero visual (boardA) lo forzamos a mostrar el INICIO para no hacerte spoiler!
+    if (typeof boardA !== 'undefined') boardA.position(fenInicial);
+
+    // Colocamos el cursor de navegación en la jugada cero (el principio)
+    if (typeof analysisGoTo === 'function') analysisGoTo(0);
+    if (typeof refrescarPaneles === 'function') refrescarPaneles();
+
+    // Limpiamos la caja de texto para dejarla aseada
+    if (document.getElementById('pgn-input')) document.getElementById('pgn-input').value = '';
+    
+    terminalLog(`✅ PGN importado: ${historia.length} jugadas listas para analizar.`);
+}
+
     function procesarPgnEntrante() {
     console.log("-> ¡Botón pulsado con éxito! Leyendo el cuadro de texto...");
     
@@ -4795,6 +4800,7 @@
     </script>
 </body>
 </html>
+
 
 
 
