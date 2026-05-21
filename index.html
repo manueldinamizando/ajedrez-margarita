@@ -1244,8 +1244,8 @@
                         ♟ Importar desde Lichess
                     </button>
                     <textarea id="pgn-input" class="estudio-input" rows="4"
-                        placeholder="Pega aquí tu PGN...&#10;1. e4 e5 2. Nf3 Nc6..."></textarea>
-                    <button class="estudio-btn" onclick="importarPGN()">📥 Importar PGN</button>
+                                placeholder="Pega aquí tu PGN...&#10;1. e4 e5 2. Nf3 Nc6..."></textarea>
+                        <button class="estudio-btn" onclick="procesarPgnEntrante()">📥 Importar PGN</button>
                 </div>
 
                 <!-- Guardar estudio -->
@@ -4655,6 +4655,16 @@
         if (document.getElementById('pgn-input')) document.getElementById('pgn-input').value = '';
         terminalLog(`✅ PGN importado: ${historia.length} jugadas.`);
     }
+    
+    function procesarPgnEntrante() {
+    console.log("-> ¡Botón pulsado con éxito! Leyendo el cuadro de texto...");
+    
+    // Capturamos el texto que Manuel ha pegado en la caja
+    const textoDelCuadro = document.getElementById('pgn-input')?.value?.trim();
+    
+    // Se lo mandamos a tu función original para que mueva el tablero
+    importarPGN(textoDelCuadro);
+    }
 
     async function importarDesdeLichess() {
         let valorInput = document.getElementById('lichess-id-input')?.value?.trim();
@@ -4785,6 +4795,7 @@
     </script>
 </body>
 </html>
+
 
 
 
