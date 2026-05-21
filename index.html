@@ -4592,7 +4592,7 @@
     }
 
     /* ══════════════════════════════════════════════════════════
-       IMPORTAR PGN — carga en el tablero de análisis
+       VERSION NUEVA / CORREGIDA (Para pruebas futuras)
     ══════════════════════════════════════════════════════════ */
     function importarPGN(pgnTexto) {
         const texto = pgnTexto || document.getElementById('pgn-input')?.value?.trim();
@@ -4600,7 +4600,6 @@
 
         const chess = new Chess();
         try {
-            // CORRECCIÓN: Quitamos el objeto { sloppy: true } que hace fallar a las librerías modernas
             if (!chess.load_pgn(texto)) {
                 terminalLog('❌ PGN inválido. Comprueba el formato.'); return;
             }
@@ -4611,24 +4610,19 @@
         const historia = chess.history({ verbose: true });
         if (!historia.length) { terminalLog('⚠️ PGN sin jugadas.'); return; }
 
-        // Reinicia el árbol y el tablero
         if (typeof gameReset === "function") gameReset();
 
-        // Determina si hay FEN inicial (por si es una posición especial)
         const fenMatch = texto.match(/\[FEN "([^"]+)"\]/);
         const fenInicial = fenMatch ? fenMatch[1] : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
-        // Aseguramos la carga en los objetos que existan
         if (typeof chessC !== 'undefined') chessC.load(fenInicial);
         if (typeof chessA !== 'undefined') chessA.load(fenInicial);
         if (typeof boardC !== 'undefined') boardC.position(fenInicial);
         if (typeof boardA !== 'undefined') boardA.position(fenInicial);
 
-        // Reproduce las jugadas en el árbol virtual
         const replayChess = new Chess();
         replayChess.load(fenInicial);
 
-        // Limpiamos el historial de movimientos previo
         if (typeof combatMoveHistory !== 'undefined') combatMoveHistory = [];
 
         historia.forEach((mv, i) => {
@@ -4637,7 +4631,6 @@
             
             if (typeof combatMoveHistory !== 'undefined') combatMoveHistory.push(moved.san);
             
-            // Metemos la jugada en tu árbol de variantes visual (VT)
             if (typeof VT !== 'undefined' && typeof VT.addMove === 'function') {
                 VT.addMove({
                     san:     moved.san,
@@ -4651,19 +4644,36 @@
             }
         });
 
-        // Actualiza los tableros a la posición final de la partida
         if (typeof chessC !== 'undefined') chessC.load(replayChess.fen());
         if (typeof chessA !== 'undefined') chessA.load(replayChess.fen());
         if (typeof boardC !== 'undefined') boardC.position(replayChess.fen());
         if (typeof boardA !== 'undefined') boardA.position(replayChess.fen());
 
-        // Nos movemos al inicio para que puedas reproducirla jugada a jugada
         if (typeof analysisGoTo === 'function') analysisGoTo(0);
         if (typeof refrescarPaneles === 'function') refrescarPaneles();
 
-        // Limpiamos la caja de texto para dejarla aseada
         if (document.getElementById('pgn-input')) document.getElementById('pgn-input').value = '';
         terminalLog(`✅ PGN importado: ${historia.length} jugadas.`);
+    }
+
+    async function importarDesdeLichess() {
+        let valorInput = document.getElementById('lichess-id-input')?.value?.trim();
+        if (!valorInput) { terminalLog('⚠️ Introduce el ID o el enlace de la partida.'); return; }
+
+        const id = valorInput.split('/').pop();
+
+        terminalLog(`📡 Descargando partida ${id} de Lichess...`);
+        try {
+            const res = await fetch(`https://lichess.org/game/export/${id}?clocks=false&evals=false&opening=false`, {
+                headers: { 'Accept': 'application/x-chess-pgn' }
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const pgn = await res.text();
+            if (document.getElementById('lichess-id-input')) document.getElementById('lichess-id-input').value = '';
+            importarPGN(pgn);
+        } catch(e) {
+            terminalLog('❌ Error importando de Lichess: ' + e.message);
+        }
     }
 
     /* Importar desde Lichess por ID de partida */
@@ -4775,6 +4785,7 @@
     </script>
 </body>
 </html>
+
 
 
 
