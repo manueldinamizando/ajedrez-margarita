@@ -1845,17 +1845,21 @@
     }
 
     /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) */
-    function nagDesdeEval(diffCp, colorQueJugó) {
-        // diffCp = ev_actual - ev_padre (en centipeones, perspectiva absoluta)
-        // Convertimos a perspectiva del jugador que movió
-        const pov = colorQueJugó === 'w' ? diffCp : -diffCp;
-        if (pov >= 150)  return '$3';  // !!
-        if (pov >= 50)   return '$1';  // !
-        if (pov >= -50)  return null;  // jugada normal
-        if (pov >= -100) return '$6';  // ?!
-        if (pov >= -200) return '$2';  // ?
-        return '$4';                   // ??
-    }
+    /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) con filtros estrictos */
+       function nagDesdeEval(diffCp, colorQueJugó) {
+            // diffCp = ev_actual - ev_padre
+            // Convertimos a perspectiva del jugador que movió
+            const pov = colorQueJugó === 'w' ? diffCp : -diffCp;
+            
+            // BAREMO PROFESIONAL: Filtros mucho más altos para evitar saturación
+            if (pov >= 200)  return '$3';  // !! Jugada brillante (Gana más de 2.00 puntos de golpe)
+            if (pov >= 100)  return '$1';  // !  Buena jugada (Solo si saca 1 punto entero de ventaja)
+            
+            if (pov >= -75)  return null;  // 🟢 JUGADA NORMAL: Si pierdes menos de 0.75, el tablero se queda LIMPIO.
+            
+            if (pov >= -150) return '$2';  // ?  Error (Pierdes entre 0.75 y 1.50 puntos)
+            return '$4';                   // ?? Error grave (Pierdes más de 1.50 puntos. ¡Peligro!)
+        }
 
     /* Extrae NAGs del texto PGN crudo, devuelve array paralelo a chess.history() */
     function extraerNAGsDePGN(pgnTexto) {
@@ -1894,40 +1898,46 @@
     }
 
     /* ── Insignia NAG flotante sobre el tablero de análisis ── */
-    function mostrarNagEnTablero(uci, nagCode) {
-        // Limpia la anterior
-        limpiarNagTablero();
-        if (!uci || uci.length < 4 || !nagCode) return;
+    /* ── Insignia NAG flotante sobre el tablero de análisis ── */
+function mostrarNagEnTablero(uci, nagCode) {
+    // 1. Limpieza absoluta antes de hacer cualquier cálculo
+    limpiarNagTablero();
+    
+    if (!uci || uci.length < 4 || !nagCode) return;
 
-        const nag   = NAG_MAP[nagCode];
-        if (!nag) return;
+    const nag = NAG_MAP[nagCode];
+    if (!nag) return;
 
-        const toSq  = uci.slice(2, 4);
-        const board = document.getElementById('boardAnalysis');
-        const sq    = board?.querySelector(`.square-${toSq}`);
-        if (!board || !sq) return;
+    const toSq  = uci.slice(2, 4);
+    const board = document.getElementById('boardAnalysis');
+    const sq    = board?.querySelector(`.square-${toSq}`);
+    if (!board || !sq) return;
 
-        board.style.position = 'relative';
+    board.style.position = 'relative';
 
-        // Posición de la casilla dentro del tablero
-        const br = board.getBoundingClientRect();
-        const sr = sq.getBoundingClientRect();
-        const x  = sr.right  - br.left - 4;  // esquina superior-derecha
-        const y  = sr.top    - br.top  + 2;
+    // Posición de la casilla dentro del tablero
+    const br = board.getBoundingClientRect();
+    const sr = sq.getBoundingClientRect();
+    const x  = sr.right  - br.left - 4;  // esquina superior-derecha
+    const y  = sr.top    - br.top  + 2;
 
-        const badge = document.createElement('div');
-        badge.id = 'nag-board-badge';
-        badge.className = `nag-badge ${nag.board_cls}`;
-        badge.textContent = nag.sym;
-        badge.title = nag.label;
-        badge.style.cssText = `left:${x}px; top:${y}px; transform:translateX(-100%);`;
+    const badge = document.createElement('div');
+    badge.id = 'nag-board-badge';
+    badge.className = `nag-badge ${nag.board_cls}`;
+    badge.textContent = nag.sym;
+    badge.title = nag.label;
+    badge.style.cssText = `left:${x}px; top:${y}px; transform:translateX(-100%); z-index: 999; pointer-events: none;`;
 
-        board.appendChild(badge);
+    board.appendChild(badge);
+}
+
+function limpiarNagTablero() {
+    // Buscamos el elemento directamente en todo el DOM y lo fulminamos
+    const badgeExistente = document.getElementById('nag-board-badge');
+    if (badgeExistente) {
+        badgeExistente.remove();
     }
-
-    function limpiarNagTablero() {
-        document.getElementById('nag-board-badge')?.remove();
-    }
+}
 
     /* ── Panel de anotación — Sistema 3 estados ── */
     function renderAnnotation(node, explorerData) {
@@ -5042,6 +5052,7 @@
     </script>
 </body>
 </html>
+
 
 
 
