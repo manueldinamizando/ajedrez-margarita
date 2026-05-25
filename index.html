@@ -966,55 +966,40 @@
         .vt-square-highlight {
             animation: vt-pulse 1.8s ease-in-out infinite !important;
         }
-        /* Contenedor del tablero (asegurar posición relativa para los hijos) */
+        /* Asegurar que el tablero permite elementos flotando dentro */
         #boardAnalysis {
             position: relative;
         }
 
-        /* Base de la insignia NAG elegante */
+        /* La base del círculo premium con esteroides (!important) */
         .nag-board-badge {
-            position: absolute;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: 900;
-            font-size: 11px;
-            color: #ffffff;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
-            border: 1.5px solid #ffffff;
-            z-index: 10;
-            pointer-events: none; /* No estorba al hacer clic o arrastrar piezas */
-            transition: transform 0.1s ease-in-out;
+            position: absolute !important;
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-family: 'Courier New', Courier, monospace !important;
+            font-weight: 900 !important;
+            font-size: 11px !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+            border: 1.5px solid #ffffff !important;
+            z-index: 999 !important;
+            pointer-events: none !important;
+            top: 2px !important;
+            right: 2px !important;
+            transform: none !important; /* Evita que el código viejo lo mueva de sitio */
         }
 
-        /* Variaciones de color premium según el juicio */
-        .nag-board-badge.nag-blunder {
-            background-color: #e53935; /* Rojo Lichess para ?? */
-        }
-
-        .nag-board-badge.nag-mistake {
-            background-color: #fb8c00; /* Naranja para ? */
-        }
-
-        .nag-board-badge.nag-good {
-            background-color: #43a047; /* Verde para ! */
-        }
-
-        .nag-board-badge.nag-brilliant {
-            background-color: #00acc1; /* Azul brillante/Cyan para !! */
-        }
-
-        .nag-board-badge.nag-interest {
-            background-color: #8e24aa; /* Violeta para !? */
-        }
-
-        .nag-board-badge.nag-dubious {
-            background-color: #757575; /* Gris para ?! */
-        }
+        /* Colores nuevos y exclusivos que nada de tu código antiguo puede romper */
+        .nag-board-badge.circulo-blunder   { background-color: #e53935 !important; } /* ?? */
+        .nag-board-badge.circulo-mistake   { background-color: #fb8c00 !important; } /* ? */
+        .nag-board-badge.circulo-good      { background-color: #43a047 !important; } /* ! */
+        .nag-board-badge.circulo-brilliant { background-color: #00acc1 !important; } /* !! */
+        .nag-board-badge.circulo-interest  { background-color: #8e24aa !important; } /* !? */
+        .nag-board-badge.circulo-dubious   { background-color: #757575 !important; } /* ?! */
     </style>
 </head>
 <body>
@@ -1965,38 +1950,42 @@
     /* ── Insignia NAG flotante sobre el tablero de análisis ── */
 /* ── Insignia NAG flotante elegante sobre el tablero de análisis ── */
     function mostrarNagEnTablero(uci, nagCode) {
-        // 1. Limpieza absoluta antes de hacer nada
-        limpiarNagTablero();
-        
-        if (!uci || uci.length < 4 || !nagCode) return;
+    // 1. Limpieza absoluta antes de hacer nada
+    limpiarNagTablero();
+    
+    if (!uci || uci.length < 4 || !nagCode) return;
 
-        const nag = NAG_MAP[nagCode];
-        if (!nag) return;
+    const nag = NAG_MAP[nagCode];
+    if (!nag) return;
 
-        // Extraemos la casilla de destino (ej: "e4")
-        const toSq = uci.slice(2, 4);
-        const board = document.getElementById('boardAnalysis');
-        
-        // Buscamos la casilla dentro de tu tablero utilizando su clase nativa
-        const sq = board?.querySelector(`.square-${toSq}`);
-        if (!sq) return;
+    // Extraemos la casilla de destino (ej: "e4")
+    const toSq = uci.slice(2, 4);
+    const board = document.getElementById('boardAnalysis');
+    
+    // Buscamos la casilla dentro del tablero
+    const sq = board?.querySelector(`.square-${toSq}`);
+    if (!sq) return;
 
-        // 2. Creamos la insignia circular elegante
-        const badge = document.createElement('div');
-        badge.id = 'nag-board-badge';
-        
-        // Le asignamos las clases del CSS que ya pusiste en el <style>
-        badge.className = `nag-board-badge ${nag.board_cls}`;
-        badge.textContent = nag.sym;
-        badge.title = nag.label;
-        
-        // Posicionamiento absoluto respecto a la esquina superior derecha de la CASILLA misma
-        badge.style.top = '2px';
-        badge.style.right = '2px';
+    // 2. Creamos la insignia circular elegante
+    const badge = document.createElement('div');
+    badge.id = 'nag-board-badge';
+    
+    // Averiguamos el color exacto según el símbolo que toque pintar
+    let claseColor = 'circulo-good'; // Por defecto verde (!)
+    if (nag.sym === '??') claseColor = 'circulo-blunder';
+    else if (nag.sym === '?')  claseColor = 'circulo-mistake';
+    else if (nag.sym === '!!') claseColor = 'circulo-brilliant';
+    else if (nag.sym === '!?') claseColor = 'circulo-interest';
+    else if (nag.sym === '?!') claseColor = 'circulo-dubious';
 
-        // 3. Inyectamos el icono limpio dentro de la casilla
-        sq.appendChild(badge);
-    }
+    // Le aplicamos las clases nuevas e inyectamos
+    badge.className = `nag-board-badge ${claseColor}`;
+    badge.textContent = nag.sym;
+    badge.title = nag.label;
+    
+    // 3. Lo metemos limpio en la esquina de la casilla
+    sq.appendChild(badge);
+}
 
     function limpiarNagTablero() {
         // Busca el badge en cualquier rincón del tablero y lo elimina al instante
@@ -5119,6 +5108,7 @@
     </script>
 </body>
 </html>
+
 
 
 
