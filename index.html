@@ -2699,7 +2699,7 @@
     // ── CONTROL DE CALIDAD AUTOMÁTICO EN EL TABLERO ──
     const nodoActual = VT.activeNode;
     
-    // REGLA DE ORO: Si el sistema global está en estado 'teoria', 
+    // REGLA DE ORO 1: Si el sistema global está en estado 'teoria', 
     // limpiamos cualquier signo viejo y NO permitimos calcular errores nuevos.
     if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
         limpiarNagTablero("Silencio de motor en plena teoría");
@@ -2707,15 +2707,25 @@
     }
 
     if (nodoActual && !nodoActual.nag && nodoActual.parentId && nodoActual.uci) {
+        
+        // REGLA DE ORO 2 (FILTRO MULTIPV): Si Stockfish está evaluando líneas secundarias 
+        // (multipv 2, 3, etc.) y no es la línea principal (multipv 1), abortamos para evitar 
+        // que el símbolo parpadee o cambie de color con jugadas alternativas.
+        if (scoreText && scoreText.includes('multipv') && !scoreText.includes('multipv 1')) {
+            return; 
+        }
+
         const padre = VT.nodeMap.get(nodoActual.parentId);
         if (padre && padre.eval !== undefined) {
             // Pasamos la diferencia a nuestra función con "freno de mano" (filtro de los 75cp)
             const nagAuto = nagDesdeEval(cp - (padre.eval || 0), nodoActual.side);
             
-            limpiarNagTablero("Actualizando con el nuevo cálculo asíncrono");
-            
-            // Solo si nagDesdeEval decide que es un error real (> 75cp), se dibuja
-            if (nagAuto) {
+            // Si el motor profundiza y decide que la jugada es normal (null), 
+            // borramos el rastro del signo inmediatamente para que no se quede congelado.
+            if (!nagAuto) {
+                limpiarNagTablero("La jugada se considera normal tras refinar el cálculo");
+            } else {
+                // Si es un error real, se dibuja (reemplazando de forma limpia el anterior)
                 mostrarNagEnTablero(nodoActual.uci, nagAuto, nodoActual.id);
             }
         }
@@ -5154,6 +5164,7 @@
     </script>
 </body>
 </html>
+
 
 
 
