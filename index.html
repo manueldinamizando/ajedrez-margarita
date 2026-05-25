@@ -2669,43 +2669,58 @@
 
     /* ── Barra de evaluación Stockfish ── */
     function actualizarBarraEval(scoreText) {
-        const barWhite = document.getElementById('eval-bar-white');
-        const barLabel = document.getElementById('eval-bar-label');
-        if (!barWhite || !barLabel) return;
+    const barWhite = document.getElementById('eval-bar-white');
+    const barLabel = document.getElementById('eval-bar-label');
+    if (!barWhite || !barLabel) return;
 
-        let cp = 0, label = '0.0';
+    let cp = 0, label = '0.0';
 
-        if (scoreText && scoreText.includes('mate')) {
-            const m = parseInt(scoreText.split(' ')[1]);
-            cp    = m > 0 ? 9999 : -9999;
-            label = m > 0 ? `M+${Math.abs(m)}` : `M-${Math.abs(m)}`;
-        } else if (scoreText) {
-            cp    = parseInt(scoreText.split(' ')[1]) || 0;
-            const abs = (Math.abs(cp)/100).toFixed(2);
-            label = cp >= 0 ? `+${abs}` : `-${abs}`;
-        }
+    if (scoreText && scoreText.includes('mate')) {
+        const m = parseInt(scoreText.split(' ')[1]);
+        cp    = m > 0 ? 9999 : -9999;
+        label = m > 0 ? `M+${Math.abs(m)}` : `M-${Math.abs(m)}`;
+    } else if (scoreText) {
+        cp    = parseInt(scoreText.split(' ')[1]) || 0;
+        const abs = (Math.abs(cp)/100).toFixed(2);
+        label = cp >= 0 ? `+${abs}` : `-${abs}`;
+    }
 
-        // Escala logarítmica con atan
-        const pct = 50 + (Math.atan(cp * 0.0035) / Math.PI) * 100;
-        barWhite.style.height = `${pct}%`;
-        barLabel.textContent  = label;
-        barLabel.style.bottom = `${pct}%`;
+    // Escala logarítmica con atan
+    const pct = 50 + (Math.atan(cp * 0.0035) / Math.PI) * 100;
+    barWhite.style.height = `${pct}%`;
+    barLabel.textContent  = label;
+    barLabel.style.bottom = `${pct}%`;
 
-        // Guarda en el nodo activo del árbol
-        VT.updateEval(VT.activeId, cp);
-        // Actualiza el gráfico de evaluación
-        renderEvalGraph();
-        // Actualiza la insignia NAG automática en el tablero
-        const nodoActual = VT.activeNode;
-        if (nodoActual && !nodoActual.nag && nodoActual.parentId && nodoActual.uci) {
-            const padre = VT.nodeMap.get(nodoActual.parentId);
-            if (padre && padre.eval !== undefined) {
-                const nagAuto = nagDesdeEval(cp - (padre.eval || 0), nodoActual.side);
-                limpiarNagTablero();
-                if (nagAuto) mostrarNagEnTablero(nodoActual.uci, nagAuto);
+    // Guarda en el nodo activo del árbol
+    VT.updateEval(VT.activeId, cp);
+    // Actualiza el gráfico de evaluación
+    renderEvalGraph();
+    
+    // ── CONTROL DE CALIDAD AUTOMÁTICO EN EL TABLERO ──
+    const nodoActual = VT.activeNode;
+    
+    // REGLA DE ORO: Si el sistema global está en estado 'teoria', 
+    // limpiamos cualquier signo viejo y NO permitimos calcular errores nuevos.
+    if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
+        limpiarNagTablero("Silencio de motor en plena teoría");
+        return; 
+    }
+
+    if (nodoActual && !nodoActual.nag && nodoActual.parentId && nodoActual.uci) {
+        const padre = VT.nodeMap.get(nodoActual.parentId);
+        if (padre && padre.eval !== undefined) {
+            // Pasamos la diferencia a nuestra función con "freno de mano" (filtro de los 75cp)
+            const nagAuto = nagDesdeEval(cp - (padre.eval || 0), nodoActual.side);
+            
+            limpiarNagTablero("Actualizando con el nuevo cálculo asíncrono");
+            
+            // Solo si nagDesdeEval decide que es un error real (> 75cp), se dibuja
+            if (nagAuto) {
+                mostrarNagEnTablero(nodoActual.uci, nagAuto, nodoActual.id);
             }
         }
     }
+}
 
     /* ── Detecta si el nodo activo tiene hijos visitados ── */
     function tieneHijosVisitados(nodeId) {
@@ -5139,6 +5154,7 @@
     </script>
 </body>
 </html>
+
 
 
 
