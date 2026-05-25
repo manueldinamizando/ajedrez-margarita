@@ -2707,14 +2707,6 @@
     }
 
     if (nodoActual && !nodoActual.nag && nodoActual.parentId && nodoActual.uci) {
-        
-        // REGLA DE ORO 2 (FILTRO MULTIPV): Si Stockfish está evaluando líneas secundarias 
-        // (multipv 2, 3, etc.) y no es la línea principal (multipv 1), abortamos para evitar 
-        // que el símbolo parpadee o cambie de color con jugadas alternativas.
-        if (scoreText && scoreText.includes('multipv') && !scoreText.includes('multipv 1')) {
-            return; 
-        }
-
         const padre = VT.nodeMap.get(nodoActual.parentId);
         if (padre && padre.eval !== undefined) {
             // Pasamos la diferencia a nuestra función con "freno de mano" (filtro de los 75cp)
@@ -2730,6 +2722,217 @@
             }
         }
     }
+}
+
+/* ── Detecta si el nodo activo tiene hijos visitados ── */
+function tieneHijosVisitados(nodeId) {
+    const node = VT.nodeMap.get(nodeId);
+    return (node?.children || []).some(c => nodosVisitados.has(c.id));
+}
+
+/* ── Determina el estado del análisis para la posición actual ── */
+function calcularEstado(node, explorerData) {
+    if (!node) return 'teoria';
+    if (nodosVisitados.has(node.id) && explorerData?.moves?.length) return 'visitado';
+    if (node.type === 'variant') return 'variante';
+    return 'teoria';
+}
+
+/* ── Renderiza las píldoras de candidatas en el panel ── */
+function renderizarPildoras(moves, nodeId) {
+    candidatasActuales = moves || [];
+    candidataActiva    = 0;
+
+    // Nodos hijo ya visitados desde este nodo
+    const parentNode   = VT.nodeMap.get(nodeId);
+    const hijosUci     = new Set((parentNode?.children || []).map(c => c.uci));
+
+    const pildorasHtml = candidatasActuales.slice(0, 6).map((m, i) => {
+        const total    = (m.white + m.draws + m.black) || 1;
+        const winPct   = Math.round((m.white / total) * 100);
+        const isTop    = i === 0;
+        const visited  = hijosUci.has(m.uci);
+        const clases   = ['pill-candidata', isTop ? 'top-pill' : '', visited ? 'visited' : ''].filter(Boolean).join(' ');
+
+        // Semáforo de color
+        let semaforo = '';
+        if (winPct > 52)      semaforo = '<span style="color:#4caf50;font-size:9px;">●</span>';
+        // Renderizado simplificado para mantener estabilidad visual
+        else if (winPct < 44) semaforo = '<span style="color:#ef5350;font-size:9px;">●</span>';
+        else                  semaforo = '<span style="color:#9e9e9e;font-size:9px;">●</span>';
+
+        return `<span class="${clases}"
+            data-uci="${m.uci}" data-idx="${i}"
+            onclick="pillClick('${m.uci}', ${i})"
+            ondblclick="pillDblClick('${m.uci}', '${m.san}')"
+            onmouseenter="Illuminator.previewCandidata('${m.uci}')"
+            onmouseleave="Illuminator.clearHover()"
+            title="Doble clic para mover | ${total.toLocaleString()} partidas | ${winPct}% bl.">
+            ${semaforo} ${m.san}
+            <span style="font-size:9px;opacity:0.6;">${total > 999 ? Math.round(total/1000)+'k' : total}</span>
+        </span>`;
+    }).join('');
+
+    return `<div style="margin-top:8px;">
+        <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;
+            margin-bottom:5px;">Candidatas — click: ver · doble clic: mover</div>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;">${pildorasHtml}</div>
+    </div>`;
+}
+
+/* ── Click en píldora: ilumina esa candidata ── */
+function pillClick(uci, idx) {
+    candidataActiva = idx;
+    Illuminator.illuminateCandidataClick(uci);
+    document.querySelectorAll('.pill-candidata').forEach((el, i) => {
+        el.style.outline = i === idx ? '2px solid #7dd3fc' : 'none';
+    });
+}
+
+/* ── Doble clic en píldora: ejecuta el movimiento automáticamente ── */
+function pillDblClick(uci, san) {
+    const from = uci.slice(0, 2);
+    const to   = uci.slice(2, 4);
+    const prom = uci[4] || undefined;
+
+    if (fenParaPildoras) chessA.load(fenParaPildoras);
+
+    const moveOpts = prom ? { from, to, promotion: prom } : { from, to };
+    const move = chessA.move(moveOpts);
+    if (!move) {
+        console.warn('[pillDblClick] Movimiento ilegal:', uci, 'FEN:', chessA.fen());
+        return;
+    }
+
+    boardA.position(chessA.fen());
+
+    const fenBase    = fenParaPildoras;
+    const extraBase  = [...analysisExtraMoves];
+    _syncExtraMovesFromPath();
+    analysisExtraMoves.push(move.san);
+
+    const vtNode = VT.addMove({
+        san:     move.san,
+        uci:     from + to + (prom || ''),
+        fen:     chessA.fen(),
+        moveNum: combatMoveHistory.length + analysisExtraMoves.length,
+        side:    move.color,
+        eval:    0,
+    }, 'variant');
+    lastVariantId = vtNode?.id ?? null;
+    if (vtNode) nodosVisitados.add(vtNode.id);
+
+    Illuminator.clear();
+    refrescarPaneles();
+    actualizarTurno();
+
+    if (motorA) {
+        motorA.postMessage('position fen ' + chessA.fen());
+        motorA.postMessage('go depth 14');
+    }
+    setTimeout(() => {
+        consultarLichess(chessA.fen());
+        checkTablebase(chessA.fen());
+    }, 80);
+    terminalLog('📖 Variante auto: ' + move.san);
+}
+
+/* ── Evento: nodo seleccionado (click en árbol D3) ── */
+document.addEventListener('vt:selected', e => {
+    const { node } = e.detail;
+    if (!node?.fen) return;
+    chessA.load(node.fen);
+    boardA.position(node.fen);
+    _syncExtraMovesFromPath();
+    estadoAnalisis = node.type === 'variant' ? 'variante' : 'teoria';
+    refrescarPaneles();
+    actualizarTurno();
+    Illuminator.clear();
+    renderAnnotation(node);
+    pedirAnalisisMotor(node.fen);
+    consultarLichess(node.fen);
+});
+
+/* ════════════════════════════════════════════════════════════
+   SISTEMA PRINCIPAL (Con el bloqueo de MultiPV e hilos corregido)
+   ════════════════════════════════════════════════════════════ */
+
+function initSystem() {
+    const sfUrl = "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js";
+    fetch(sfUrl).then(r=>r.text()).then(code => {
+        const blob = new Blob([code],{type:'application/javascript'});
+        const url  = URL.createObjectURL(blob);
+        motorE = new Worker(url);
+        motorA = new Worker(url);
+        motorE.postMessage('uci');
+        motorA.postMessage('uci');
+
+        // ★ motorA: listener PERMANENTE — barra eval + panel MultiPV
+        motorA.onmessage = (e) => {
+            const line = e.data;
+
+            // ── ESCUDO RADICAL DE TEORÍA ──
+            if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
+                limpiarNagTablero("Silencio absoluto en apertura");
+            }
+
+            // Barra de evaluación (Procesa solo si pertenece a la línea principal PV 1)
+            if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
+                const match = line.match(/score (cp -?\d+|mate -?\d+)/);
+                // Mantenemos la estructura: extraemos el fragmento exacto que espera actualizarBarraEval
+                if (match) {
+                    actualizarBarraEval(match[1]); 
+                }
+            }
+
+            // Panel MultiPV — parsea todas las líneas para las píldoras de la interfaz
+            if (line.includes('multipv') && line.includes(' pv ')) {
+                const parsed = parsearLineaMotor(line);
+                if (parsed) {
+                    motorPVs[parsed.pvIdx] = {
+                        evalNum:  parsed.evalNum,
+                        evalType: parsed.evalType,
+                        moves:    parsed.moves,
+                        depth:    parsed.depth,
+                    };
+                    if (parsed.depth % 2 === 0 || parsed.depth >= 18) {
+                        renderMotorPanel();
+                    }
+                }
+            }
+
+            // Fin del análisis
+            if (line.includes('bestmove')) {
+                motorActive = false;
+                renderMotorPanel();
+            }
+        };
+
+        motorE.onmessage = (e) => {
+            if (e.data.includes("bestmove")) {
+                const moveRaw = e.data.split(" ")[1];
+                const moveObj = chessC.move(moveRaw, {sloppy:true});
+                if (moveObj) {
+                    combatMoveHistory.push(moveObj.san);
+                    analysisExtraMoves = [];
+                    boardC.position(chessC.fen());
+                    chessA.load(chessC.fen()); boardA.position(chessC.fen());
+                    refrescarPaneles();
+                    actualizarTurno();
+                    VT.addMove({
+                        san: moveObj.san, uci: moveRaw,
+                        fen: chessC.fen(),
+                        moveNum: combatMoveHistory.length,
+                        side: moveObj.color, eval: 0,
+                    }, 'main');
+                    VT.combatId = VT.activeId;
+                    terminalLog("Stockfish ha jugado: " + moveObj.san);
+                    checkTablebase(chessC.fen());
+                }
+            }
+        };
+        terminalLog("Motores en línea. Llama 3.3 preparado para el análisis.");
+    });
 }
 
     /* ── Detecta si el nodo activo tiene hijos visitados ── */
@@ -2888,13 +3091,21 @@
             motorA.onmessage = (e) => {
                 const line = e.data;
 
-                // Barra de evaluación (pv1 siempre)
-                if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
-                    const match = line.match(/score (cp -?\d+|mate -?\d+)/);
-                    if (match) actualizarBarraEval(match[1]);
+                // ── ESCUDO RADICAL DE TEORÍA ──
+                // Si la IA o el sistema detecta que estamos en teoría, 
+                // limpiamos el tablero y prohibimos terminantemente pintar signos.
+                if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
+                    limpiarNagTablero("Silencio absoluto en apertura");
                 }
 
-                // Panel MultiPV — parsea todas las líneas
+                // Barra de evaluación (Filtro corregido: pasamos la línea ENTERA para que sepa validar)
+                if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
+                    const match = line.match(/score (cp -?\d+|mate -?\d+)/);
+                    // Pasamos la línea completa en vez de solo el trozo de la puntuación
+                    if (match) actualizarBarraEval(line); 
+                }
+
+                // Panel MultiPV — parsea todas las líneas para las píldoras de la interfaz
                 if (line.includes('multipv') && line.includes(' pv ')) {
                     const parsed = parsearLineaMotor(line);
                     if (parsed) {
@@ -5164,6 +5375,7 @@
     </script>
 </body>
 </html>
+
 
 
 
