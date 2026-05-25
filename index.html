@@ -1846,20 +1846,35 @@
 
     /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) */
     /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) con filtros estrictos */
-       function nagDesdeEval(diffCp, colorQueJugó) {
-            // diffCp = ev_actual - ev_padre
-            // Convertimos a perspectiva del jugador que movió
-            const pov = colorQueJugó === 'w' ? diffCp : -diffCp;
-            
-            // BAREMO PROFESIONAL: Filtros mucho más altos para evitar saturación
-            if (pov >= 200)  return '$3';  // !! Jugada brillante (Gana más de 2.00 puntos de golpe)
-            if (pov >= 100)  return '$1';  // !  Buena jugada (Solo si saca 1 punto entero de ventaja)
-            
-            if (pov >= -75)  return null;  // 🟢 JUGADA NORMAL: Si pierdes menos de 0.75, el tablero se queda LIMPIO.
-            
-            if (pov >= -150) return '$2';  // ?  Error (Pierdes entre 0.75 y 1.50 puntos)
-            return '$4';                   // ?? Error grave (Pierdes más de 1.50 puntos. ¡Peligro!)
+       /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) */
+    function nagDesdeEval(diffCp, colorQueJugó) {
+        // Convertimos la diferencia a la perspectiva del jugador que acaba de mover
+        let pov = colorQueJugó === 'w' ? diffCp : -diffCp;
+
+        // DETECTOR AUTOMÁTICO DE ESCALA: 
+        // Si tu Stockfish devuelve la evaluación ya dividida (ej: -0.50 en lugar de -50),
+        // multiplicamos por 100 para pasarlo a centipeones y que la matemática no se rompa.
+        if (Math.abs(pov) > 0 && Math.abs(pov) < 10) {
+            pov = pov * 100;
         }
+
+        // 1. MURO DE CONTENCIÓN (FILTRO DE LIMPIEZA):
+        // Si la pérdida es menor a 75 centipeones (0.75 peones), es una jugada normal.
+        // ¡Devolvemos null de inmediato y el tablero se queda LIMPIO sin símbolos!
+        if (pov >= -75) {
+            // Aprovechamos para premiar jugadas excelentes si saca mucha ventaja de golpe
+            if (pov >= 200) return '$3'; // !! Brillante
+            if (pov >= 100) return '$1'; // ! Buena
+            return null; 
+        }
+
+        // 2. FILTRO DE ERRORES (Solo si la pérdida es peor que -75):
+        if (pov < -150) {
+            return '$4'; // ?? Error Grave (Pierde más de 1.50 puntos de golpe)
+        } else {
+            return '$2'; // ? Error (Pierde entre 0.75 y 1.50 puntos)
+        }
+    }
 
     /* Extrae NAGs del texto PGN crudo, devuelve array paralelo a chess.history() */
     function extraerNAGsDePGN(pgnTexto) {
@@ -5052,6 +5067,7 @@ function limpiarNagTablero() {
     </script>
 </body>
 </html>
+
 
 
 
