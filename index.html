@@ -2006,8 +2006,8 @@
         // Badge de estado
         const estadoMap = {
             teoria:   { cls: 'estado-teoria',   txt: '📖 Teoría' },
-            variante: { cls: 'estado-variante',  txt: '🔴 Variante propia' },
-            visitado: { cls: 'estado-visitado',  txt: '✓ Ya explorado' },
+            variante: { cls: 'estado-variante', txt: '🔴 Variante propia' },
+            visitado: { cls: 'estado-visitado', txt: '✓ Ya explorado' },
         };
         const eb = estadoMap[estado];
         const estadoHtml = `<span class="estado-badge ${eb.cls}">${eb.txt}</span>`;
@@ -2026,10 +2026,10 @@
                 border-left:3px solid ${opColor};background:rgba(255,255,255,0.03);border-radius:0 4px 4px 0;">
                 <strong style="color:${opColor};">${opening.eco}</strong>
                 <span style="color:${estado==='variante'?'#fca5a5':'var(--text-main)'}"> — ${opening.name}</span>
-               </div>`
+            </div>`
             : `<div style="color:var(--text-dim);font-size:11px;padding:4px 8px;margin-bottom:6px;">
                 Posición fuera de teoría
-               </div>`;
+            </div>`;
 
         // Píldoras de candidatas (solo en estados teoría y visitado)
         const moves = explorerData?.moves || [];
@@ -2038,16 +2038,16 @@
             : (estado === 'variante'
                 ? `<div style="color:#fca5a5;font-size:11px;padding:4px 0;opacity:0.8;">
                     Exploración libre — las luces de teoría están apagadas
-                   </div>`
+                </div>`
                 : '');
 
         // Botones de acción
         const isVar = node.type === 'variant' || node.type === 'suggestion';
         const actHtml = isVar ? `
             <div class="va-actions" style="margin-top:10px;">
-                <button class="va-btn va-btn-promote"     onclick="lastVariantId=VT.activeId;vtPromote()">⬆️ Promover</button>
+                <button class="va-btn va-btn-promote"    onclick="lastVariantId=VT.activeId;vtPromote()">⬆️ Promover</button>
                 <button class="va-btn va-btn-bifurcation" onclick="vtBifurcation()">🔀 Bifurcación</button>
-                <button class="va-btn va-btn-discard"     onclick="vtDiscard()">🗑️ Descartar</button>
+                <button class="va-btn va-btn-discard"    onclick="vtDiscard()">🗑️ Descartar</button>
             </div>` : '';
 
         // Insignia NAG en el encabezado
@@ -2076,33 +2076,40 @@
             <div id="analisis-humano"></div>
         `;
 
-        // ── Insignia NAG en el tablero de análisis ──
+        // ── CONTROL DE CALIDAD SENSATO PARA LOS SÍMBOLOS (NAG) ──
         limpiarNagTablero();
-        // NAG manual del nodo, o automático desde eval si no hay manual
-        let nagActivo = node.nag;
-        if (!nagActivo && node.parentId && node.eval !== 0) {
-            const padre = VT.nodeMap.get(node.parentId);
-            if (padre && padre.eval !== undefined) {
-                nagActivo = nagDesdeEval(node.eval - (padre.eval || 0), node.side);
+        
+        let nagActivo = node.nag; // Si el PGN ya trae un ! o un ? manual, manda siempre
+
+        // Si NO hay NAG manual, calculamos el automático bajo condiciones estrictas:
+        if (!nagActivo) {
+            // REGLA 1: Si estamos en plena teoría de aperturas, NO se calculan errores automáticos.
+            if (estado !== 'teoria' && node.parentId) {
+                const padre = VT.nodeMap.get(node.parentId);
+                
+                // REGLA 2: Solo comparamos si el nodo actual y el padre tienen evaluaciones reales de motor
+                if (padre && node.eval !== undefined && padre.eval !== undefined) {
+                    nagActivo = nagDesdeEval(node.eval - padre.eval, node.side);
+                }
             }
         }
-        if (nagActivo && node.uci) mostrarNagEnTablero(node.uci, nagActivo);
+        
+        // Si superó los controles de calidad y hay un símbolo real, se dibuja
+        if (nagActivo && node.uci) {
+            mostrarNagEnTablero(node.uci, nagActivo);
+        }
 
         // ═══════════════════════════════════════════════════════
-        // Ilumina según el estado ACTUAL del análisis:
-        // - teoría/visitado → luz azul/dorada en candidata principal
-        // - variante        → sin luces (tablero limpio)
+        // Ilumina según el estado ACTUAL del análisis
         // ═══════════════════════════════════════════════════════
         if (moves.length && estado !== 'variante') {
             const topMove = moves[0];
             if (estado === 'visitado') {
                 Illuminator.illuminateVisitado(topMove.uci);
             } else {
-                // Estado teoría: SIEMPRE muestra la luz de la jugada principal
                 Illuminator.illuminateTeoria(topMove.uci);
             }
         } else if (estado === 'variante') {
-            // Variante propia: apaga todo
             Illuminator.clear();
         }
     }
@@ -5108,6 +5115,7 @@
     </script>
 </body>
 </html>
+
 
 
 
