@@ -1948,61 +1948,200 @@
 /* ── Insignia NAG flotante elegante sobre el tablero de análisis ── */
     /* ── Interceptor del dibujo en tablero (El cazador de fantasmas) ── */
     function mostrarNagEnTablero(uci, nagCode, originNodeId = 'DESCONOCIDO') {
-        const errorStack = new Error().stack;
-        const lineas = errorStack.split('\n');
-        const llamadorInmediato = lineas[2] ? lineas[2].trim() : 'Desconocido';
-
-        console.group(`%c🎯 [TABLERO-DRAW] Invocado mostrarNagEnTablero`, "color: #E91E63; font-weight: bold;");
-        console.log(`Origen de la llamada (Argumento): Nodo ID -> ${originNodeId}`);
-        console.log(`Llamado directamente por: %c${llamadorInmediato}`, "color: red; font-style: italic;");
-        
-        if (llamadorInmediato.includes('onmessage') || llamadorInmediato.includes('worker') || llamadorInmediato.includes('stockfish') || llamadorInmediato.includes('onMove')) {
-            console.warn("%c¡ALERTA! Un evento externo (Stockfish o Tablero) está puenteando el flujo e inyectando el NAG directamente de forma asíncrona.", "background: #fff3cd; color: #856404; padding: 4px;");
-        }
-
-        limpiarNagTablero("Llamado interno desde mostrarNagEnTablero");
-        
-        if (!uci || uci.length < 4 || !nagCode) {
-            console.groupEnd();
-            return;
-        }
-        const nag = NAG_MAP[nagCode];
-        if (!nag) {
-            console.groupEnd();
-            return;
-        }
-        const toSq = uci.slice(2, 4);
-        const board = document.getElementById('boardAnalysis');
-        const sq = board?.querySelector(`.square-${toSq}`);
-        if (!sq) {
-            console.groupEnd();
-            return;
-        }
-
-        // Evitar duplicados físicos (Causa del bug naranja/rojo encimado)
-        const badgeExistente = document.getElementById('nag-board-badge');
-        if (badgeExistente) {
-            badgeExistente.remove();
-        }
-
-        const badge = document.createElement('div');
-        badge.id = 'nag-board-badge';
-        
-        let claseColor = 'circulo-good';
-        if (nag.sym === '??') claseColor = 'circulo-blunder';
-        else if (nag.sym === '?')  claseColor = 'circulo-mistake';
-        else if (nag.sym === '!!') claseColor = 'circulo-brilliant';
-        else if (nag.sym === '!?') claseColor = 'circulo-interest';
-        else if (nag.sym === '?!') claseColor = 'circulo-dubious';
-
-        badge.className = `nag-board-badge ${claseColor}`;
-        badge.textContent = nag.sym;
-        badge.title = nag.label;
-        
-        console.log(`%cEscribiendo físicamente en el DOM [${nag.sym}] en la casilla ${toSq}`, "color: green; font-weight: bold;");
-        sq.appendChild(badge);
-        console.groupEnd();
+    // ── EL MURO DE HORMIGÓN DEFINITIVO ──
+    // Si el sistema global está en teoría de apertura, abortamos en seco.
+    // No permitimos que ningún repintado indirecto dibuje insignias falsas.
+    if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
+        limpiarNagTablero("Bloqueo absoluto: prohibido dibujar en teoría");
+        return;
     }
+
+    const errorStack = new Error().stack;
+    const lineas = errorStack.split('\n');
+    const llamadorInmediato = lineas[2] ? lineas[2].trim() : 'Desconocido';
+
+    console.group(`%c🎯 [TABLERO-DRAW] Invocado mostrarNagEnTablero`, "color: #E91E63; font-weight: bold;");
+    console.log(`Origen de la llamada (Argumento): Nodo ID -> ${originNodeId}`);
+    console.log(`Llamado directamente por: %c${llamadorInmediato}`, "color: red; font-style: italic;");
+    
+    if (llamadorInmediato.includes('onmessage') || llamadorInmediato.includes('worker') || llamadorInmediato.includes('stockfish') || llamadorInmediato.includes('onMove')) {
+        console.warn("%c¡ALERTA! Un evento externo (Stockfish o Tablero) está puenteando el flujo e inyectando el NAG directamente de forma asíncrona.", "background: #fff3cd; color: #856404; padding: 4px;");
+    }
+
+    limpiarNagTablero("Llamado interno desde mostrarNagEnTablero");
+    
+    if (!uci || uci.length < 4 || !nagCode) {
+        console.groupEnd();
+        return;
+    }
+    const nag = NAG_MAP[nagCode];
+    if (!nag) {
+        console.groupEnd();
+        return;
+    }
+    const toSq = uci.slice(2, 4);
+    const board = document.getElementById('boardAnalysis');
+    const sq = board?.querySelector(`.square-${toSq}`);
+    if (!sq) {
+        console.groupEnd();
+        return;
+    }
+
+    // Evitar duplicados físicos (Causa del bug naranja/rojo encimado)
+    const badgeExistente = document.getElementById('nag-board-badge');
+    if (badgeExistente) {
+        badgeExistente.remove();
+    }
+
+    const badge = document.createElement('div');
+    badge.id = 'nag-board-badge';
+    
+    let claseColor = 'circulo-good';
+    if (nag.sym === '??') claseColor = 'circulo-blunder';
+    else if (nag.sym === '?')  claseColor = 'circulo-mistake';
+    else if (nag.sym === '!!') claseColor = 'circulo-brilliant';
+    else if (nag.sym === '!?') claseColor = 'circulo-interest';
+    else if (nag.sym === '?!') claseColor = 'circulo-dubious';
+
+    badge.className = `nag-board-badge ${claseColor}`;
+    badge.textContent = nag.sym;
+    badge.title = nag.label;
+    
+    console.log(`%cEscribiendo físicamente en el DOM [${nag.sym}] en la casilla ${toSq}`, "color: green; font-weight: bold;");
+    sq.appendChild(badge);
+    console.groupEnd();
+}
+
+/* ── Seguimiento de limpiezas del tablero ── */
+function limpiarNagTablero(motivo = "No especificado") {
+    const badge = document.getElementById('nag-board-badge');
+    if (badge) {
+        console.log(`%c[DOM-CLEAN] Badge eliminado con éxito. Motivo: ${motivo}`, "color: #795548;");
+        badge.remove();
+    }
+}
+
+/* ── Panel de anotación — Sistema 3 estados (Con Interceptor) ── */
+function renderAnnotation(node, explorerData) {
+    const panel = document.getElementById('variant-annotation');
+    if (!panel || !node) return;
+    const estado = calcularEstado(node, explorerData);
+    estadoAnalisis = estado;
+
+    console.group(`%c[NAG-FLOW] renderAnnotation para Nodo: ${node.id} (${node.uci})`, "color: #2196F3; font-weight: bold;");
+    console.log(`Estado actual calculado: %c${estado}`, "font-weight: bold; color: orange;");
+
+    limpiarNagTablero("Llamado desde inicio de renderAnnotation");
+
+    // Badge de estado
+    const estadoMap = {
+        teoria:   { cls: 'estado-teoria',   txt: '📖 Teoría' },
+        variante: { cls: 'estado-variante', txt: '🔴 Variante propia' },
+        visitado: { cls: 'estado-visitado', txt: '✓ Ya explorado' },
+    };
+    const eb = estadoMap[estado];
+    const estadoHtml = `<span class="estado-badge ${eb.cls}">${eb.txt}</span>`;
+
+    // Evaluación
+    const ev    = node.eval;
+    const evLbl = (ev !== undefined && ev !== 0)
+        ? `<span class="va-eval ${ev>=0?'va-eval-pos':'va-eval-neg'}">${ev>=0?'+':''}${(ev/100).toFixed(2)}</span>`
+        : '';
+
+    // Apertura
+    const opening = node.opening || explorerData?.opening || null;
+    const opColor = estado === 'variante' ? '#ef5350' : (estado === 'visitado' ? '#fcd34d' : 'var(--accent)');
+    const opHtml  = opening
+        ? `<div style="font-size:11px;padding:4px 8px;margin-bottom:6px;
+            border-left:3px solid ${opColor};background:rgba(255,255,255,0.03);border-radius:0 4px 4px 0;">
+            <strong style="color:${opColor};">${opening.eco}</strong>
+            <span style="color:${estado==='variante'?'#fca5a5':'var(--text-main)'}"> — ${opening.name}</span>
+        </div>`
+        : `<div style="color:var(--text-dim);font-size:11px;padding:4px 8px;margin-bottom:6px;">
+            Posición fuera de teoría
+        </div>`;
+
+    // Píldoras de candidatas
+    const moves = explorerData?.moves || [];
+    const pildorasHtml = (estado !== 'variante' && moves.length)
+        ? renderizarPildoras(moves, node.id)
+        : (estado === 'variante'
+            ? `<div style="color:#fca5a5;font-size:11px;padding:4px 0;opacity:0.8;">
+                Exploración libre — las luces de teoría están apagadas
+            </div>`
+            : '');
+
+    // Botones de acción
+    const isVar = node.type === 'variant' || node.type === 'suggestion';
+    const actHtml = isVar ? `
+        <div class="va-actions" style="margin-top:10px;">
+            <button class="va-btn va-btn-promote"    onclick="lastVariantId=VT.activeId;vtPromote()">⬆️ Promover</button>
+            <button class="va-btn va-btn-bifurcation" onclick="vtBifurcation()">🔀 Bifurcación</button>
+            <button class="va-btn va-btn-discard"    onclick="vtDiscard()">🗑️ Descartar</button>
+        </div>` : '';
+
+    // Insignia NAG en el encabezado
+    const nagHtml = node.nag ? nagInlineHtml(node.nag) : '';
+
+    panel.innerHTML = `
+        <div class="va-header">
+            <span class="va-san">${node.san === '♟' ? 'Inicio' : node.san}${nagHtml}</span>
+            ${evLbl}
+            <span class="va-badge va-badge-${node.type}">${node.type}</span>
+        </div>
+        ${estadoHtml}
+        ${opHtml}
+        ${pildorasHtml}
+        ${actHtml}
+        <button id="btn-analizar" onclick="analizarPosicion()">
+            🔍 Analizar posición
+        </button>
+        <button id="btn-pepe" onclick="analizarConPepe()" style="
+            width:100%; margin-top:6px; padding:7px; border-radius:6px;
+            border:1px solid var(--accent); background:rgba(241,196,15,0.08);
+            color:var(--accent); font-size:11px; font-family:var(--font-mono);
+            font-weight:700; cursor:pointer; letter-spacing:1px; transition:all 0.2s;">
+            🎭 Análisis Pepe Cuenca
+        </button>
+        <div id="analisis-humano"></div>
+    `;
+    
+    // El escudo de teoría
+    if (estado === 'teoria') {
+        console.log("%c[BLOQUEADO] Es teoría. Salida limpia. No se debería pintar nada.", "color: green;");
+        if (moves.length) {
+            Illuminator.illuminateTeoria(moves[0].uci);
+        }
+        console.groupEnd();
+        return; 
+    }
+
+    let nagActivo = node.nag;
+    if (!nagActivo && node.parentId) {
+        const padre = VT.nodeMap.get(node.parentId);
+        if (padre && node.eval !== undefined && padre.eval !== undefined) {
+            const diferencia = node.eval - padre.eval;
+            nagActivo = nagDesdeEval(diferencia, node.side);
+            console.log(`NAG calculado por diferencia Stockfish: ${nagActivo} (Diff: ${diferencia})`);
+        }
+    }
+
+    if (nagActivo && node.uci) {
+        console.log(`%c[PERMITIDO] Pasando a mostrarNagEnTablero con NAG: ${nagActivo}`, "color: purple;");
+        mostrarNagEnTablero(node.uci, nagActivo, node.id); 
+    } else {
+        console.log("No se detectó NAG activo para este nodo sin teoría.");
+    }
+
+    // Iluminación fuera de teoría
+    if (moves.length && estado !== 'variante') {
+        const topMove = moves[0];
+        if (estado === 'visitado') Illuminator.illuminateVisitado(topMove.uci);
+    } else if (estado === 'variante') {
+        Illuminator.clear();
+    }
+    console.groupEnd();
+}
 
     /* ── Seguimiento de limpiezas del tablero ── */
     function limpiarNagTablero(motivo = "No especificado") {
@@ -5375,6 +5514,7 @@ function initSystem() {
     </script>
 </body>
 </html>
+
 
 
 
