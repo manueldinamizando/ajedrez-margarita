@@ -1946,61 +1946,87 @@
     /* ── Insignia NAG flotante sobre el tablero de análisis ── */
     /* ── Insignia NAG flotante sobre el tablero de análisis ── */
 /* ── Insignia NAG flotante elegante sobre el tablero de análisis ── */
-    function mostrarNagEnTablero(uci, nagCode) {
-    // 1. Limpieza absoluta antes de hacer nada
-    limpiarNagTablero();
-    
-    if (!uci || uci.length < 4 || !nagCode) return;
+    /* ── Interceptor del dibujo en tablero (El cazador de fantasmas) ── */
+    function mostrarNagEnTablero(uci, nagCode, originNodeId = 'DESCONOCIDO') {
+        const errorStack = new Error().stack;
+        const lineas = errorStack.split('\n');
+        const llamadorInmediato = lineas[2] ? lineas[2].trim() : 'Desconocido';
 
-    const nag = NAG_MAP[nagCode];
-    if (!nag) return;
+        console.group(`%c🎯 [TABLERO-DRAW] Invocado mostrarNagEnTablero`, "color: #E91E63; font-weight: bold;");
+        console.log(`Origen de la llamada (Argumento): Nodo ID -> ${originNodeId}`);
+        console.log(`Llamado directamente por: %c${llamadorInmediato}`, "color: red; font-style: italic;");
+        
+        if (llamadorInmediato.includes('onmessage') || llamadorInmediato.includes('worker') || llamadorInmediato.includes('stockfish') || llamadorInmediato.includes('onMove')) {
+            console.warn("%c¡ALERTA! Un evento externo (Stockfish o Tablero) está puenteando el flujo e inyectando el NAG directamente de forma asíncrona.", "background: #fff3cd; color: #856404; padding: 4px;");
+        }
 
-    // Extraemos la casilla de destino (ej: "e4")
-    const toSq = uci.slice(2, 4);
-    const board = document.getElementById('boardAnalysis');
-    
-    // Buscamos la casilla dentro del tablero
-    const sq = board?.querySelector(`.square-${toSq}`);
-    if (!sq) return;
+        limpiarNagTablero("Llamado interno desde mostrarNagEnTablero");
+        
+        if (!uci || uci.length < 4 || !nagCode) {
+            console.groupEnd();
+            return;
+        }
+        const nag = NAG_MAP[nagCode];
+        if (!nag) {
+            console.groupEnd();
+            return;
+        }
+        const toSq = uci.slice(2, 4);
+        const board = document.getElementById('boardAnalysis');
+        const sq = board?.querySelector(`.square-${toSq}`);
+        if (!sq) {
+            console.groupEnd();
+            return;
+        }
 
-    // 2. Creamos la insignia circular elegante
-    const badge = document.createElement('div');
-    badge.id = 'nag-board-badge';
-    
-    // Averiguamos el color exacto según el símbolo que toque pintar
-    let claseColor = 'circulo-good'; // Por defecto verde (!)
-    if (nag.sym === '??') claseColor = 'circulo-blunder';
-    else if (nag.sym === '?')  claseColor = 'circulo-mistake';
-    else if (nag.sym === '!!') claseColor = 'circulo-brilliant';
-    else if (nag.sym === '!?') claseColor = 'circulo-interest';
-    else if (nag.sym === '?!') claseColor = 'circulo-dubious';
-
-    // Le aplicamos las clases nuevas e inyectamos
-    badge.className = `nag-board-badge ${claseColor}`;
-    badge.textContent = nag.sym;
-    badge.title = nag.label;
-    
-    // 3. Lo metemos limpio en la esquina de la casilla
-    sq.appendChild(badge);
-}
-
-    function limpiarNagTablero() {
-        // Busca el badge en cualquier rincón del tablero y lo elimina al instante
+        // Evitar duplicados físicos (Causa del bug naranja/rojo encimado)
         const badgeExistente = document.getElementById('nag-board-badge');
         if (badgeExistente) {
             badgeExistente.remove();
+        }
+
+        const badge = document.createElement('div');
+        badge.id = 'nag-board-badge';
+        
+        let claseColor = 'circulo-good';
+        if (nag.sym === '??') claseColor = 'circulo-blunder';
+        else if (nag.sym === '?')  claseColor = 'circulo-mistake';
+        else if (nag.sym === '!!') claseColor = 'circulo-brilliant';
+        else if (nag.sym === '!?') claseColor = 'circulo-interest';
+        else if (nag.sym === '?!') claseColor = 'circulo-dubious';
+
+        badge.className = `nag-board-badge ${claseColor}`;
+        badge.textContent = nag.sym;
+        badge.title = nag.label;
+        
+        console.log(`%cEscribiendo físicamente en el DOM [${nag.sym}] en la casilla ${toSq}`, "color: green; font-weight: bold;");
+        sq.appendChild(badge);
+        console.groupEnd();
+    }
+
+    /* ── Seguimiento de limpiezas del tablero ── */
+    function limpiarNagTablero(motivo = "No especificado") {
+        const badge = document.getElementById('nag-board-badge');
+        if (badge) {
+            console.log(`%c[DOM-CLEAN] Badge eliminado con éxito. Motivo: ${motivo}`, "color: #795548;");
+            badge.remove();
         }
     }
 
     /* ── Panel de anotación — Sistema 3 estados ── */
     /* ── Panel de anotación — Sistema 3 estados ── */
     /* ── Panel de anotación — Sistema 3 estados ── */
+    /* ── Panel de anotación — Sistema 3 estados (Con Interceptor) ── */
     function renderAnnotation(node, explorerData) {
         const panel = document.getElementById('variant-annotation');
         if (!panel || !node) return;
-
-        const estado  = calcularEstado(node, explorerData);
+        const estado = calcularEstado(node, explorerData);
         estadoAnalisis = estado;
+
+        console.group(`%c[NAG-FLOW] renderAnnotation para Nodo: ${node.id} (${node.uci})`, "color: #2196F3; font-weight: bold;");
+        console.log(`Estado actual calculado: %c${estado}`, "font-weight: bold; color: orange;");
+
+        limpiarNagTablero("Llamado desde inicio de renderAnnotation");
 
         // Badge de estado
         const estadoMap = {
@@ -2030,7 +2056,7 @@
                 Posición fuera de teoría
             </div>`;
 
-        // Píldoras de candidatas (solo en estados teoría y visitado)
+        // Píldoras de candidatas
         const moves = explorerData?.moves || [];
         const pildorasHtml = (estado !== 'variante' && moves.length)
             ? renderizarPildoras(moves, node.id)
@@ -2074,51 +2100,42 @@
             </button>
             <div id="analisis-humano"></div>
         `;
-
-        // ── CONTROL DE CALIDAD PROFESIONAL PARA LOS SÍMBOLOS (NAG) ──
-        limpiarNagTablero();
         
-        // REGLA DE ORO: Si es teoría, el tablero se queda limpio y salimos inmediatamente.
-        // Esto actúa como escudo total e impide que el motor calcule en la apertura.
+        // El escudo de teoría
         if (estado === 'teoria') {
-            // Ejecutamos la iluminación correspondiente de la teoría antes de salir
+            console.log("%c[BLOQUEADO] Es teoría. Salida limpia. No se debería pintar nada.", "color: green;");
             if (moves.length) {
                 Illuminator.illuminateTeoria(moves[0].uci);
             }
+            console.groupEnd();
             return; 
         }
 
-        let nagActivo = node.nag; // Si el PGN ya trae un ! o un ? manual, manda siempre
-
-        // Si NO hay NAG manual y estamos fuera de teoría, calculamos el automático:
+        let nagActivo = node.nag;
         if (!nagActivo && node.parentId) {
             const padre = VT.nodeMap.get(node.parentId);
-            
-            // Solo si ambos nodos tienen una evaluación numérica válida
             if (padre && node.eval !== undefined && padre.eval !== undefined) {
-                // Calculamos la diferencia pura desde el punto de vista del blanco
                 const diferencia = node.eval - padre.eval;
-                // nagDesdeEval se encargará de cruzarlo con el b/w y aplicar el filtro de los 75 centipeones
                 nagActivo = nagDesdeEval(diferencia, node.side);
+                console.log(`NAG calculado por diferencia Stockfish: ${nagActivo} (Diff: ${diferencia})`);
             }
-        }
-        
-        // Si superó los controles de calidad y hay un símbolo real fuera de teoría, se dibuja
-        if (nagActivo && node.uci) {
-            mostrarNagEnTablero(node.uci, nagActivo);
         }
 
-        // ═══════════════════════════════════════════════════════
-        // Ilumina según el estado ACTUAL fuera de teoría
-        // ═══════════════════════════════════════════════════════
+        if (nagActivo && node.uci) {
+            console.log(`%c[PERMITIDO] Pasando a mostrarNagEnTablero con NAG: ${nagActivo}`, "color: purple;");
+            mostrarNagEnTablero(node.uci, nagActivo, node.id); 
+        } else {
+            console.log("No se detectó NAG activo para este nodo sin teoría.");
+        }
+
+        // Iluminación fuera de teoría
         if (moves.length && estado !== 'variante') {
             const topMove = moves[0];
-            if (estado === 'visitado') {
-                Illuminator.illuminateVisitado(topMove.uci);
-            }
+            if (estado === 'visitado') Illuminator.illuminateVisitado(topMove.uci);
         } else if (estado === 'variante') {
             Illuminator.clear();
         }
+        console.groupEnd();
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -5122,6 +5139,7 @@
     </script>
 </body>
 </html>
+
 
 
 
