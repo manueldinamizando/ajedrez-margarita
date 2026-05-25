@@ -1994,6 +1994,7 @@
 
     /* ── Panel de anotación — Sistema 3 estados ── */
     /* ── Panel de anotación — Sistema 3 estados ── */
+    /* ── Panel de anotación — Sistema 3 estados ── */
     function renderAnnotation(node, explorerData) {
         const panel = document.getElementById('variant-annotation');
         if (!panel || !node) return;
@@ -2074,12 +2075,22 @@
             <div id="analisis-humano"></div>
         `;
 
-        // ── CONTROL DE CALIDAD SENSATO PARA LOS SÍMBOLOS (NAG) ──
+        // ── CONTROL DE CALIDAD PROFESIONAL PARA LOS SÍMBOLOS (NAG) ──
         limpiarNagTablero();
         
+        // REGLA DE ORO: Si es teoría, el tablero se queda limpio y salimos inmediatamente.
+        // Esto actúa como escudo total e impide que el motor calcule en la apertura.
+        if (estado === 'teoria') {
+            // Ejecutamos la iluminación correspondiente de la teoría antes de salir
+            if (moves.length) {
+                Illuminator.illuminateTeoria(moves[0].uci);
+            }
+            return; 
+        }
+
         let nagActivo = node.nag; // Si el PGN ya trae un ! o un ? manual, manda siempre
 
-        // Si NO hay NAG manual, calculamos el automático bajo condiciones estrictas:
+        // Si NO hay NAG manual y estamos fuera de teoría, calculamos el automático:
         if (!nagActivo && node.parentId) {
             const padre = VT.nodeMap.get(node.parentId);
             
@@ -2092,20 +2103,18 @@
             }
         }
         
-        // Si superó los controles de calidad y hay un símbolo real, se dibuja
+        // Si superó los controles de calidad y hay un símbolo real fuera de teoría, se dibuja
         if (nagActivo && node.uci) {
             mostrarNagEnTablero(node.uci, nagActivo);
         }
 
         // ═══════════════════════════════════════════════════════
-        // Ilumina según el estado ACTUAL del análisis
+        // Ilumina según el estado ACTUAL fuera de teoría
         // ═══════════════════════════════════════════════════════
         if (moves.length && estado !== 'variante') {
             const topMove = moves[0];
             if (estado === 'visitado') {
                 Illuminator.illuminateVisitado(topMove.uci);
-            } else {
-                Illuminator.illuminateTeoria(topMove.uci);
             }
         } else if (estado === 'variante') {
             Illuminator.clear();
@@ -5113,6 +5122,7 @@
     </script>
 </body>
 </html>
+
 
 
 
