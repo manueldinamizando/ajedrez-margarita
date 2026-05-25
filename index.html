@@ -1881,32 +1881,29 @@
     /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) */
     /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) con filtros estrictos */
        /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) */
+    /* Determina el NAG automático basándose ÚNICAMENTE en pérdidas graves */
     function nagDesdeEval(diffCp, colorQueJugó) {
-        // Convertimos la diferencia a la perspectiva del jugador que acaba de mover
-        let pov = colorQueJugó === 'w' ? diffCp : -diffCp;
+        // 1. Convertimos la diferencia a la perspectiva del jugador que acaba de mover
+        // Si diffCp es negativo significa que la evaluación bajó (malo para el blanco, bueno para el negro)
+        let loss = colorQueJugó === 'w' ? diffCp : -diffCp;
 
-        // DETECTOR AUTOMÁTICO DE ESCALA: 
-        // Si tu Stockfish devuelve la evaluación ya dividida (ej: -0.50 en lugar de -50),
-        // multiplicamos por 100 para pasarlo a centipeones y que la matemática no se rompa.
-        if (Math.abs(pov) > 0 && Math.abs(pov) < 10) {
-            pov = pov * 100;
+        // DETECTOR DE ESCALA: Si viene en formato humano (ej: -0.80 en vez de -80), lo pasamos a centipeones
+        if (Math.abs(loss) > 0 && Math.abs(loss) < 15) {
+            loss = loss * 100;
         }
 
-        // 1. MURO DE CONTENCIÓN (FILTRO DE LIMPIEZA):
-        // Si la pérdida es menor a 75 centipeones (0.75 peones), es una jugada normal.
-        // ¡Devolvemos null de inmediato y el tablero se queda LIMPIO sin símbolos!
-        if (pov >= -75) {
-            // Aprovechamos para premiar jugadas excelentes si saca mucha ventaja de golpe
-            if (pov >= 200) return '$3'; // !! Brillante
-            if (pov >= 100) return '$1'; // ! Buena
+        // 2. FILTRO RADICAL (EL FRENO DE MANO):
+        // Si la pérdida de la jugada es menor a 75 centipeones, NO ES UN ERROR.
+        // Cortamos en seco devolviendo null. ¡Tablero limpio!
+        if (loss >= -75) {
             return null; 
         }
 
-        // 2. FILTRO DE ERRORES (Solo si la pérdida es peor que -75):
-        if (pov < -150) {
-            return '$4'; // ?? Error Grave (Pierde más de 1.50 puntos de golpe)
+        // 3. ASIGNACIÓN DE ERRORES REALES (Solo si la pérdida supera los 75 centipeones):
+        if (loss < -150) {
+            return '$4'; // ?? Error Grave (Pierde más de 1.50 peones de golpe)
         } else {
-            return '$2'; // ? Error (Pierde entre 0.75 y 1.50 puntos)
+            return '$2'; // ? Error (Pierde entre 0.75 y 1.50 peones)
         }
     }
 
@@ -1996,6 +1993,7 @@
     }
 
     /* ── Panel de anotación — Sistema 3 estados ── */
+    /* ── Panel de anotación — Sistema 3 estados ── */
     function renderAnnotation(node, explorerData) {
         const panel = document.getElementById('variant-annotation');
         if (!panel || !node) return;
@@ -2082,15 +2080,15 @@
         let nagActivo = node.nag; // Si el PGN ya trae un ! o un ? manual, manda siempre
 
         // Si NO hay NAG manual, calculamos el automático bajo condiciones estrictas:
-        if (!nagActivo) {
-            // REGLA 1: Si estamos en plena teoría de aperturas, NO se calculan errores automáticos.
-            if (estado !== 'teoria' && node.parentId) {
-                const padre = VT.nodeMap.get(node.parentId);
-                
-                // REGLA 2: Solo comparamos si el nodo actual y el padre tienen evaluaciones reales de motor
-                if (padre && node.eval !== undefined && padre.eval !== undefined) {
-                    nagActivo = nagDesdeEval(node.eval - padre.eval, node.side);
-                }
+        if (!nagActivo && node.parentId) {
+            const padre = VT.nodeMap.get(node.parentId);
+            
+            // Solo si ambos nodos tienen una evaluación numérica válida
+            if (padre && node.eval !== undefined && padre.eval !== undefined) {
+                // Calculamos la diferencia pura desde el punto de vista del blanco
+                const diferencia = node.eval - padre.eval;
+                // nagDesdeEval se encargará de cruzarlo con el b/w y aplicar el filtro de los 75 centipeones
+                nagActivo = nagDesdeEval(diferencia, node.side);
             }
         }
         
@@ -5115,6 +5113,7 @@
     </script>
 </body>
 </html>
+
 
 
 
