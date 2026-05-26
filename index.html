@@ -2950,16 +2950,13 @@ function initSystem() {
                 limpiarNagTablero("Silencio absoluto en apertura");
             }
 
-            // Barra de evaluación (Procesa solo si pertenece a la línea principal PV 1)
+            // Barra de evaluación (Filtro de la línea principal PV 1)
             if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
                 const match = line.match(/score (cp -?\d+|mate -?\d+)/);
-                // Mantenemos la estructura: extraemos el fragmento exacto que espera actualizarBarraEval
-                if (match) {
-                    actualizarBarraEval(match[1]); 
-                }
+                if (match) actualizarBarraEval(line); 
             }
 
-            // Panel MultiPV — parsea todas las líneas para las píldoras de la interfaz
+            // Panel MultiPV — parsea líneas para la interfaz
             if (line.includes('multipv') && line.includes(' pv ')) {
                 const parsed = parsearLineaMotor(line);
                 if (parsed) {
@@ -3146,88 +3143,7 @@ function initSystem() {
         consultarLichess(node.fen);
     });
 
-    /* ════════════════════════════════════════════════════════════
-       SISTEMA PRINCIPAL  (tu código original, sin cambios salvo hooks)
-    ════════════════════════════════════════════════════════════ */
-
-    function initSystem() {
-        const sfUrl = "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js";
-        fetch(sfUrl).then(r=>r.text()).then(code => {
-            const blob = new Blob([code],{type:'application/javascript'});
-            const url  = URL.createObjectURL(blob);
-            motorE = new Worker(url);
-            motorA = new Worker(url);
-            motorE.postMessage('uci');
-            motorA.postMessage('uci');
-
-            // ★ motorA: listener PERMANENTE — barra eval + panel MultiPV
-            motorA.onmessage = (e) => {
-                const line = e.data;
-
-                // ── ESCUDO RADICAL DE TEORÍA ──
-                // Si la IA o el sistema detecta que estamos en teoría, 
-                // limpiamos el tablero y prohibimos terminantemente pintar signos.
-                if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
-                    limpiarNagTablero("Silencio absoluto en apertura");
-                }
-
-                // Barra de evaluación (Filtro corregido: pasamos la línea ENTERA para que sepa validar)
-                if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
-                    const match = line.match(/score (cp -?\d+|mate -?\d+)/);
-                    // Pasamos la línea completa en vez de solo el trozo de la puntuación
-                    if (match) actualizarBarraEval(line); 
-                }
-
-                // Panel MultiPV — parsea todas las líneas para las píldoras de la interfaz
-                if (line.includes('multipv') && line.includes(' pv ')) {
-                    const parsed = parsearLineaMotor(line);
-                    if (parsed) {
-                        motorPVs[parsed.pvIdx] = {
-                            evalNum:  parsed.evalNum,
-                            evalType: parsed.evalType,
-                            moves:    parsed.moves,
-                            depth:    parsed.depth,
-                        };
-                        // Renderiza solo cada 2 profundidades para no saturar el DOM
-                        if (parsed.depth % 2 === 0 || parsed.depth >= 18) {
-                            renderMotorPanel();
-                        }
-                    }
-                }
-
-                // Fin del análisis
-                if (line.includes('bestmove')) {
-                    motorActive = false;
-                    renderMotorPanel(); // render final con todos los datos
-                }
-            };
-
-            motorE.onmessage = (e) => {
-                if (e.data.includes("bestmove")) {
-                    const moveRaw = e.data.split(" ")[1];
-                    const moveObj = chessC.move(moveRaw, {sloppy:true});
-                    if (moveObj) {
-                        combatMoveHistory.push(moveObj.san);
-                        analysisExtraMoves = [];
-                        boardC.position(chessC.fen());
-                        chessA.load(chessC.fen()); boardA.position(chessC.fen());
-                        refrescarPaneles();
-                        actualizarTurno();
-                        VT.addMove({
-                            san: moveObj.san, uci: moveRaw,
-                            fen: chessC.fen(),
-                            moveNum: combatMoveHistory.length,
-                            side: moveObj.color, eval: 0,
-                        }, 'main');
-                        VT.combatId = VT.activeId;
-                        terminalLog("Stockfish ha jugado: " + moveObj.san);
-                        checkTablebase(chessC.fen()); // detecta final
-                    }
-                }
-            };
-            terminalLog("Motores en línea. Llama 3.3 preparado para el análisis.");
-        });
-    }
+    
 
     /* ══════════════════════════════════════════════════════════
        LLAMA CON CONTEXTO RICO — usa las 4 capas del análisis
@@ -3687,6 +3603,23 @@ function initSystem() {
         actualizarPathList();
         actualizarBotonesNav();
         renderEvalGraph();
+
+        // 🌐 HOOK DE CHESSDB: Conexión automática en el archivo correcto
+        if (typeof chessA !== 'undefined' && typeof fetchChessDB === 'function') {
+            const fenActual = chessA.fen();
+            
+            // Buscamos el contenedor de ChessDB en tu pestaña de teoría
+            const contenedorCdb = document.querySelector('.cdb-section') || document.getElementById('tab-teoria');
+
+            if (contenedorCdb) {
+                fetchChessDB(fenActual).then(datos => {
+                    if (typeof cdb_renderizar === 'function') {
+                        // Renderiza las jugadas teóricas de élite en tu panel lateral
+                        cdb_renderizar(datos, fenActual, contenedorCdb);
+                    }
+                }).catch(err => console.error("Error en hook ChessDB:", err));
+            }
+        }
     }
 
     // ══════════════════════════════════════════════════════
@@ -5427,6 +5360,7 @@ function initSystem() {
     </script>
 </body>
 </html>
+
 
 
 
