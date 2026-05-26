@@ -5418,46 +5418,9 @@ function initSystem() {
         if (tabBtn) switchTab('tab-nodo', tabBtn);
     });
 
-        // 🕵️‍♂️ MÓDULO ESPÍA DE CHESSDB (Corregido para tu pestaña #tab-teoria)
-    (function() {
-        console.log("🚀 Espía de ChessDB activado y apuntando a #tab-teoria.");
+        
 
-        // 1. Guardamos tu función original intacta (Lichess a salvo)
-        const originalRefrescarPaneles = typeof refrescarPaneles === 'function' ? refrescarPaneles : null;
 
-        if (originalRefrescarPaneles) {
-            // 2. Redefinimos para que sume las dos cosas
-            refrescarPaneles = function() {
-                
-                // Ejecuta tus maestros de Lichess de siempre
-                originalRefrescarPaneles(); 
-
-                // Justo después, inyecta ChessDB dentro de tu pestaña de teoría
-                try {
-                    if (typeof chessA !== 'undefined' && typeof fetchChessDB === 'function') {
-                        const fenActual = chessA.fen();
-                        
-                        // Apuntamos al contenedor real que nos ha dado la consola
-                        const contenedorTeoria = document.querySelector('#tab-teoria');
-
-                        if (contenedorTeoria) {
-                            fetchChessDB(fenActual).then(datos => {
-                                if (typeof cdb_renderizar === 'function') {
-                                    // Pinta las jugadas de ChessDB dentro de tu pestaña de teoría
-                                    cdb_renderizar(datos, fenActual, contenedorTeoria);
-                                }
-                            }).catch(err => console.error("Error en API ChessDB:", err));
-                        }
-                    }
-                } catch (error) {
-                    // Red de seguridad total
-                    console.warn("Aviso: Fallo en ChessDB, pero Lichess sigue funcionando.", error);
-                }
-            };
-        }
-    })();
-
-    
     /* ── Auto-switch al tab de Teoría cuando llegan datos de Lichess ── */
     // (opcional, descomenta si quieres que cambie automáticamente)
     // function autoSwitchTeoria() {
@@ -5467,6 +5430,7 @@ function initSystem() {
     </script>
 </body>
 </html>
+
 
 
 
