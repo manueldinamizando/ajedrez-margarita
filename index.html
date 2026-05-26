@@ -913,6 +913,51 @@
             overflow: hidden; cursor: pointer;
         }
 
+        /* ── Insignias NAG en el tablero ── */
+        .nag-badge {
+            position: absolute;
+            z-index: 30;
+            font-size: 13px;
+            font-weight: 900;
+            line-height: 1;
+            padding: 1px 3px;
+            border-radius: 3px;
+            pointer-events: none;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+            animation: nag-pop 0.25s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes nag-pop {
+            from { transform: scale(0.4); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        /* Colores por tipo */
+        .nag-brilliant { color: #00e5ff; text-shadow: 0 0 8px #00e5ff88; }
+        .nag-good      { color: #4caf50; text-shadow: 0 0 6px #4caf5088; }
+        .nag-interest  { color: #ffc107; text-shadow: 0 0 6px #ffc10788; }
+        .nag-dubious   { color: #ff9800; text-shadow: 0 0 6px #ff980088; }
+        .nag-mistake   { color: #ef5350; text-shadow: 0 0 6px #ef535088; }
+        .nag-blunder   { color: #b71c1c; text-shadow: 0 0 8px #b71c1c88; }
+        .nag-equal     { color: #90a4ae; }
+        .nag-adv-w     { color: #e8e0d0; }
+        .nag-adv-b     { color: #78909c; }
+
+        /* Símbolo NAG en los paneles de texto */
+        .nag-inline {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 900;
+            padding: 0 3px;
+            border-radius: 3px;
+            margin-left: 3px;
+            vertical-align: middle;
+        }
+        .nag-inline.brilliant { color: #00e5ff; background: rgba(0,229,255,0.12); }
+        .nag-inline.good      { color: #4caf50; background: rgba(76,175,80,0.12); }
+        .nag-inline.interest  { color: #ffc107; background: rgba(255,193,7,0.12); }
+        .nag-inline.dubious   { color: #ff9800; background: rgba(255,152,0,0.12); }
+        .nag-inline.mistake   { color: #ef5350; background: rgba(239,83,80,0.12); }
+        .nag-inline.blunder   { color: #b71c1c; background: rgba(183,28,28,0.20); }
+
         /* Animación pulso en casillas iluminadas (legacy) */
         @keyframes vt-pulse {
             0%,100% { opacity: 0.55; }
@@ -921,6 +966,40 @@
         .vt-square-highlight {
             animation: vt-pulse 1.8s ease-in-out infinite !important;
         }
+        /* Asegurar que el tablero permite elementos flotando dentro */
+        #boardAnalysis {
+            position: relative;
+        }
+
+        /* La base del círculo premium con esteroides (!important) */
+        .nag-board-badge {
+            position: absolute !important;
+            width: 18px !important;
+            height: 18px !important;
+            border-radius: 50% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-family: 'Courier New', Courier, monospace !important;
+            font-weight: 900 !important;
+            font-size: 11px !important;
+            color: #ffffff !important;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+            border: 1.5px solid #ffffff !important;
+            z-index: 999 !important;
+            pointer-events: none !important;
+            top: 2px !important;
+            right: 2px !important;
+            transform: none !important; /* Evita que el código viejo lo mueva de sitio */
+        }
+
+        /* Colores nuevos y exclusivos que nada de tu código antiguo puede romper */
+        .nag-board-badge.circulo-blunder   { background-color: #e53935 !important; } /* ?? */
+        .nag-board-badge.circulo-mistake   { background-color: #fb8c00 !important; } /* ? */
+        .nag-board-badge.circulo-good      { background-color: #43a047 !important; } /* ! */
+        .nag-board-badge.circulo-brilliant { background-color: #00acc1 !important; } /* !! */
+        .nag-board-badge.circulo-interest  { background-color: #8e24aa !important; } /* !? */
+        .nag-board-badge.circulo-dubious   { background-color: #757575 !important; } /* ?! */
     </style>
 </head>
 <body>
@@ -1431,6 +1510,7 @@
                 parentId, fen:d.fen, san:d.san, uci:d.uci,
                 moveNum:d.moveNum, side:d.side, eval:d.eval??0,
                 opening:d.opening??null, type:d.type??'main',
+                nag:     d.nag??null,   // código NAG: '$1','$2', etc.
                 children: [],
             };
         },
@@ -1766,19 +1846,275 @@
     }
     function closeCtx() { _ctxMenu?.remove(); _ctxMenu = null; }
 
+    /* ══════════════════════════════════════════════════════════
+       SISTEMA NAG — Glifos de Anotación Numérica
+       Muestra símbolos !, ?, !!, ?? en tablero y paneles
+    ══════════════════════════════════════════════════════════ */
+
+    const NAG_MAP = {
+        // Juicios de jugada
+        '$1':  { sym: '!',  cls: 'good',      board_cls: 'nag-good',      label: 'Buena jugada'         },
+        '$2':  { sym: '?',  cls: 'mistake',   board_cls: 'nag-mistake',   label: 'Error'                },
+        '$3':  { sym: '!!', cls: 'brilliant', board_cls: 'nag-brilliant', label: 'Jugada brillante'     },
+        '$4':  { sym: '??', cls: 'blunder',   board_cls: 'nag-blunder',   label: 'Error grave'          },
+        '$5':  { sym: '!?', cls: 'interest',  board_cls: 'nag-interest',  label: 'Jugada interesante'   },
+        '$6':  { sym: '?!', cls: 'dubious',   board_cls: 'nag-dubious',   label: 'Jugada dudosa'        },
+        // Evaluaciones de posición
+        '$10': { sym: '=',  cls: 'equal',     board_cls: 'nag-equal',     label: 'Igualdad'             },
+        '$11': { sym: '=',  cls: 'equal',     board_cls: 'nag-equal',     label: 'Igualdad'             },
+        '$13': { sym: '∞',  cls: 'equal',     board_cls: 'nag-equal',     label: 'Posición poco clara'  },
+        '$14': { sym: '⩲',  cls: 'adv-w',    board_cls: 'nag-adv-w',     label: 'Ligera ventaja blancas'},
+        '$15': { sym: '⩱',  cls: 'adv-b',    board_cls: 'nag-adv-b',     label: 'Ligera ventaja negras' },
+        '$16': { sym: '±',  cls: 'adv-w',    board_cls: 'nag-adv-w',     label: 'Ventaja blancas'      },
+        '$17': { sym: '∓',  cls: 'adv-b',    board_cls: 'nag-adv-b',     label: 'Ventaja negras'       },
+        '$18': { sym: '+-', cls: 'adv-w',    board_cls: 'nag-adv-w',     label: 'Ventaja decisiva blancas'},
+        '$19': { sym: '-+', cls: 'adv-b',    board_cls: 'nag-adv-b',     label: 'Ventaja decisiva negras' },
+    };
+
+    /* Genera HTML del símbolo NAG para usar inline en texto */
+    function nagInlineHtml(nagCode) {
+        const nag = NAG_MAP[nagCode];
+        if (!nag) return '';
+        return `<span class="nag-inline ${nag.cls}" title="${nag.label}">${nag.sym}</span>`;
+    }
+
+    /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) */
+    /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) con filtros estrictos */
+       /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) */
+    /* Determina el NAG automático basándose ÚNICAMENTE en pérdidas graves */
+    function nagDesdeEval(diffCp, colorQueJugó) {
+        // 1. Convertimos la diferencia a la perspectiva del jugador que acaba de mover
+        // Si diffCp es negativo significa que la evaluación bajó (malo para el blanco, bueno para el negro)
+        let loss = colorQueJugó === 'w' ? diffCp : -diffCp;
+
+        // DETECTOR DE ESCALA: Si viene en formato humano (ej: -0.80 en vez de -80), lo pasamos a centipeones
+        if (Math.abs(loss) > 0 && Math.abs(loss) < 15) {
+            loss = loss * 100;
+        }
+
+        // 2. FILTRO RADICAL (EL FRENO DE MANO):
+        // Si la pérdida de la jugada es menor a 75 centipeones, NO ES UN ERROR.
+        // Cortamos en seco devolviendo null. ¡Tablero limpio!
+        if (loss >= -75) {
+            return null; 
+        }
+
+        // 3. ASIGNACIÓN DE ERRORES REALES (Solo si la pérdida supera los 75 centipeones):
+        if (loss < -150) {
+            return '$4'; // ?? Error Grave (Pierde más de 1.50 peones de golpe)
+        } else {
+            return '$2'; // ? Error (Pierde entre 0.75 y 1.50 peones)
+        }
+    }
+
+    /* Extrae NAGs del texto PGN crudo, devuelve array paralelo a chess.history() */
+    function extraerNAGsDePGN(pgnTexto) {
+        // Elimina cabeceras y comentarios
+        const sinCabeceras = pgnTexto.replace(/\[[^\]]*\]/g, '');
+        const sinComents   = sinCabeceras.replace(/\{[^}]*\}/g, '').replace(/\([^)]*\)/g, '');
+
+        // Tokeniza: separamos números de jugada, jugadas SAN y códigos $N
+        const tokens = sinComents.split(/\s+/).filter(Boolean);
+
+        const nags = []; // nags[i] = código '$N' o null para la jugada i
+
+        let moveIdx = 0;
+        let pendingNag = null;
+        let waitingForMove = false;
+
+        for (const tok of tokens) {
+            if (/^\d+\.+$/.test(tok)) {
+                // Número de jugada — no es una jugada
+                waitingForMove = false;
+                continue;
+            }
+            if (/^\$\d+$/.test(tok)) {
+                // Es un código NAG — pertenece a la jugada anterior
+                if (nags.length > 0 && !nags[nags.length - 1]) {
+                    nags[nags.length - 1] = tok;
+                }
+                continue;
+            }
+            if (/^(1-0|0-1|1\/2-1\/2|\*)$/.test(tok)) continue; // resultado
+            // Es una jugada SAN
+            nags.push(null); // placeholder
+            moveIdx++;
+        }
+        return nags;
+    }
+
+    /* ── Insignia NAG flotante sobre el tablero de análisis ── */
+    /* ── Insignia NAG flotante sobre el tablero de análisis ── */
+/* ── Insignia NAG flotante elegante sobre el tablero de análisis ── */
+    /* ── Interceptor del dibujo en tablero (El cazador de fantasmas) ── */
+    function mostrarNagEnTablero(uci, nagCode) {
+        limpiarNagTablero();
+        if (!uci || uci.length < 4 || !nagCode) return;
+
+        const nag = NAG_MAP[nagCode];
+        if (!nag) return;
+
+        const toSq  = uci.slice(2, 4);
+        const board = document.getElementById('boardAnalysis');
+        const sq    = board?.querySelector(`.square-${toSq}`);
+        if (!board || !sq) return;
+
+        let claseColor = 'circulo-good';
+        if      (nag.sym === '??') claseColor = 'circulo-blunder';
+        else if (nag.sym === '?')  claseColor = 'circulo-mistake';
+        else if (nag.sym === '!!') claseColor = 'circulo-brilliant';
+        else if (nag.sym === '!?') claseColor = 'circulo-interest';
+        else if (nag.sym === '?!') claseColor = 'circulo-dubious';
+
+        const badge = document.createElement('div');
+        badge.id        = 'nag-board-badge';
+        badge.className = `nag-board-badge ${claseColor}`;
+        badge.textContent = nag.sym;
+        badge.title       = nag.label;
+        sq.appendChild(badge);
+    }
+
+    function limpiarNagTablero() {
+        const badge = document.getElementById('nag-board-badge');
+        if (badge) {
+            badge.remove();
+    }
+}
+
+/* ── Panel de anotación — Sistema 3 estados (Con Interceptor) ── */
+function renderAnnotation(node, explorerData) {
+    const panel = document.getElementById('variant-annotation');
+    if (!panel || !node) return;
+    const estado = calcularEstado(node, explorerData);
+    estadoAnalisis = estado;
+
+
+    limpiarNagTablero("Llamado desde inicio de renderAnnotation");
+
+    // Badge de estado
+    const estadoMap = {
+        teoria:   { cls: 'estado-teoria',   txt: '📖 Teoría' },
+        variante: { cls: 'estado-variante', txt: '🔴 Variante propia' },
+        visitado: { cls: 'estado-visitado', txt: '✓ Ya explorado' },
+    };
+    const eb = estadoMap[estado];
+    const estadoHtml = `<span class="estado-badge ${eb.cls}">${eb.txt}</span>`;
+
+    // Evaluación
+    const ev    = node.eval;
+    const evLbl = (ev !== undefined && ev !== 0)
+        ? `<span class="va-eval ${ev>=0?'va-eval-pos':'va-eval-neg'}">${ev>=0?'+':''}${(ev/100).toFixed(2)}</span>`
+        : '';
+
+    // Apertura
+    const opening = node.opening || explorerData?.opening || null;
+    const opColor = estado === 'variante' ? '#ef5350' : (estado === 'visitado' ? '#fcd34d' : 'var(--accent)');
+    const opHtml  = opening
+        ? `<div style="font-size:11px;padding:4px 8px;margin-bottom:6px;
+            border-left:3px solid ${opColor};background:rgba(255,255,255,0.03);border-radius:0 4px 4px 0;">
+            <strong style="color:${opColor};">${opening.eco}</strong>
+            <span style="color:${estado==='variante'?'#fca5a5':'var(--text-main)'}"> — ${opening.name}</span>
+        </div>`
+        : `<div style="color:var(--text-dim);font-size:11px;padding:4px 8px;margin-bottom:6px;">
+            Posición fuera de teoría
+        </div>`;
+
+    // Píldoras de candidatas
+    const moves = explorerData?.moves || [];
+    const pildorasHtml = (estado !== 'variante' && moves.length)
+        ? renderizarPildoras(moves, node.id)
+        : (estado === 'variante'
+            ? `<div style="color:#fca5a5;font-size:11px;padding:4px 0;opacity:0.8;">
+                Exploración libre — las luces de teoría están apagadas
+            </div>`
+            : '');
+
+    // Botones de acción
+    const isVar = node.type === 'variant' || node.type === 'suggestion';
+    const actHtml = isVar ? `
+        <div class="va-actions" style="margin-top:10px;">
+            <button class="va-btn va-btn-promote"    onclick="lastVariantId=VT.activeId;vtPromote()">⬆️ Promover</button>
+            <button class="va-btn va-btn-bifurcation" onclick="vtBifurcation()">🔀 Bifurcación</button>
+            <button class="va-btn va-btn-discard"    onclick="vtDiscard()">🗑️ Descartar</button>
+        </div>` : '';
+
+    // Insignia NAG en el encabezado
+    const nagHtml = node.nag ? nagInlineHtml(node.nag) : '';
+
+    panel.innerHTML = `
+        <div class="va-header">
+            <span class="va-san">${node.san === '♟' ? 'Inicio' : node.san}${nagHtml}</span>
+            ${evLbl}
+            <span class="va-badge va-badge-${node.type}">${node.type}</span>
+        </div>
+        ${estadoHtml}
+        ${opHtml}
+        ${pildorasHtml}
+        ${actHtml}
+        <button id="btn-analizar" onclick="analizarPosicion()">
+            🔍 Analizar posición
+        </button>
+        <button id="btn-pepe" onclick="analizarConPepe()" style="
+            width:100%; margin-top:6px; padding:7px; border-radius:6px;
+            border:1px solid var(--accent); background:rgba(241,196,15,0.08);
+            color:var(--accent); font-size:11px; font-family:var(--font-mono);
+            font-weight:700; cursor:pointer; letter-spacing:1px; transition:all 0.2s;">
+            🎭 Análisis Pepe Cuenca
+        </button>
+        <div id="analisis-humano"></div>
+    `;
+    
+    // El escudo de teoría
+    if (estado === 'teoria') {
+        if (moves.length) {
+            Illuminator.illuminateTeoria(moves[0].uci);
+        }
+        return; 
+    }
+
+    let nagActivo = node.nag;
+    if (!nagActivo && node.parentId) {
+        const padre = VT.nodeMap.get(node.parentId);
+        if (padre && node.eval !== undefined && padre.eval !== undefined) {
+            const diferencia = node.eval - padre.eval;
+            nagActivo = nagDesdeEval(diferencia, node.side);
+        }
+    }
+
+    if (nagActivo && node.uci) {
+        mostrarNagEnTablero(node.uci, nagActivo); 
+    } else {
+    }
+
+    // Iluminación fuera de teoría
+    if (moves.length && estado !== 'variante') {
+        const topMove = moves[0];
+        if (estado === 'visitado') Illuminator.illuminateVisitado(topMove.uci);
+    } else if (estado === 'variante') {
+        Illuminator.clear();
+    }
+}
+
+    /* ── Seguimiento de limpiezas del tablero ── */
+    
     /* ── Panel de anotación — Sistema 3 estados ── */
+    /* ── Panel de anotación — Sistema 3 estados ── */
+    /* ── Panel de anotación — Sistema 3 estados ── */
+    /* ── Panel de anotación — Sistema 3 estados (Con Interceptor) ── */
     function renderAnnotation(node, explorerData) {
         const panel = document.getElementById('variant-annotation');
         if (!panel || !node) return;
-
-        const estado  = calcularEstado(node, explorerData);
+        const estado = calcularEstado(node, explorerData);
         estadoAnalisis = estado;
+
+
+        limpiarNagTablero("Llamado desde inicio de renderAnnotation");
 
         // Badge de estado
         const estadoMap = {
             teoria:   { cls: 'estado-teoria',   txt: '📖 Teoría' },
-            variante: { cls: 'estado-variante',  txt: '🔴 Variante propia' },
-            visitado: { cls: 'estado-visitado',  txt: '✓ Ya explorado' },
+            variante: { cls: 'estado-variante', txt: '🔴 Variante propia' },
+            visitado: { cls: 'estado-visitado', txt: '✓ Ya explorado' },
         };
         const eb = estadoMap[estado];
         const estadoHtml = `<span class="estado-badge ${eb.cls}">${eb.txt}</span>`;
@@ -1797,33 +2133,36 @@
                 border-left:3px solid ${opColor};background:rgba(255,255,255,0.03);border-radius:0 4px 4px 0;">
                 <strong style="color:${opColor};">${opening.eco}</strong>
                 <span style="color:${estado==='variante'?'#fca5a5':'var(--text-main)'}"> — ${opening.name}</span>
-               </div>`
+            </div>`
             : `<div style="color:var(--text-dim);font-size:11px;padding:4px 8px;margin-bottom:6px;">
                 Posición fuera de teoría
-               </div>`;
+            </div>`;
 
-        // Píldoras de candidatas (solo en estados teoría y visitado)
+        // Píldoras de candidatas
         const moves = explorerData?.moves || [];
         const pildorasHtml = (estado !== 'variante' && moves.length)
             ? renderizarPildoras(moves, node.id)
             : (estado === 'variante'
                 ? `<div style="color:#fca5a5;font-size:11px;padding:4px 0;opacity:0.8;">
                     Exploración libre — las luces de teoría están apagadas
-                   </div>`
+                </div>`
                 : '');
 
         // Botones de acción
         const isVar = node.type === 'variant' || node.type === 'suggestion';
         const actHtml = isVar ? `
             <div class="va-actions" style="margin-top:10px;">
-                <button class="va-btn va-btn-promote"     onclick="lastVariantId=VT.activeId;vtPromote()">⬆️ Promover</button>
+                <button class="va-btn va-btn-promote"    onclick="lastVariantId=VT.activeId;vtPromote()">⬆️ Promover</button>
                 <button class="va-btn va-btn-bifurcation" onclick="vtBifurcation()">🔀 Bifurcación</button>
-                <button class="va-btn va-btn-discard"     onclick="vtDiscard()">🗑️ Descartar</button>
+                <button class="va-btn va-btn-discard"    onclick="vtDiscard()">🗑️ Descartar</button>
             </div>` : '';
+
+        // Insignia NAG en el encabezado
+        const nagHtml = node.nag ? nagInlineHtml(node.nag) : '';
 
         panel.innerHTML = `
             <div class="va-header">
-                <span class="va-san">${node.san === '♟' ? 'Inicio' : node.san}</span>
+                <span class="va-san">${node.san === '♟' ? 'Inicio' : node.san}${nagHtml}</span>
                 ${evLbl}
                 <span class="va-badge va-badge-${node.type}">${node.type}</span>
             </div>
@@ -1843,22 +2182,34 @@
             </button>
             <div id="analisis-humano"></div>
         `;
+        
+        // El escudo de teoría
+        if (estado === 'teoria') {
+            if (moves.length) {
+                Illuminator.illuminateTeoria(moves[0].uci);
+            }
+            return; 
+        }
 
-        // ═══════════════════════════════════════════════════════
-        // Ilumina según el estado ACTUAL del análisis:
-        // - teoría/visitado → luz azul/dorada en candidata principal
-        // - variante        → sin luces (tablero limpio)
-        // ═══════════════════════════════════════════════════════
+        let nagActivo = node.nag;
+        if (!nagActivo && node.parentId) {
+            const padre = VT.nodeMap.get(node.parentId);
+            if (padre && node.eval !== undefined && padre.eval !== undefined) {
+                const diferencia = node.eval - padre.eval;
+                nagActivo = nagDesdeEval(diferencia, node.side);
+            }
+        }
+
+        if (nagActivo && node.uci) {
+            mostrarNagEnTablero(node.uci, nagActivo); 
+        } else {
+        }
+
+        // Iluminación fuera de teoría
         if (moves.length && estado !== 'variante') {
             const topMove = moves[0];
-            if (estado === 'visitado') {
-                Illuminator.illuminateVisitado(topMove.uci);
-            } else {
-                // Estado teoría: SIEMPRE muestra la luz de la jugada principal
-                Illuminator.illuminateTeoria(topMove.uci);
-            }
+            if (estado === 'visitado') Illuminator.illuminateVisitado(topMove.uci);
         } else if (estado === 'variante') {
-            // Variante propia: apaga todo
             Illuminator.clear();
         }
     }
@@ -1903,7 +2254,6 @@
             TB_CACHE.set(fen, data);
             return data;
         } catch (err) {
-            console.warn('[Tablebase]', err.message);
             return null;
         }
     }
@@ -2394,33 +2744,270 @@
 
     /* ── Barra de evaluación Stockfish ── */
     function actualizarBarraEval(scoreText) {
-        const barWhite = document.getElementById('eval-bar-white');
-        const barLabel = document.getElementById('eval-bar-label');
-        if (!barWhite || !barLabel) return;
+    const barWhite = document.getElementById('eval-bar-white');
+    const barLabel = document.getElementById('eval-bar-label');
+    if (!barWhite || !barLabel) return;
 
-        let cp = 0, label = '0.0';
+    let cp = 0, label = '0.0';
 
-        if (scoreText && scoreText.includes('mate')) {
-            const m = parseInt(scoreText.split(' ')[1]);
-            cp    = m > 0 ? 9999 : -9999;
-            label = m > 0 ? `M+${Math.abs(m)}` : `M-${Math.abs(m)}`;
-        } else if (scoreText) {
-            cp    = parseInt(scoreText.split(' ')[1]) || 0;
-            const abs = (Math.abs(cp)/100).toFixed(2);
-            label = cp >= 0 ? `+${abs}` : `-${abs}`;
-        }
-
-        // Escala logarítmica con atan
-        const pct = 50 + (Math.atan(cp * 0.0035) / Math.PI) * 100;
-        barWhite.style.height = `${pct}%`;
-        barLabel.textContent  = label;
-        barLabel.style.bottom = `${pct}%`;
-
-        // Guarda en el nodo activo del árbol
-        VT.updateEval(VT.activeId, cp);
-        // Actualiza el gráfico de evaluación
-        renderEvalGraph();
+    if (scoreText && scoreText.includes('mate')) {
+        const m = parseInt(scoreText.split(' ')[1]);
+        cp    = m > 0 ? 9999 : -9999;
+        label = m > 0 ? `M+${Math.abs(m)}` : `M-${Math.abs(m)}`;
+    } else if (scoreText) {
+        cp    = parseInt(scoreText.split(' ')[1]) || 0;
+        const abs = (Math.abs(cp)/100).toFixed(2);
+        label = cp >= 0 ? `+${abs}` : `-${abs}`;
     }
+
+    // Escala logarítmica con atan
+    const pct = 50 + (Math.atan(cp * 0.0035) / Math.PI) * 100;
+    barWhite.style.height = `${pct}%`;
+    barLabel.textContent  = label;
+    barLabel.style.bottom = `${pct}%`;
+
+    // Guarda en el nodo activo del árbol
+    VT.updateEval(VT.activeId, cp);
+    // Actualiza el gráfico de evaluación
+    renderEvalGraph();
+    
+    // ── CONTROL DE CALIDAD AUTOMÁTICO EN EL TABLERO ──
+    const nodoActual = VT.activeNode;
+    
+    // REGLA DE ORO 1: Si el sistema global está en estado 'teoria', 
+    // limpiamos cualquier signo viejo y NO permitimos calcular errores nuevos.
+    if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
+        // Motor en teoría: NAG manual se mantiene
+        return; 
+    }
+
+    if (nodoActual && !nodoActual.nag && nodoActual.parentId && nodoActual.uci) {
+        const padre = VT.nodeMap.get(nodoActual.parentId);
+        if (padre && padre.eval !== undefined) {
+            // Pasamos la diferencia a nuestra función con "freno de mano" (filtro de los 75cp)
+            const nagAuto = nagDesdeEval(cp - (padre.eval || 0), nodoActual.side);
+            
+            // Si el motor profundiza y decide que la jugada es normal (null), 
+            // borramos el rastro del signo inmediatamente para que no se quede congelado.
+            if (!nagAuto) {
+                // Jugada normal: sin NAG automático
+            } else {
+                // Si es un error real, se dibuja (reemplazando de forma limpia el anterior)
+                mostrarNagEnTablero(nodoActual.uci, nagAuto);
+            }
+        }
+    }
+}
+
+/* ── Detecta si el nodo activo tiene hijos visitados ── */
+function tieneHijosVisitados(nodeId) {
+    const node = VT.nodeMap.get(nodeId);
+    return (node?.children || []).some(c => nodosVisitados.has(c.id));
+}
+
+/* ── Determina el estado del análisis para la posición actual ── */
+function calcularEstado(node, explorerData) {
+    if (!node) return 'teoria';
+    if (nodosVisitados.has(node.id) && explorerData?.moves?.length) return 'visitado';
+    if (node.type === 'variant') return 'variante';
+    return 'teoria';
+}
+
+/* ── Renderiza las píldoras de candidatas en el panel ── */
+function renderizarPildoras(moves, nodeId) {
+    candidatasActuales = moves || [];
+    candidataActiva    = 0;
+
+    // Nodos hijo ya visitados desde este nodo
+    const parentNode   = VT.nodeMap.get(nodeId);
+    const hijosUci     = new Set((parentNode?.children || []).map(c => c.uci));
+
+    const pildorasHtml = candidatasActuales.slice(0, 6).map((m, i) => {
+        const total    = (m.white + m.draws + m.black) || 1;
+        const winPct   = Math.round((m.white / total) * 100);
+        const isTop    = i === 0;
+        const visited  = hijosUci.has(m.uci);
+        const clases   = ['pill-candidata', isTop ? 'top-pill' : '', visited ? 'visited' : ''].filter(Boolean).join(' ');
+
+        // Semáforo de color
+        let semaforo = '';
+        if (winPct > 52)      semaforo = '<span style="color:#4caf50;font-size:9px;">●</span>';
+        // Renderizado simplificado para mantener estabilidad visual
+        else if (winPct < 44) semaforo = '<span style="color:#ef5350;font-size:9px;">●</span>';
+        else                  semaforo = '<span style="color:#9e9e9e;font-size:9px;">●</span>';
+
+        return `<span class="${clases}"
+            data-uci="${m.uci}" data-idx="${i}"
+            onclick="pillClick('${m.uci}', ${i})"
+            ondblclick="pillDblClick('${m.uci}', '${m.san}')"
+            onmouseenter="Illuminator.previewCandidata('${m.uci}')"
+            onmouseleave="Illuminator.clearHover()"
+            title="Doble clic para mover | ${total.toLocaleString()} partidas | ${winPct}% bl.">
+            ${semaforo} ${m.san}
+            <span style="font-size:9px;opacity:0.6;">${total > 999 ? Math.round(total/1000)+'k' : total}</span>
+        </span>`;
+    }).join('');
+
+    return `<div style="margin-top:8px;">
+        <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;
+            margin-bottom:5px;">Candidatas — click: ver · doble clic: mover</div>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;">${pildorasHtml}</div>
+    </div>`;
+}
+
+/* ── Click en píldora: ilumina esa candidata ── */
+function pillClick(uci, idx) {
+    candidataActiva = idx;
+    Illuminator.illuminateCandidataClick(uci);
+    document.querySelectorAll('.pill-candidata').forEach((el, i) => {
+        el.style.outline = i === idx ? '2px solid #7dd3fc' : 'none';
+    });
+}
+
+/* ── Doble clic en píldora: ejecuta el movimiento automáticamente ── */
+function pillDblClick(uci, san) {
+    const from = uci.slice(0, 2);
+    const to   = uci.slice(2, 4);
+    const prom = uci[4] || undefined;
+
+    if (fenParaPildoras) chessA.load(fenParaPildoras);
+
+    const moveOpts = prom ? { from, to, promotion: prom } : { from, to };
+    const move = chessA.move(moveOpts);
+    if (!move) {
+        return;
+    }
+
+    boardA.position(chessA.fen());
+
+    const fenBase    = fenParaPildoras;
+    const extraBase  = [...analysisExtraMoves];
+    _syncExtraMovesFromPath();
+    analysisExtraMoves.push(move.san);
+
+    const vtNode = VT.addMove({
+        san:     move.san,
+        uci:     from + to + (prom || ''),
+        fen:     chessA.fen(),
+        moveNum: combatMoveHistory.length + analysisExtraMoves.length,
+        side:    move.color,
+        eval:    0,
+    }, 'variant');
+    lastVariantId = vtNode?.id ?? null;
+    if (vtNode) nodosVisitados.add(vtNode.id);
+
+    Illuminator.clear();
+    refrescarPaneles();
+    actualizarTurno();
+
+    if (motorA) {
+        motorA.postMessage('position fen ' + chessA.fen());
+        motorA.postMessage('go depth 14');
+    }
+    setTimeout(() => {
+        consultarLichess(chessA.fen());
+        checkTablebase(chessA.fen());
+    }, 80);
+    terminalLog('📖 Variante auto: ' + move.san);
+}
+
+/* ── Evento: nodo seleccionado (click en árbol D3) ── */
+document.addEventListener('vt:selected', e => {
+    const { node } = e.detail;
+    if (!node?.fen) return;
+    chessA.load(node.fen);
+    boardA.position(node.fen);
+    _syncExtraMovesFromPath();
+    estadoAnalisis = node.type === 'variant' ? 'variante' : 'teoria';
+    refrescarPaneles();
+    actualizarTurno();
+    Illuminator.clear();
+    renderAnnotation(node);
+    pedirAnalisisMotor(node.fen);
+    consultarLichess(node.fen);
+});
+
+/* ════════════════════════════════════════════════════════════
+   SISTEMA PRINCIPAL (Con el bloqueo de MultiPV e hilos corregido)
+   ════════════════════════════════════════════════════════════ */
+
+function initSystem() {
+    const sfUrl = "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js";
+    fetch(sfUrl).then(r=>r.text()).then(code => {
+        const blob = new Blob([code],{type:'application/javascript'});
+        const url  = URL.createObjectURL(blob);
+        motorE = new Worker(url);
+        motorA = new Worker(url);
+        motorE.postMessage('uci');
+        motorA.postMessage('uci');
+
+        // ★ motorA: listener PERMANENTE — barra eval + panel MultiPV
+        motorA.onmessage = (e) => {
+            const line = e.data;
+
+            // ── ESCUDO RADICAL DE TEORÍA ──
+            if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
+                limpiarNagTablero("Silencio absoluto en apertura");
+            }
+
+            // Barra de evaluación (Procesa solo si pertenece a la línea principal PV 1)
+            if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
+                const match = line.match(/score (cp -?\d+|mate -?\d+)/);
+                // Mantenemos la estructura: extraemos el fragmento exacto que espera actualizarBarraEval
+                if (match) {
+                    actualizarBarraEval(match[1]); 
+                }
+            }
+
+            // Panel MultiPV — parsea todas las líneas para las píldoras de la interfaz
+            if (line.includes('multipv') && line.includes(' pv ')) {
+                const parsed = parsearLineaMotor(line);
+                if (parsed) {
+                    motorPVs[parsed.pvIdx] = {
+                        evalNum:  parsed.evalNum,
+                        evalType: parsed.evalType,
+                        moves:    parsed.moves,
+                        depth:    parsed.depth,
+                    };
+                    if (parsed.depth % 2 === 0 || parsed.depth >= 18) {
+                        renderMotorPanel();
+                    }
+                }
+            }
+
+            // Fin del análisis
+            if (line.includes('bestmove')) {
+                motorActive = false;
+                renderMotorPanel();
+            }
+        };
+
+        motorE.onmessage = (e) => {
+            if (e.data.includes("bestmove")) {
+                const moveRaw = e.data.split(" ")[1];
+                const moveObj = chessC.move(moveRaw, {sloppy:true});
+                if (moveObj) {
+                    combatMoveHistory.push(moveObj.san);
+                    analysisExtraMoves = [];
+                    boardC.position(chessC.fen());
+                    chessA.load(chessC.fen()); boardA.position(chessC.fen());
+                    refrescarPaneles();
+                    actualizarTurno();
+                    VT.addMove({
+                        san: moveObj.san, uci: moveRaw,
+                        fen: chessC.fen(),
+                        moveNum: combatMoveHistory.length,
+                        side: moveObj.color, eval: 0,
+                    }, 'main');
+                    VT.combatId = VT.activeId;
+                    terminalLog("Stockfish ha jugado: " + moveObj.san);
+                    checkTablebase(chessC.fen());
+                }
+            }
+        };
+        terminalLog("Motores en línea. Llama 3.3 preparado para el análisis.");
+    });
+}
 
     /* ── Detecta si el nodo activo tiene hijos visitados ── */
     function tieneHijosVisitados(nodeId) {
@@ -2501,7 +3088,6 @@
         const moveOpts = prom ? { from, to, promotion: prom } : { from, to };
         const move = chessA.move(moveOpts);
         if (!move) {
-            console.warn('[pillDblClick] Movimiento ilegal:', uci, 'FEN:', chessA.fen());
             return;
         }
 
@@ -2578,13 +3164,21 @@
             motorA.onmessage = (e) => {
                 const line = e.data;
 
-                // Barra de evaluación (pv1 siempre)
-                if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
-                    const match = line.match(/score (cp -?\d+|mate -?\d+)/);
-                    if (match) actualizarBarraEval(match[1]);
+                // ── ESCUDO RADICAL DE TEORÍA ──
+                // Si la IA o el sistema detecta que estamos en teoría, 
+                // limpiamos el tablero y prohibimos terminantemente pintar signos.
+                if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
+                    limpiarNagTablero("Silencio absoluto en apertura");
                 }
 
-                // Panel MultiPV — parsea todas las líneas
+                // Barra de evaluación (Filtro corregido: pasamos la línea ENTERA para que sepa validar)
+                if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
+                    const match = line.match(/score (cp -?\d+|mate -?\d+)/);
+                    // Pasamos la línea completa en vez de solo el trozo de la puntuación
+                    if (match) actualizarBarraEval(line); 
+                }
+
+                // Panel MultiPV — parsea todas las líneas para las píldoras de la interfaz
                 if (line.includes('multipv') && line.includes(' pv ')) {
                     const parsed = parsearLineaMotor(line);
                     if (parsed) {
@@ -3129,6 +3723,7 @@
         refrescarPaneles();
         actualizarTurno();
         Illuminator.clear();
+        limpiarNagTablero();
         pedirAnalisisMotor(parent.fen);
         setTimeout(() => consultarLichess(parent.fen), 80);
         VT.render();
@@ -3251,10 +3846,11 @@
                 isActive   ? 'active-chip' : ''
             ].join(' ');
 
+            const nagChip = node.nag ? (NAG_MAP[node.nag]?.sym || '') : '';
             html += `<span class="${cls}"
                 onclick="analysisGoToNode('${node.id}')"
-                title="${isVariant ? 'Variante' : 'Línea principal'}"
-            >${node.san}</span>`;
+                title="${isVariant ? 'Variante' : 'Línea principal'}${node.nag ? ' — ' + (NAG_MAP[node.nag]?.label||'') : ''}"
+            >${node.san}${nagChip ? `<sup style="font-size:9px;font-weight:900;">${nagChip}</sup>` : ''}</span>`;
         });
 
         // Si el nodo activo tiene varios hijos → mostrar bifurcaciones disponibles
@@ -3437,7 +4033,6 @@
                 infoDiv.innerHTML = '<div style="color:#8b949e;font-size:0.8rem;">Sin datos en Lichess para esta posición.</div>';
             }
         } catch(err) {
-            console.error('[Lichess]', err);
             infoDiv.innerHTML = `<div style="color:#da3633;font-size:0.8rem;">Sin conexión con Lichess.</div>`;
         }
     }
@@ -3676,7 +4271,6 @@
             return data;
         } catch (err) {
             pzSetEstado('error', 'Error cargando puzzle. Comprueba conexión.');
-            console.error('[Puzzle]', err);
             return null;
         }
     }
@@ -3696,7 +4290,6 @@
             }
             return chess2.fen();
         } catch(e) {
-            console.warn('[Puzzle] pzReconstruirFEN error:', e);
             return new Chess().fen();
         }
     }
@@ -3717,7 +4310,6 @@
             const pieza = chess.get(fromSq);
             // ★ Condición clave: la pieza existe Y es del bando que tiene el turno
             if (pieza && pieza.color === chess.turn()) {
-                console.log(`[Puzzle] Posición encontrada en ply ${ply} (offset ${offset}), turno: ${chess.turn()}`);
                 return { fen, color: pieza.color };
             }
         }
@@ -3725,7 +4317,6 @@
         const fenFallback = pzReconstruirFEN(pgn, initialPly);
         const chessFallback = new Chess();
         chessFallback.load(fenFallback);
-        console.warn('[Puzzle] Usando fallback, turno:', chessFallback.turn());
         return { fen: fenFallback, color: chessFallback.turn() };
     }
 
@@ -3752,9 +4343,6 @@
         puzzleMode.chess.load(fen);
 
         // Verificación de consistencia en consola (para debug)
-        console.log('[Puzzle] FEN:', fen);
-        console.log('[Puzzle] chess.turn():', puzzleMode.chess.turn(), '| colorJugador:', colorJugador);
-        console.log('[Puzzle] solution[0]:', solution[0]);
 
         // Carga en el tablero de ANÁLISIS
         chessA.load(fen);
@@ -3807,12 +4395,10 @@
         // Verificación extra: la pieza en from debe ser del color del jugador
         const pieza = puzzleMode.chess.get(from);
         if (!pieza) {
-            console.warn('[Puzzle] Pista: no hay pieza en', from);
             pzSetEstado('esperando', '💡 Busca la jugada clave...');
             return;
         }
         if (pieza.color !== puzzleMode.colorJugador) {
-            console.warn('[Puzzle] Pista: pieza del color equivocado en', from);
             pzSetEstado('esperando', '💡 Es tu turno — mueve una pieza tuya');
             return;
         }
@@ -4240,7 +4826,6 @@
                 });
 
             } catch(e) {
-                console.error('[Análisis]', e);
                 panel.innerHTML = `<div style="color:var(--text-dim);font-size:11px;">
                     Error al analizar. Asegúrate de que Stockfish está activo.
                 </div>`;
@@ -4279,7 +4864,6 @@
         if (!texto || texto.trim() === 'unknown' || texto.trim() === 'nobestmove') return [];
 
         // Log para depuración — ver respuesta cruda
-        console.log('[ChessDB] Respuesta cruda:', texto.slice(0, 300));
 
         return texto.split('|').map(entry => {
             entry = entry.trim();
@@ -4308,7 +4892,6 @@
             };
 
             // Log cada entrada para depuración
-            console.log('[ChessDB] Entrada:', { uci: obj.uci, score: obj.score, note: obj.note, depth: obj.depth });
             return obj;
         }).filter(Boolean);
     }
@@ -4342,12 +4925,10 @@
         try {
             // Primero intenta con json=1 para respuesta estructurada
             const url = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1&json=1&pv=1`;
-            console.log('[ChessDB] URL:', url);
             const res = await fetch(url);
             if (!res.ok) throw new Error(`CDB HTTP ${res.status}`);
 
             const texto = await res.text();
-            console.log('[ChessDB] Respuesta completa:', texto.slice(0, 500));
 
             let datos = null;
 
@@ -4363,18 +4944,15 @@
                         note:  m.note ? m.note.trim().toLowerCase() : null,
                         san:   m.san  || null,
                     }));
-                    console.log('[ChessDB] Parseado como JSON, jugadas:', datos.length);
                 }
             } catch(e) {
                 // No es JSON — parsea como texto plano
-                console.log('[ChessDB] No es JSON, parseando como texto...');
                 datos = cdb_parsear(texto);
             }
 
             // Si json=1 no devuelve notas, reintenta sin json para el texto plano
             const tieneNotas = datos?.some(d => d.note);
             if (!tieneNotas && datos?.length) {
-                console.log('[ChessDB] Sin notas en JSON, reintentando en texto plano...');
                 const url2 = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1`;
                 const res2 = await fetch(url2);
                 const texto2 = await res2.text();
@@ -4386,7 +4964,6 @@
             CDB_CACHE.set(fen, datos);
             return datos;
         } catch(err) {
-            console.warn('[ChessDB]', err.message);
             return null;
         }
     }
@@ -4639,6 +5216,9 @@
     const replayChess = new Chess();
     replayChess.load(fenInicial);
 
+    // Extrae los NAGs del texto PGN crudo
+    const nagsArray = extraerNAGsDePGN(texto);
+
     historia.forEach((mv, i) => {
         const moved = replayChess.move(mv);
         if (!moved) return;
@@ -4652,6 +5232,7 @@
                 moveNum: i + 1,
                 side:    moved.color,
                 eval:    0,
+                nag:     nagsArray[i] || null,  // ★ asigna el NAG de la jugada
             }, 'main');
         }
     });
@@ -4676,7 +5257,6 @@
 }
 
     function procesarPgnEntrante() {
-    console.log("-> ¡Botón pulsado con éxito! Leyendo el cuadro de texto...");
     
     // Capturamos el texto que Manuel ha pegado en la caja
     const textoDelCuadro = document.getElementById('pgn-input')?.value?.trim();
@@ -4754,7 +5334,6 @@
         
     } catch(e) {
         terminalLog('❌ Error al conectar con el usuario: ' + e.message);
-        console.error(e);
     }
 }
 
@@ -4848,6 +5427,7 @@
     </script>
 </body>
 </html>
+
 
 
 
