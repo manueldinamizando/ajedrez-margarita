@@ -5418,6 +5418,45 @@ function initSystem() {
         if (tabBtn) switchTab('tab-nodo', tabBtn);
     });
 
+        // 🕵️‍♂️ MÓDULO ESPÍA DE CHESSDB (Aislado al final del archivo - No toca Lichess)
+    (function() {
+        console.log("🚀 Espía de ChessDB activado y protegiendo tus funciones originales.");
+
+        // 1. Guardamos una copia exacta de tu función limpia antes de que el navegador la lea
+        const originalRefrescarPaneles = typeof refrescarPaneles === 'function' ? refrescarPaneles : null;
+
+        if (originalRefrescarPaneles) {
+            // 2. Redefinimos la función para que haga las DOS cosas a la vez en tu pestaña Teoría
+            refrescarPaneles = function() {
+                
+                // Primero ejecuta tu Lichess de siempre, tus gráficos y tus paneles intactos
+                originalRefrescarPaneles(); 
+
+                // Justo después, intentamos cargar ChessDB en su sitio sin molestar a lo anterior
+                try {
+                    if (typeof chessA !== 'undefined' && typeof fetchChessDB === 'function') {
+                        const fenActual = chessA.fen();
+                        
+                        // Buscamos el contenedor morado de tu pestaña de Teoría
+                        const contenedorCdb = document.querySelector('.cdb-section');
+
+                        if (contenedorCdb) {
+                            fetchChessDB(fenActual).then(datos => {
+                                if (typeof cdb_renderizar === 'function') {
+                                    // Pinta las aperturas de ChessDB en pantalla junto a las de Lichess
+                                    cdb_renderizar(datos, fenActual, contenedorCdb);
+                                }
+                            }).catch(err => console.error("Error en API ChessDB:", err));
+                        }
+                    }
+                } catch (error) {
+                    // Red de seguridad: si ChessDB falla, el programa lo ignora y tus maestros de Lichess siguen funcionando
+                    console.warn("Aviso: ChessDB no ha cargado en este movimiento, pero tus paneles siguen activos.", error);
+                }
+            };
+        }
+    })();
+
     /* ── Auto-switch al tab de Teoría cuando llegan datos de Lichess ── */
     // (opcional, descomenta si quieres que cambie automáticamente)
     // function autoSwitchTeoria() {
@@ -5427,6 +5466,7 @@ function initSystem() {
     </script>
 </body>
 </html>
+
 
 
 
