@@ -1947,37 +1947,77 @@
     /* ── Insignia NAG flotante sobre el tablero de análisis ── */
 /* ── Insignia NAG flotante elegante sobre el tablero de análisis ── */
     /* ── Interceptor del dibujo en tablero (El cazador de fantasmas) ── */
-    function mostrarNagEnTablero(uci, nagCode) {
-        limpiarNagTablero();
-        if (!uci || uci.length < 4 || !nagCode) return;
-
-        const nag = NAG_MAP[nagCode];
-        if (!nag) return;
-
-        const toSq  = uci.slice(2, 4);
-        const board = document.getElementById('boardAnalysis');
-        const sq    = board?.querySelector(`.square-${toSq}`);
-        if (!board || !sq) return;
-
-        let claseColor = 'circulo-good';
-        if      (nag.sym === '??') claseColor = 'circulo-blunder';
-        else if (nag.sym === '?')  claseColor = 'circulo-mistake';
-        else if (nag.sym === '!!') claseColor = 'circulo-brilliant';
-        else if (nag.sym === '!?') claseColor = 'circulo-interest';
-        else if (nag.sym === '?!') claseColor = 'circulo-dubious';
-
-        const badge = document.createElement('div');
-        badge.id        = 'nag-board-badge';
-        badge.className = `nag-board-badge ${claseColor}`;
-        badge.textContent = nag.sym;
-        badge.title       = nag.label;
-        sq.appendChild(badge);
+    function mostrarNagEnTablero(uci, nagCode, originNodeId = 'DESCONOCIDO') {
+    // ── EL MURO DE HORMIGÓN DEFINITIVO ──
+    // Si el sistema global está en teoría de apertura, abortamos en seco.
+    // No permitimos que ningún repintado indirecto dibuje insignias falsas.
+    if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
+        limpiarNagTablero("Bloqueo absoluto: prohibido dibujar en teoría");
+        return;
     }
 
-    function limpiarNagTablero() {
-        const badge = document.getElementById('nag-board-badge');
-        if (badge) {
-            badge.remove();
+    const errorStack = new Error().stack;
+    const lineas = errorStack.split('\n');
+    const llamadorInmediato = lineas[2] ? lineas[2].trim() : 'Desconocido';
+
+    console.group(`%c🎯 [TABLERO-DRAW] Invocado mostrarNagEnTablero`, "color: #E91E63; font-weight: bold;");
+    console.log(`Origen de la llamada (Argumento): Nodo ID -> ${originNodeId}`);
+    console.log(`Llamado directamente por: %c${llamadorInmediato}`, "color: red; font-style: italic;");
+    
+    if (llamadorInmediato.includes('onmessage') || llamadorInmediato.includes('worker') || llamadorInmediato.includes('stockfish') || llamadorInmediato.includes('onMove')) {
+        console.warn("%c¡ALERTA! Un evento externo (Stockfish o Tablero) está puenteando el flujo e inyectando el NAG directamente de forma asíncrona.", "background: #fff3cd; color: #856404; padding: 4px;");
+    }
+
+    limpiarNagTablero("Llamado interno desde mostrarNagEnTablero");
+    
+    if (!uci || uci.length < 4 || !nagCode) {
+        console.groupEnd();
+        return;
+    }
+    const nag = NAG_MAP[nagCode];
+    if (!nag) {
+        console.groupEnd();
+        return;
+    }
+    const toSq = uci.slice(2, 4);
+    const board = document.getElementById('boardAnalysis');
+    const sq = board?.querySelector(`.square-${toSq}`);
+    if (!sq) {
+        console.groupEnd();
+        return;
+    }
+
+    // Evitar duplicados físicos (Causa del bug naranja/rojo encimado)
+    const badgeExistente = document.getElementById('nag-board-badge');
+    if (badgeExistente) {
+        badgeExistente.remove();
+    }
+
+    const badge = document.createElement('div');
+    badge.id = 'nag-board-badge';
+    
+    let claseColor = 'circulo-good';
+    if (nag.sym === '??') claseColor = 'circulo-blunder';
+    else if (nag.sym === '?')  claseColor = 'circulo-mistake';
+    else if (nag.sym === '!!') claseColor = 'circulo-brilliant';
+    else if (nag.sym === '!?') claseColor = 'circulo-interest';
+    else if (nag.sym === '?!') claseColor = 'circulo-dubious';
+
+    badge.className = `nag-board-badge ${claseColor}`;
+    badge.textContent = nag.sym;
+    badge.title = nag.label;
+    
+    console.log(`%cEscribiendo físicamente en el DOM [${nag.sym}] en la casilla ${toSq}`, "color: green; font-weight: bold;");
+    sq.appendChild(badge);
+    console.groupEnd();
+}
+
+/* ── Seguimiento de limpiezas del tablero ── */
+function limpiarNagTablero(motivo = "No especificado") {
+    const badge = document.getElementById('nag-board-badge');
+    if (badge) {
+        console.log(`%c[DOM-CLEAN] Badge eliminado con éxito. Motivo: ${motivo}`, "color: #795548;");
+        badge.remove();
     }
 }
 
@@ -1988,6 +2028,8 @@ function renderAnnotation(node, explorerData) {
     const estado = calcularEstado(node, explorerData);
     estadoAnalisis = estado;
 
+    console.group(`%c[NAG-FLOW] renderAnnotation para Nodo: ${node.id} (${node.uci})`, "color: #2196F3; font-weight: bold;");
+    console.log(`Estado actual calculado: %c${estado}`, "font-weight: bold; color: orange;");
 
     limpiarNagTablero("Llamado desde inicio de renderAnnotation");
 
@@ -2066,9 +2108,11 @@ function renderAnnotation(node, explorerData) {
     
     // El escudo de teoría
     if (estado === 'teoria') {
+        console.log("%c[BLOQUEADO] Es teoría. Salida limpia. No se debería pintar nada.", "color: green;");
         if (moves.length) {
             Illuminator.illuminateTeoria(moves[0].uci);
         }
+        console.groupEnd();
         return; 
     }
 
@@ -2078,12 +2122,15 @@ function renderAnnotation(node, explorerData) {
         if (padre && node.eval !== undefined && padre.eval !== undefined) {
             const diferencia = node.eval - padre.eval;
             nagActivo = nagDesdeEval(diferencia, node.side);
+            console.log(`NAG calculado por diferencia Stockfish: ${nagActivo} (Diff: ${diferencia})`);
         }
     }
 
     if (nagActivo && node.uci) {
-        mostrarNagEnTablero(node.uci, nagActivo); 
+        console.log(`%c[PERMITIDO] Pasando a mostrarNagEnTablero con NAG: ${nagActivo}`, "color: purple;");
+        mostrarNagEnTablero(node.uci, nagActivo, node.id); 
     } else {
+        console.log("No se detectó NAG activo para este nodo sin teoría.");
     }
 
     // Iluminación fuera de teoría
@@ -2093,10 +2140,18 @@ function renderAnnotation(node, explorerData) {
     } else if (estado === 'variante') {
         Illuminator.clear();
     }
+    console.groupEnd();
 }
 
     /* ── Seguimiento de limpiezas del tablero ── */
-    
+    function limpiarNagTablero(motivo = "No especificado") {
+        const badge = document.getElementById('nag-board-badge');
+        if (badge) {
+            console.log(`%c[DOM-CLEAN] Badge eliminado con éxito. Motivo: ${motivo}`, "color: #795548;");
+            badge.remove();
+        }
+    }
+
     /* ── Panel de anotación — Sistema 3 estados ── */
     /* ── Panel de anotación — Sistema 3 estados ── */
     /* ── Panel de anotación — Sistema 3 estados ── */
@@ -2107,6 +2162,8 @@ function renderAnnotation(node, explorerData) {
         const estado = calcularEstado(node, explorerData);
         estadoAnalisis = estado;
 
+        console.group(`%c[NAG-FLOW] renderAnnotation para Nodo: ${node.id} (${node.uci})`, "color: #2196F3; font-weight: bold;");
+        console.log(`Estado actual calculado: %c${estado}`, "font-weight: bold; color: orange;");
 
         limpiarNagTablero("Llamado desde inicio de renderAnnotation");
 
@@ -2185,9 +2242,11 @@ function renderAnnotation(node, explorerData) {
         
         // El escudo de teoría
         if (estado === 'teoria') {
+            console.log("%c[BLOQUEADO] Es teoría. Salida limpia. No se debería pintar nada.", "color: green;");
             if (moves.length) {
                 Illuminator.illuminateTeoria(moves[0].uci);
             }
+            console.groupEnd();
             return; 
         }
 
@@ -2197,12 +2256,15 @@ function renderAnnotation(node, explorerData) {
             if (padre && node.eval !== undefined && padre.eval !== undefined) {
                 const diferencia = node.eval - padre.eval;
                 nagActivo = nagDesdeEval(diferencia, node.side);
+                console.log(`NAG calculado por diferencia Stockfish: ${nagActivo} (Diff: ${diferencia})`);
             }
         }
 
         if (nagActivo && node.uci) {
-            mostrarNagEnTablero(node.uci, nagActivo); 
+            console.log(`%c[PERMITIDO] Pasando a mostrarNagEnTablero con NAG: ${nagActivo}`, "color: purple;");
+            mostrarNagEnTablero(node.uci, nagActivo, node.id); 
         } else {
+            console.log("No se detectó NAG activo para este nodo sin teoría.");
         }
 
         // Iluminación fuera de teoría
@@ -2212,6 +2274,7 @@ function renderAnnotation(node, explorerData) {
         } else if (estado === 'variante') {
             Illuminator.clear();
         }
+        console.groupEnd();
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -2254,6 +2317,7 @@ function renderAnnotation(node, explorerData) {
             TB_CACHE.set(fen, data);
             return data;
         } catch (err) {
+            console.warn('[Tablebase]', err.message);
             return null;
         }
     }
@@ -2777,7 +2841,7 @@ function renderAnnotation(node, explorerData) {
     // REGLA DE ORO 1: Si el sistema global está en estado 'teoria', 
     // limpiamos cualquier signo viejo y NO permitimos calcular errores nuevos.
     if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
-        // Motor en teoría: NAG manual se mantiene
+        limpiarNagTablero("Silencio de motor en plena teoría");
         return; 
     }
 
@@ -2790,10 +2854,10 @@ function renderAnnotation(node, explorerData) {
             // Si el motor profundiza y decide que la jugada es normal (null), 
             // borramos el rastro del signo inmediatamente para que no se quede congelado.
             if (!nagAuto) {
-                // Jugada normal: sin NAG automático
+                limpiarNagTablero("La jugada se considera normal tras refinar el cálculo");
             } else {
                 // Si es un error real, se dibuja (reemplazando de forma limpia el anterior)
-                mostrarNagEnTablero(nodoActual.uci, nagAuto);
+                mostrarNagEnTablero(nodoActual.uci, nagAuto, nodoActual.id);
             }
         }
     }
@@ -2875,6 +2939,7 @@ function pillDblClick(uci, san) {
     const moveOpts = prom ? { from, to, promotion: prom } : { from, to };
     const move = chessA.move(moveOpts);
     if (!move) {
+        console.warn('[pillDblClick] Movimiento ilegal:', uci, 'FEN:', chessA.fen());
         return;
     }
 
@@ -3088,6 +3153,7 @@ function initSystem() {
         const moveOpts = prom ? { from, to, promotion: prom } : { from, to };
         const move = chessA.move(moveOpts);
         if (!move) {
+            console.warn('[pillDblClick] Movimiento ilegal:', uci, 'FEN:', chessA.fen());
             return;
         }
 
@@ -4033,6 +4099,7 @@ function initSystem() {
                 infoDiv.innerHTML = '<div style="color:#8b949e;font-size:0.8rem;">Sin datos en Lichess para esta posición.</div>';
             }
         } catch(err) {
+            console.error('[Lichess]', err);
             infoDiv.innerHTML = `<div style="color:#da3633;font-size:0.8rem;">Sin conexión con Lichess.</div>`;
         }
     }
@@ -4271,6 +4338,7 @@ function initSystem() {
             return data;
         } catch (err) {
             pzSetEstado('error', 'Error cargando puzzle. Comprueba conexión.');
+            console.error('[Puzzle]', err);
             return null;
         }
     }
@@ -4290,6 +4358,7 @@ function initSystem() {
             }
             return chess2.fen();
         } catch(e) {
+            console.warn('[Puzzle] pzReconstruirFEN error:', e);
             return new Chess().fen();
         }
     }
@@ -4310,6 +4379,7 @@ function initSystem() {
             const pieza = chess.get(fromSq);
             // ★ Condición clave: la pieza existe Y es del bando que tiene el turno
             if (pieza && pieza.color === chess.turn()) {
+                console.log(`[Puzzle] Posición encontrada en ply ${ply} (offset ${offset}), turno: ${chess.turn()}`);
                 return { fen, color: pieza.color };
             }
         }
@@ -4317,6 +4387,7 @@ function initSystem() {
         const fenFallback = pzReconstruirFEN(pgn, initialPly);
         const chessFallback = new Chess();
         chessFallback.load(fenFallback);
+        console.warn('[Puzzle] Usando fallback, turno:', chessFallback.turn());
         return { fen: fenFallback, color: chessFallback.turn() };
     }
 
@@ -4343,6 +4414,9 @@ function initSystem() {
         puzzleMode.chess.load(fen);
 
         // Verificación de consistencia en consola (para debug)
+        console.log('[Puzzle] FEN:', fen);
+        console.log('[Puzzle] chess.turn():', puzzleMode.chess.turn(), '| colorJugador:', colorJugador);
+        console.log('[Puzzle] solution[0]:', solution[0]);
 
         // Carga en el tablero de ANÁLISIS
         chessA.load(fen);
@@ -4395,10 +4469,12 @@ function initSystem() {
         // Verificación extra: la pieza en from debe ser del color del jugador
         const pieza = puzzleMode.chess.get(from);
         if (!pieza) {
+            console.warn('[Puzzle] Pista: no hay pieza en', from);
             pzSetEstado('esperando', '💡 Busca la jugada clave...');
             return;
         }
         if (pieza.color !== puzzleMode.colorJugador) {
+            console.warn('[Puzzle] Pista: pieza del color equivocado en', from);
             pzSetEstado('esperando', '💡 Es tu turno — mueve una pieza tuya');
             return;
         }
@@ -4826,6 +4902,7 @@ function initSystem() {
                 });
 
             } catch(e) {
+                console.error('[Análisis]', e);
                 panel.innerHTML = `<div style="color:var(--text-dim);font-size:11px;">
                     Error al analizar. Asegúrate de que Stockfish está activo.
                 </div>`;
@@ -4864,6 +4941,7 @@ function initSystem() {
         if (!texto || texto.trim() === 'unknown' || texto.trim() === 'nobestmove') return [];
 
         // Log para depuración — ver respuesta cruda
+        console.log('[ChessDB] Respuesta cruda:', texto.slice(0, 300));
 
         return texto.split('|').map(entry => {
             entry = entry.trim();
@@ -4892,6 +4970,7 @@ function initSystem() {
             };
 
             // Log cada entrada para depuración
+            console.log('[ChessDB] Entrada:', { uci: obj.uci, score: obj.score, note: obj.note, depth: obj.depth });
             return obj;
         }).filter(Boolean);
     }
@@ -4925,10 +5004,12 @@ function initSystem() {
         try {
             // Primero intenta con json=1 para respuesta estructurada
             const url = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1&json=1&pv=1`;
+            console.log('[ChessDB] URL:', url);
             const res = await fetch(url);
             if (!res.ok) throw new Error(`CDB HTTP ${res.status}`);
 
             const texto = await res.text();
+            console.log('[ChessDB] Respuesta completa:', texto.slice(0, 500));
 
             let datos = null;
 
@@ -4944,15 +5025,18 @@ function initSystem() {
                         note:  m.note ? m.note.trim().toLowerCase() : null,
                         san:   m.san  || null,
                     }));
+                    console.log('[ChessDB] Parseado como JSON, jugadas:', datos.length);
                 }
             } catch(e) {
                 // No es JSON — parsea como texto plano
+                console.log('[ChessDB] No es JSON, parseando como texto...');
                 datos = cdb_parsear(texto);
             }
 
             // Si json=1 no devuelve notas, reintenta sin json para el texto plano
             const tieneNotas = datos?.some(d => d.note);
             if (!tieneNotas && datos?.length) {
+                console.log('[ChessDB] Sin notas en JSON, reintentando en texto plano...');
                 const url2 = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1`;
                 const res2 = await fetch(url2);
                 const texto2 = await res2.text();
@@ -4964,6 +5048,7 @@ function initSystem() {
             CDB_CACHE.set(fen, datos);
             return datos;
         } catch(err) {
+            console.warn('[ChessDB]', err.message);
             return null;
         }
     }
@@ -5257,6 +5342,7 @@ function initSystem() {
 }
 
     function procesarPgnEntrante() {
+    console.log("-> ¡Botón pulsado con éxito! Leyendo el cuadro de texto...");
     
     // Capturamos el texto que Manuel ha pegado en la caja
     const textoDelCuadro = document.getElementById('pgn-input')?.value?.trim();
@@ -5334,6 +5420,7 @@ function initSystem() {
         
     } catch(e) {
         terminalLog('❌ Error al conectar con el usuario: ' + e.message);
+        console.error(e);
     }
 }
 
@@ -5418,9 +5505,6 @@ function initSystem() {
         if (tabBtn) switchTab('tab-nodo', tabBtn);
     });
 
-        
-
-
     /* ── Auto-switch al tab de Teoría cuando llegan datos de Lichess ── */
     // (opcional, descomenta si quieres que cambie automáticamente)
     // function autoSwitchTeoria() {
@@ -5430,6 +5514,7 @@ function initSystem() {
     </script>
 </body>
 </html>
+
 
 
 
