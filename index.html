@@ -3388,14 +3388,14 @@ ${datosJSON}`;
        ARRANQUE
     ════════════════════════════════════════════════════════════ */
     function initBoards() {
-        // 1. CAMBIO: Servidor público unpkg para evitar el bloqueo 403 de las imágenes
-        const PIECE_THEME = 'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/img/chesspieces/wikipedia/{piece}.png';
-        const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-
-        // 2. CAMBIO: Evita que el código aborte si handleMoveC se borró del script global
-        if (typeof handleMoveC === 'undefined') {
-            window.handleMoveC = function(source, target, piece, newPos, oldPos, orientation) { };
+        // 1. CORRECCIÓN CRÍTICA: Crea un alias para que ChessBoard con 'B' mayúscula no rompa el script
+        if (typeof ChessBoard === 'undefined' && typeof Chessboard !== 'undefined') {
+            window.ChessBoard = Chessboard;
         }
+
+        // 2. CORRECCIÓN DE PIEZAS: Servidor SVG de Lichess (evita el bloqueo 403 de imágenes de Chessboardjs)
+        const PIECE_THEME = 'https://lichess1.org/assets/piece/cburnett/{piece}.svg';
+        const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
         boardC = ChessBoard('boardCombat', {
             draggable: true, position: 'start',
@@ -3492,7 +3492,7 @@ ${datosJSON}`;
                     break;
             }
         });
-} // 3. CAMBIO: Cierre limpio sin el punto y coma final que tenías antes
+    };
 
     /* ══════════════════════════════════════════════════════════
        SISTEMA DE PUZZLES — Entrenamiento de Élite
@@ -4894,6 +4894,7 @@ ${resumenJSON}` }
     </script>
 </body>
 </html>
+
 
 
 
