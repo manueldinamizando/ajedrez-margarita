@@ -753,7 +753,7 @@
             opacity: 0.6; cursor: wait;
             animation: motor-blink 0.8s ease-in-out infinite;
         }
-        #btn-analisis-ia:hover {
+        #btn-pepe:hover {
             background: rgba(241,196,15,0.18) !important;
             border-color: #ffd700 !important;
         }
@@ -913,51 +913,6 @@
             overflow: hidden; cursor: pointer;
         }
 
-        /* ── Insignias NAG en el tablero ── */
-        .nag-badge {
-            position: absolute;
-            z-index: 30;
-            font-size: 13px;
-            font-weight: 900;
-            line-height: 1;
-            padding: 1px 3px;
-            border-radius: 3px;
-            pointer-events: none;
-            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
-            animation: nag-pop 0.25s cubic-bezier(0.34,1.56,0.64,1);
-        }
-        @keyframes nag-pop {
-            from { transform: scale(0.4); opacity: 0; }
-            to   { transform: scale(1);   opacity: 1; }
-        }
-        /* Colores por tipo */
-        .nag-brilliant { color: #00e5ff; text-shadow: 0 0 8px #00e5ff88; }
-        .nag-good      { color: #4caf50; text-shadow: 0 0 6px #4caf5088; }
-        .nag-interest  { color: #ffc107; text-shadow: 0 0 6px #ffc10788; }
-        .nag-dubious   { color: #ff9800; text-shadow: 0 0 6px #ff980088; }
-        .nag-mistake   { color: #ef5350; text-shadow: 0 0 6px #ef535088; }
-        .nag-blunder   { color: #b71c1c; text-shadow: 0 0 8px #b71c1c88; }
-        .nag-equal     { color: #90a4ae; }
-        .nag-adv-w     { color: #e8e0d0; }
-        .nag-adv-b     { color: #78909c; }
-
-        /* Símbolo NAG en los paneles de texto */
-        .nag-inline {
-            display: inline-block;
-            font-size: 11px;
-            font-weight: 900;
-            padding: 0 3px;
-            border-radius: 3px;
-            margin-left: 3px;
-            vertical-align: middle;
-        }
-        .nag-inline.brilliant { color: #00e5ff; background: rgba(0,229,255,0.12); }
-        .nag-inline.good      { color: #4caf50; background: rgba(76,175,80,0.12); }
-        .nag-inline.interest  { color: #ffc107; background: rgba(255,193,7,0.12); }
-        .nag-inline.dubious   { color: #ff9800; background: rgba(255,152,0,0.12); }
-        .nag-inline.mistake   { color: #ef5350; background: rgba(239,83,80,0.12); }
-        .nag-inline.blunder   { color: #b71c1c; background: rgba(183,28,28,0.20); }
-
         /* Animación pulso en casillas iluminadas (legacy) */
         @keyframes vt-pulse {
             0%,100% { opacity: 0.55; }
@@ -966,40 +921,6 @@
         .vt-square-highlight {
             animation: vt-pulse 1.8s ease-in-out infinite !important;
         }
-        /* Asegurar que el tablero permite elementos flotando dentro */
-        #boardAnalysis {
-            position: relative;
-        }
-
-        /* La base del círculo premium con esteroides (!important) */
-        .nag-board-badge {
-            position: absolute !important;
-            width: 18px !important;
-            height: 18px !important;
-            border-radius: 50% !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            font-family: 'Courier New', Courier, monospace !important;
-            font-weight: 900 !important;
-            font-size: 11px !important;
-            color: #ffffff !important;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
-            border: 1.5px solid #ffffff !important;
-            z-index: 999 !important;
-            pointer-events: none !important;
-            top: 2px !important;
-            right: 2px !important;
-            transform: none !important; /* Evita que el código viejo lo mueva de sitio */
-        }
-
-        /* Colores nuevos y exclusivos que nada de tu código antiguo puede romper */
-        .nag-board-badge.circulo-blunder   { background-color: #e53935 !important; } /* ?? */
-        .nag-board-badge.circulo-mistake   { background-color: #fb8c00 !important; } /* ? */
-        .nag-board-badge.circulo-good      { background-color: #43a047 !important; } /* ! */
-        .nag-board-badge.circulo-brilliant { background-color: #00acc1 !important; } /* !! */
-        .nag-board-badge.circulo-interest  { background-color: #8e24aa !important; } /* !? */
-        .nag-board-badge.circulo-dubious   { background-color: #757575 !important; } /* ?! */
     </style>
 </head>
 <body>
@@ -1341,21 +1262,6 @@
                     </div>
                 </div>
 
-                <!-- Analizar partida completa -->
-                <div class="estudio-seccion" id="analizar-partida-seccion" style="display:none;">
-                    <div class="estudio-label">🔍 Análisis completo de la partida</div>
-                    <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;">
-                        Stockfish analizará todas las jugadas y la IA generará un informe completo.
-                    </div>
-                    <button class="estudio-btn gold" onclick="analizarPartidaCompleta()">
-                        🔍 Analizar partida completa
-                    </button>
-                    <div id="analisis-partida-resultado" style="display:none;margin-top:8px;
-                        padding:8px;background:rgba(0,0,0,0.3);border-radius:6px;
-                        font-size:11px;line-height:1.7;color:var(--text-main);
-                        max-height:300px;overflow-y:auto;"></div>
-                </div>
-
                 <!-- Guardar estudio -->
                 <div class="estudio-seccion">
                     <div class="estudio-label">💾 Guardar estudio</div>
@@ -1525,7 +1431,6 @@
                 parentId, fen:d.fen, san:d.san, uci:d.uci,
                 moveNum:d.moveNum, side:d.side, eval:d.eval??0,
                 opening:d.opening??null, type:d.type??'main',
-                nag:     d.nag??null,   // código NAG: '$1','$2', etc.
                 children: [],
             };
         },
@@ -1861,311 +1766,19 @@
     }
     function closeCtx() { _ctxMenu?.remove(); _ctxMenu = null; }
 
-    /* ══════════════════════════════════════════════════════════
-       SISTEMA NAG — Glifos de Anotación Numérica
-       Muestra símbolos !, ?, !!, ?? en tablero y paneles
-    ══════════════════════════════════════════════════════════ */
-
-    const NAG_MAP = {
-        // Juicios de jugada
-        '$1':  { sym: '!',  cls: 'good',      board_cls: 'nag-good',      label: 'Buena jugada'         },
-        '$2':  { sym: '?',  cls: 'mistake',   board_cls: 'nag-mistake',   label: 'Error'                },
-        '$3':  { sym: '!!', cls: 'brilliant', board_cls: 'nag-brilliant', label: 'Jugada brillante'     },
-        '$4':  { sym: '??', cls: 'blunder',   board_cls: 'nag-blunder',   label: 'Error grave'          },
-        '$5':  { sym: '!?', cls: 'interest',  board_cls: 'nag-interest',  label: 'Jugada interesante'   },
-        '$6':  { sym: '?!', cls: 'dubious',   board_cls: 'nag-dubious',   label: 'Jugada dudosa'        },
-        // Evaluaciones de posición
-        '$10': { sym: '=',  cls: 'equal',     board_cls: 'nag-equal',     label: 'Igualdad'             },
-        '$11': { sym: '=',  cls: 'equal',     board_cls: 'nag-equal',     label: 'Igualdad'             },
-        '$13': { sym: '∞',  cls: 'equal',     board_cls: 'nag-equal',     label: 'Posición poco clara'  },
-        '$14': { sym: '⩲',  cls: 'adv-w',    board_cls: 'nag-adv-w',     label: 'Ligera ventaja blancas'},
-        '$15': { sym: '⩱',  cls: 'adv-b',    board_cls: 'nag-adv-b',     label: 'Ligera ventaja negras' },
-        '$16': { sym: '±',  cls: 'adv-w',    board_cls: 'nag-adv-w',     label: 'Ventaja blancas'      },
-        '$17': { sym: '∓',  cls: 'adv-b',    board_cls: 'nag-adv-b',     label: 'Ventaja negras'       },
-        '$18': { sym: '+-', cls: 'adv-w',    board_cls: 'nag-adv-w',     label: 'Ventaja decisiva blancas'},
-        '$19': { sym: '-+', cls: 'adv-b',    board_cls: 'nag-adv-b',     label: 'Ventaja decisiva negras' },
-    };
-
-    /* Genera HTML del símbolo NAG para usar inline en texto */
-    function nagInlineHtml(nagCode) {
-        const nag = NAG_MAP[nagCode];
-        if (!nag) return '';
-        return `<span class="nag-inline ${nag.cls}" title="${nag.label}">${nag.sym}</span>`;
-    }
-
-    /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) */
-    /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) con filtros estrictos */
-       /* Determina el NAG automático a partir del cambio de evaluación (Stockfish) */
-    /* Determina el NAG automático basándose ÚNICAMENTE en pérdidas graves */
-    function nagDesdeEval(diffCp, colorQueJugó) {
-        // 1. Convertimos la diferencia a la perspectiva del jugador que acaba de mover
-        // Si diffCp es negativo significa que la evaluación bajó (malo para el blanco, bueno para el negro)
-        let loss = colorQueJugó === 'w' ? diffCp : -diffCp;
-
-        // DETECTOR DE ESCALA: Si viene en formato humano (ej: -0.80 en vez de -80), lo pasamos a centipeones
-        if (Math.abs(loss) > 0 && Math.abs(loss) < 15) {
-            loss = loss * 100;
-        }
-
-        // 2. FILTRO RADICAL (EL FRENO DE MANO):
-        // Si la pérdida de la jugada es menor a 75 centipeones, NO ES UN ERROR.
-        // Cortamos en seco devolviendo null. ¡Tablero limpio!
-        if (loss >= -75) {
-            return null; 
-        }
-
-        // 3. ASIGNACIÓN DE ERRORES REALES (Solo si la pérdida supera los 75 centipeones):
-        if (loss < -150) {
-            return '$4'; // ?? Error Grave (Pierde más de 1.50 peones de golpe)
-        } else {
-            return '$2'; // ? Error (Pierde entre 0.75 y 1.50 peones)
-        }
-    }
-
-    /* Extrae NAGs del texto PGN crudo, devuelve array paralelo a chess.history() */
-    function extraerNAGsDePGN(pgnTexto) {
-        // Elimina cabeceras y comentarios
-        const sinCabeceras = pgnTexto.replace(/\[[^\]]*\]/g, '');
-        const sinComents   = sinCabeceras.replace(/\{[^}]*\}/g, '').replace(/\([^)]*\)/g, '');
-
-        // Tokeniza: separamos números de jugada, jugadas SAN y códigos $N
-        const tokens = sinComents.split(/\s+/).filter(Boolean);
-
-        const nags = []; // nags[i] = código '$N' o null para la jugada i
-
-        let moveIdx = 0;
-        let pendingNag = null;
-        let waitingForMove = false;
-
-        for (const tok of tokens) {
-            if (/^\d+\.+$/.test(tok)) {
-                // Número de jugada — no es una jugada
-                waitingForMove = false;
-                continue;
-            }
-            if (/^\$\d+$/.test(tok)) {
-                // Es un código NAG — pertenece a la jugada anterior
-                if (nags.length > 0 && !nags[nags.length - 1]) {
-                    nags[nags.length - 1] = tok;
-                }
-                continue;
-            }
-            if (/^(1-0|0-1|1\/2-1\/2|\*)$/.test(tok)) continue; // resultado
-            // Es una jugada SAN
-            nags.push(null); // placeholder
-            moveIdx++;
-        }
-        return nags;
-    }
-
-    /* ── Insignia NAG flotante sobre el tablero de análisis ── */
-    /* ── Insignia NAG flotante sobre el tablero de análisis ── */
-/* ── Insignia NAG flotante elegante sobre el tablero de análisis ── */
-    /* ── Interceptor del dibujo en tablero (El cazador de fantasmas) ── */
-    function mostrarNagEnTablero(uci, nagCode, originNodeId = 'DESCONOCIDO') {
-    // ── EL MURO DE HORMIGÓN DEFINITIVO ──
-    // Si el sistema global está en teoría de apertura, abortamos en seco.
-    // No permitimos que ningún repintado indirecto dibuje insignias falsas.
-    if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
-        limpiarNagTablero("Bloqueo absoluto: prohibido dibujar en teoría");
-        return;
-    }
-
-    const errorStack = new Error().stack;
-    const lineas = errorStack.split('\n');
-    const llamadorInmediato = lineas[2] ? lineas[2].trim() : 'Desconocido';
-
-    
-    if (llamadorInmediato.includes('onmessage') || llamadorInmediato.includes('worker') || llamadorInmediato.includes('stockfish') || llamadorInmediato.includes('onMove')) {
-    }
-
-    limpiarNagTablero("Llamado interno desde mostrarNagEnTablero");
-    
-    if (!uci || uci.length < 4 || !nagCode) {
-        return;
-    }
-    const nag = NAG_MAP[nagCode];
-    if (!nag) {
-        return;
-    }
-    const toSq = uci.slice(2, 4);
-    const board = document.getElementById('boardAnalysis');
-    const sq = board?.querySelector(`.square-${toSq}`);
-    if (!sq) {
-        return;
-    }
-
-    // Evitar duplicados físicos (Causa del bug naranja/rojo encimado)
-    const badgeExistente = document.getElementById('nag-board-badge');
-    if (badgeExistente) {
-        badgeExistente.remove();
-    }
-
-    const badge = document.createElement('div');
-    badge.id = 'nag-board-badge';
-    
-    let claseColor = 'circulo-good';
-    if (nag.sym === '??') claseColor = 'circulo-blunder';
-    else if (nag.sym === '?')  claseColor = 'circulo-mistake';
-    else if (nag.sym === '!!') claseColor = 'circulo-brilliant';
-    else if (nag.sym === '!?') claseColor = 'circulo-interest';
-    else if (nag.sym === '?!') claseColor = 'circulo-dubious';
-
-    badge.className = `nag-board-badge ${claseColor}`;
-    badge.textContent = nag.sym;
-    badge.title = nag.label;
-    
-    sq.appendChild(badge);
-}
-
-/* ── Seguimiento de limpiezas del tablero ── */
-function limpiarNagTablero(motivo = "No especificado") {
-    const badge = document.getElementById('nag-board-badge');
-    if (badge) {
-        badge.remove();
-    }
-}
-
-/* ── Panel de anotación — Sistema 3 estados (Con Interceptor) ── */
-function renderAnnotation(node, explorerData) {
-    const panel = document.getElementById('variant-annotation');
-    if (!panel || !node) return;
-    const estado = calcularEstado(node, explorerData);
-    estadoAnalisis = estado;
-
-
-    limpiarNagTablero("Llamado desde inicio de renderAnnotation");
-
-    // Badge de estado
-    const estadoMap = {
-        teoria:   { cls: 'estado-teoria',   txt: '📖 Teoría' },
-        variante: { cls: 'estado-variante', txt: '🔴 Variante propia' },
-        visitado: { cls: 'estado-visitado', txt: '✓ Ya explorado' },
-    };
-    const eb = estadoMap[estado];
-    const estadoHtml = `<span class="estado-badge ${eb.cls}">${eb.txt}</span>`;
-
-    // Evaluación
-    const ev    = node.eval;
-    const evLbl = (ev !== undefined && ev !== 0)
-        ? `<span class="va-eval ${ev>=0?'va-eval-pos':'va-eval-neg'}">${ev>=0?'+':''}${(ev/100).toFixed(2)}</span>`
-        : '';
-
-    // Apertura
-    const opening = node.opening || explorerData?.opening || null;
-    const opColor = estado === 'variante' ? '#ef5350' : (estado === 'visitado' ? '#fcd34d' : 'var(--accent)');
-    const opHtml  = opening
-        ? `<div style="font-size:11px;padding:4px 8px;margin-bottom:6px;
-            border-left:3px solid ${opColor};background:rgba(255,255,255,0.03);border-radius:0 4px 4px 0;">
-            <strong style="color:${opColor};">${opening.eco}</strong>
-            <span style="color:${estado==='variante'?'#fca5a5':'var(--text-main)'}"> — ${opening.name}</span>
-        </div>`
-        : `<div style="color:var(--text-dim);font-size:11px;padding:4px 8px;margin-bottom:6px;">
-            Posición fuera de teoría
-        </div>`;
-
-    // Píldoras de candidatas
-    const moves = explorerData?.moves || [];
-    const pildorasHtml = (estado !== 'variante' && moves.length)
-        ? renderizarPildoras(moves, node.id)
-        : (estado === 'variante'
-            ? `<div style="color:#fca5a5;font-size:11px;padding:4px 0;opacity:0.8;">
-                Exploración libre — las luces de teoría están apagadas
-            </div>`
-            : '');
-
-    // Botones de acción
-    const isVar = node.type === 'variant' || node.type === 'suggestion';
-    const actHtml = isVar ? `
-        <div class="va-actions" style="margin-top:10px;">
-            <button class="va-btn va-btn-promote"    onclick="lastVariantId=VT.activeId;vtPromote()">⬆️ Promover</button>
-            <button class="va-btn va-btn-bifurcation" onclick="vtBifurcation()">🔀 Bifurcación</button>
-            <button class="va-btn va-btn-discard"    onclick="vtDiscard()">🗑️ Descartar</button>
-        </div>` : '';
-
-    // Insignia NAG en el encabezado
-    const nagHtml = node.nag ? nagInlineHtml(node.nag) : '';
-
-    panel.innerHTML = `
-        <div class="va-header">
-            <span class="va-san">${node.san === '♟' ? 'Inicio' : node.san}${nagHtml}</span>
-            ${evLbl}
-            <span class="va-badge va-badge-${node.type}">${node.type}</span>
-        </div>
-        ${estadoHtml}
-        ${opHtml}
-        ${pildorasHtml}
-        ${actHtml}
-        <button id="btn-analizar" onclick="analizarPosicion()">
-            🔍 Analizar posición
-        </button>
-        <button id="btn-pepe" onclick="analizarConPepe()" style="
-            width:100%; margin-top:6px; padding:7px; border-radius:6px;
-            border:1px solid var(--accent); background:rgba(241,196,15,0.08);
-            color:var(--accent); font-size:11px; font-family:var(--font-mono);
-            font-weight:700; cursor:pointer; letter-spacing:1px; transition:all 0.2s;">
-            🎭 Análisis Pepe Cuenca
-        </button>
-        <div id="analisis-humano"></div>
-    `;
-    
-    // El escudo de teoría
-    if (estado === 'teoria') {
-        if (moves.length) {
-            Illuminator.illuminateTeoria(moves[0].uci);
-        }
-        return; 
-    }
-
-    let nagActivo = node.nag;
-    if (!nagActivo && node.parentId) {
-        const padre = VT.nodeMap.get(node.parentId);
-        if (padre && node.eval !== undefined && padre.eval !== undefined) {
-            const diferencia = node.eval - padre.eval;
-            nagActivo = nagDesdeEval(diferencia, node.side);
-        }
-    }
-
-    if (nagActivo && node.uci) {
-        mostrarNagEnTablero(node.uci, nagActivo, node.id); 
-    } else {
-    }
-
-    // Iluminación fuera de teoría
-    if (moves.length && estado !== 'variante') {
-        const topMove = moves[0];
-        if (estado === 'visitado') Illuminator.illuminateVisitado(topMove.uci);
-    } else if (estado === 'variante') {
-        Illuminator.clear();
-    }
-}
-
-    /* ── Seguimiento de limpiezas del tablero ── */
-    function limpiarNagTablero(motivo = "No especificado") {
-        const badge = document.getElementById('nag-board-badge');
-        if (badge) {
-            badge.remove();
-        }
-    }
-
     /* ── Panel de anotación — Sistema 3 estados ── */
-    /* ── Panel de anotación — Sistema 3 estados ── */
-    /* ── Panel de anotación — Sistema 3 estados ── */
-    /* ── Panel de anotación — Sistema 3 estados (Con Interceptor) ── */
     function renderAnnotation(node, explorerData) {
         const panel = document.getElementById('variant-annotation');
         if (!panel || !node) return;
-        const estado = calcularEstado(node, explorerData);
+
+        const estado  = calcularEstado(node, explorerData);
         estadoAnalisis = estado;
-
-
-        limpiarNagTablero("Llamado desde inicio de renderAnnotation");
 
         // Badge de estado
         const estadoMap = {
             teoria:   { cls: 'estado-teoria',   txt: '📖 Teoría' },
-            variante: { cls: 'estado-variante', txt: '🔴 Variante propia' },
-            visitado: { cls: 'estado-visitado', txt: '✓ Ya explorado' },
+            variante: { cls: 'estado-variante',  txt: '🔴 Variante propia' },
+            visitado: { cls: 'estado-visitado',  txt: '✓ Ya explorado' },
         };
         const eb = estadoMap[estado];
         const estadoHtml = `<span class="estado-badge ${eb.cls}">${eb.txt}</span>`;
@@ -2184,36 +1797,33 @@ function renderAnnotation(node, explorerData) {
                 border-left:3px solid ${opColor};background:rgba(255,255,255,0.03);border-radius:0 4px 4px 0;">
                 <strong style="color:${opColor};">${opening.eco}</strong>
                 <span style="color:${estado==='variante'?'#fca5a5':'var(--text-main)'}"> — ${opening.name}</span>
-            </div>`
+               </div>`
             : `<div style="color:var(--text-dim);font-size:11px;padding:4px 8px;margin-bottom:6px;">
                 Posición fuera de teoría
-            </div>`;
+               </div>`;
 
-        // Píldoras de candidatas
+        // Píldoras de candidatas (solo en estados teoría y visitado)
         const moves = explorerData?.moves || [];
         const pildorasHtml = (estado !== 'variante' && moves.length)
             ? renderizarPildoras(moves, node.id)
             : (estado === 'variante'
                 ? `<div style="color:#fca5a5;font-size:11px;padding:4px 0;opacity:0.8;">
                     Exploración libre — las luces de teoría están apagadas
-                </div>`
+                   </div>`
                 : '');
 
         // Botones de acción
         const isVar = node.type === 'variant' || node.type === 'suggestion';
         const actHtml = isVar ? `
             <div class="va-actions" style="margin-top:10px;">
-                <button class="va-btn va-btn-promote"    onclick="lastVariantId=VT.activeId;vtPromote()">⬆️ Promover</button>
+                <button class="va-btn va-btn-promote"     onclick="lastVariantId=VT.activeId;vtPromote()">⬆️ Promover</button>
                 <button class="va-btn va-btn-bifurcation" onclick="vtBifurcation()">🔀 Bifurcación</button>
-                <button class="va-btn va-btn-discard"    onclick="vtDiscard()">🗑️ Descartar</button>
+                <button class="va-btn va-btn-discard"     onclick="vtDiscard()">🗑️ Descartar</button>
             </div>` : '';
-
-        // Insignia NAG en el encabezado
-        const nagHtml = node.nag ? nagInlineHtml(node.nag) : '';
 
         panel.innerHTML = `
             <div class="va-header">
-                <span class="va-san">${node.san === '♟' ? 'Inicio' : node.san}${nagHtml}</span>
+                <span class="va-san">${node.san === '♟' ? 'Inicio' : node.san}</span>
                 ${evLbl}
                 <span class="va-badge va-badge-${node.type}">${node.type}</span>
             </div>
@@ -2224,43 +1834,31 @@ function renderAnnotation(node, explorerData) {
             <button id="btn-analizar" onclick="analizarPosicion()">
                 🔍 Analizar posición
             </button>
-            <button id="btn-analisis-ia" onclick="analizarPosicionIA()" style="
+            <button id="btn-pepe" onclick="analizarConPepe()" style="
                 width:100%; margin-top:6px; padding:7px; border-radius:6px;
-                border:1px solid var(--accent-blue); background:rgba(31,111,235,0.08);
-                color:var(--accent-blue); font-size:11px; font-family:var(--font-mono);
+                border:1px solid var(--accent); background:rgba(241,196,15,0.08);
+                color:var(--accent); font-size:11px; font-family:var(--font-mono);
                 font-weight:700; cursor:pointer; letter-spacing:1px; transition:all 0.2s;">
-                🤖 Análisis IA
+                🎭 Análisis Pepe Cuenca
             </button>
             <div id="analisis-humano"></div>
         `;
-        
-        // El escudo de teoría
-        if (estado === 'teoria') {
-            if (moves.length) {
-                Illuminator.illuminateTeoria(moves[0].uci);
-            }
-            return; 
-        }
 
-        let nagActivo = node.nag;
-        if (!nagActivo && node.parentId) {
-            const padre = VT.nodeMap.get(node.parentId);
-            if (padre && node.eval !== undefined && padre.eval !== undefined) {
-                const diferencia = node.eval - padre.eval;
-                nagActivo = nagDesdeEval(diferencia, node.side);
-            }
-        }
-
-        if (nagActivo && node.uci) {
-            mostrarNagEnTablero(node.uci, nagActivo, node.id); 
-        } else {
-        }
-
-        // Iluminación fuera de teoría
+        // ═══════════════════════════════════════════════════════
+        // Ilumina según el estado ACTUAL del análisis:
+        // - teoría/visitado → luz azul/dorada en candidata principal
+        // - variante        → sin luces (tablero limpio)
+        // ═══════════════════════════════════════════════════════
         if (moves.length && estado !== 'variante') {
             const topMove = moves[0];
-            if (estado === 'visitado') Illuminator.illuminateVisitado(topMove.uci);
+            if (estado === 'visitado') {
+                Illuminator.illuminateVisitado(topMove.uci);
+            } else {
+                // Estado teoría: SIEMPRE muestra la luz de la jugada principal
+                Illuminator.illuminateTeoria(topMove.uci);
+            }
         } else if (estado === 'variante') {
+            // Variante propia: apaga todo
             Illuminator.clear();
         }
     }
@@ -2305,6 +1903,7 @@ function renderAnnotation(node, explorerData) {
             TB_CACHE.set(fen, data);
             return data;
         } catch (err) {
+            console.warn('[Tablebase]', err.message);
             return null;
         }
     }
@@ -2795,270 +2394,33 @@ function renderAnnotation(node, explorerData) {
 
     /* ── Barra de evaluación Stockfish ── */
     function actualizarBarraEval(scoreText) {
-    const barWhite = document.getElementById('eval-bar-white');
-    const barLabel = document.getElementById('eval-bar-label');
-    if (!barWhite || !barLabel) return;
+        const barWhite = document.getElementById('eval-bar-white');
+        const barLabel = document.getElementById('eval-bar-label');
+        if (!barWhite || !barLabel) return;
 
-    let cp = 0, label = '0.0';
+        let cp = 0, label = '0.0';
 
-    if (scoreText && scoreText.includes('mate')) {
-        const m = parseInt(scoreText.split(' ')[1]);
-        cp    = m > 0 ? 9999 : -9999;
-        label = m > 0 ? `M+${Math.abs(m)}` : `M-${Math.abs(m)}`;
-    } else if (scoreText) {
-        cp    = parseInt(scoreText.split(' ')[1]) || 0;
-        const abs = (Math.abs(cp)/100).toFixed(2);
-        label = cp >= 0 ? `+${abs}` : `-${abs}`;
-    }
-
-    // Escala logarítmica con atan
-    const pct = 50 + (Math.atan(cp * 0.0035) / Math.PI) * 100;
-    barWhite.style.height = `${pct}%`;
-    barLabel.textContent  = label;
-    barLabel.style.bottom = `${pct}%`;
-
-    // Guarda en el nodo activo del árbol
-    VT.updateEval(VT.activeId, cp);
-    // Actualiza el gráfico de evaluación
-    renderEvalGraph();
-    
-    // ── CONTROL DE CALIDAD AUTOMÁTICO EN EL TABLERO ──
-    const nodoActual = VT.activeNode;
-    
-    // REGLA DE ORO 1: Si el sistema global está en estado 'teoria', 
-    // limpiamos cualquier signo viejo y NO permitimos calcular errores nuevos.
-    if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
-        // Motor en teoría: NAG manual se mantiene
-        return; 
-    }
-
-    if (nodoActual && !nodoActual.nag && nodoActual.parentId && nodoActual.uci) {
-        const padre = VT.nodeMap.get(nodoActual.parentId);
-        if (padre && padre.eval !== undefined) {
-            // Pasamos la diferencia a nuestra función con "freno de mano" (filtro de los 75cp)
-            const nagAuto = nagDesdeEval(cp - (padre.eval || 0), nodoActual.side);
-            
-            // Si el motor profundiza y decide que la jugada es normal (null), 
-            // borramos el rastro del signo inmediatamente para que no se quede congelado.
-            if (!nagAuto) {
-                // Jugada normal: sin NAG automático
-            } else {
-                // Si es un error real, se dibuja (reemplazando de forma limpia el anterior)
-                mostrarNagEnTablero(nodoActual.uci, nagAuto, nodoActual.id);
-            }
+        if (scoreText && scoreText.includes('mate')) {
+            const m = parseInt(scoreText.split(' ')[1]);
+            cp    = m > 0 ? 9999 : -9999;
+            label = m > 0 ? `M+${Math.abs(m)}` : `M-${Math.abs(m)}`;
+        } else if (scoreText) {
+            cp    = parseInt(scoreText.split(' ')[1]) || 0;
+            const abs = (Math.abs(cp)/100).toFixed(2);
+            label = cp >= 0 ? `+${abs}` : `-${abs}`;
         }
+
+        // Escala logarítmica con atan
+        const pct = 50 + (Math.atan(cp * 0.0035) / Math.PI) * 100;
+        barWhite.style.height = `${pct}%`;
+        barLabel.textContent  = label;
+        barLabel.style.bottom = `${pct}%`;
+
+        // Guarda en el nodo activo del árbol
+        VT.updateEval(VT.activeId, cp);
+        // Actualiza el gráfico de evaluación
+        renderEvalGraph();
     }
-}
-
-/* ── Detecta si el nodo activo tiene hijos visitados ── */
-function tieneHijosVisitados(nodeId) {
-    const node = VT.nodeMap.get(nodeId);
-    return (node?.children || []).some(c => nodosVisitados.has(c.id));
-}
-
-/* ── Determina el estado del análisis para la posición actual ── */
-function calcularEstado(node, explorerData) {
-    if (!node) return 'teoria';
-    if (nodosVisitados.has(node.id) && explorerData?.moves?.length) return 'visitado';
-    if (node.type === 'variant') return 'variante';
-    return 'teoria';
-}
-
-/* ── Renderiza las píldoras de candidatas en el panel ── */
-function renderizarPildoras(moves, nodeId) {
-    candidatasActuales = moves || [];
-    candidataActiva    = 0;
-
-    // Nodos hijo ya visitados desde este nodo
-    const parentNode   = VT.nodeMap.get(nodeId);
-    const hijosUci     = new Set((parentNode?.children || []).map(c => c.uci));
-
-    const pildorasHtml = candidatasActuales.slice(0, 6).map((m, i) => {
-        const total    = (m.white + m.draws + m.black) || 1;
-        const winPct   = Math.round((m.white / total) * 100);
-        const isTop    = i === 0;
-        const visited  = hijosUci.has(m.uci);
-        const clases   = ['pill-candidata', isTop ? 'top-pill' : '', visited ? 'visited' : ''].filter(Boolean).join(' ');
-
-        // Semáforo de color
-        let semaforo = '';
-        if (winPct > 52)      semaforo = '<span style="color:#4caf50;font-size:9px;">●</span>';
-        // Renderizado simplificado para mantener estabilidad visual
-        else if (winPct < 44) semaforo = '<span style="color:#ef5350;font-size:9px;">●</span>';
-        else                  semaforo = '<span style="color:#9e9e9e;font-size:9px;">●</span>';
-
-        return `<span class="${clases}"
-            data-uci="${m.uci}" data-idx="${i}"
-            onclick="pillClick('${m.uci}', ${i})"
-            ondblclick="pillDblClick('${m.uci}', '${m.san}')"
-            onmouseenter="Illuminator.previewCandidata('${m.uci}')"
-            onmouseleave="Illuminator.clearHover()"
-            title="Doble clic para mover | ${total.toLocaleString()} partidas | ${winPct}% bl.">
-            ${semaforo} ${m.san}
-            <span style="font-size:9px;opacity:0.6;">${total > 999 ? Math.round(total/1000)+'k' : total}</span>
-        </span>`;
-    }).join('');
-
-    return `<div style="margin-top:8px;">
-        <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase;
-            margin-bottom:5px;">Candidatas — click: ver · doble clic: mover</div>
-        <div style="display:flex;flex-wrap:wrap;gap:2px;">${pildorasHtml}</div>
-    </div>`;
-}
-
-/* ── Click en píldora: ilumina esa candidata ── */
-function pillClick(uci, idx) {
-    candidataActiva = idx;
-    Illuminator.illuminateCandidataClick(uci);
-    document.querySelectorAll('.pill-candidata').forEach((el, i) => {
-        el.style.outline = i === idx ? '2px solid #7dd3fc' : 'none';
-    });
-}
-
-/* ── Doble clic en píldora: ejecuta el movimiento automáticamente ── */
-function pillDblClick(uci, san) {
-    const from = uci.slice(0, 2);
-    const to   = uci.slice(2, 4);
-    const prom = uci[4] || undefined;
-
-    if (fenParaPildoras) chessA.load(fenParaPildoras);
-
-    const moveOpts = prom ? { from, to, promotion: prom } : { from, to };
-    const move = chessA.move(moveOpts);
-    if (!move) {
-        return;
-    }
-
-    boardA.position(chessA.fen());
-
-    const fenBase    = fenParaPildoras;
-    const extraBase  = [...analysisExtraMoves];
-    _syncExtraMovesFromPath();
-    analysisExtraMoves.push(move.san);
-
-    const vtNode = VT.addMove({
-        san:     move.san,
-        uci:     from + to + (prom || ''),
-        fen:     chessA.fen(),
-        moveNum: combatMoveHistory.length + analysisExtraMoves.length,
-        side:    move.color,
-        eval:    0,
-    }, 'variant');
-    lastVariantId = vtNode?.id ?? null;
-    if (vtNode) nodosVisitados.add(vtNode.id);
-
-    Illuminator.clear();
-    refrescarPaneles();
-    actualizarTurno();
-
-    if (motorA) {
-        motorA.postMessage('position fen ' + chessA.fen());
-        motorA.postMessage('go depth 14');
-    }
-    setTimeout(() => {
-        consultarLichess(chessA.fen());
-        checkTablebase(chessA.fen());
-    }, 80);
-    terminalLog('📖 Variante auto: ' + move.san);
-}
-
-/* ── Evento: nodo seleccionado (click en árbol D3) ── */
-document.addEventListener('vt:selected', e => {
-    const { node } = e.detail;
-    if (!node?.fen) return;
-    chessA.load(node.fen);
-    boardA.position(node.fen);
-    _syncExtraMovesFromPath();
-    estadoAnalisis = node.type === 'variant' ? 'variante' : 'teoria';
-    refrescarPaneles();
-    actualizarTurno();
-    Illuminator.clear();
-    renderAnnotation(node);
-    pedirAnalisisMotor(node.fen);
-    consultarLichess(node.fen);
-});
-
-/* ════════════════════════════════════════════════════════════
-   SISTEMA PRINCIPAL (Con el bloqueo de MultiPV e hilos corregido)
-   ════════════════════════════════════════════════════════════ */
-
-function initSystem() {
-    const sfUrl = "https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js";
-    fetch(sfUrl).then(r=>r.text()).then(code => {
-        const blob = new Blob([code],{type:'application/javascript'});
-        const url  = URL.createObjectURL(blob);
-        motorE = new Worker(url);
-        motorA = new Worker(url);
-        motorE.postMessage('uci');
-        motorA.postMessage('uci');
-
-        // ★ motorA: listener PERMANENTE — barra eval + panel MultiPV
-        motorA.onmessage = (e) => {
-            const line = e.data;
-
-            // ── ESCUDO RADICAL DE TEORÍA ──
-            if (typeof estadoAnalisis !== 'undefined' && estadoAnalisis === 'teoria') {
-                limpiarNagTablero("Silencio absoluto en apertura");
-            }
-
-            // Barra de evaluación (Procesa solo si pertenece a la línea principal PV 1)
-            if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
-                const match = line.match(/score (cp -?\d+|mate -?\d+)/);
-                // Mantenemos la estructura: extraemos el fragmento exacto que espera actualizarBarraEval
-                if (match) {
-                    actualizarBarraEval(match[1]); 
-                }
-            }
-
-            // Panel MultiPV — parsea todas las líneas para las píldoras de la interfaz
-            if (line.includes('multipv') && line.includes(' pv ')) {
-                const parsed = parsearLineaMotor(line);
-                if (parsed) {
-                    motorPVs[parsed.pvIdx] = {
-                        evalNum:  parsed.evalNum,
-                        evalType: parsed.evalType,
-                        moves:    parsed.moves,
-                        depth:    parsed.depth,
-                    };
-                    if (parsed.depth % 2 === 0 || parsed.depth >= 18) {
-                        renderMotorPanel();
-                    }
-                }
-            }
-
-            // Fin del análisis
-            if (line.includes('bestmove')) {
-                motorActive = false;
-                renderMotorPanel();
-            }
-        };
-
-        motorE.onmessage = (e) => {
-            if (e.data.includes("bestmove")) {
-                const moveRaw = e.data.split(" ")[1];
-                const moveObj = chessC.move(moveRaw, {sloppy:true});
-                if (moveObj) {
-                    combatMoveHistory.push(moveObj.san);
-                    analysisExtraMoves = [];
-                    boardC.position(chessC.fen());
-                    chessA.load(chessC.fen()); boardA.position(chessC.fen());
-                    refrescarPaneles();
-                    actualizarTurno();
-                    VT.addMove({
-                        san: moveObj.san, uci: moveRaw,
-                        fen: chessC.fen(),
-                        moveNum: combatMoveHistory.length,
-                        side: moveObj.color, eval: 0,
-                    }, 'main');
-                    VT.combatId = VT.activeId;
-                    terminalLog("Stockfish ha jugado: " + moveObj.san);
-                    checkTablebase(chessC.fen());
-                }
-            }
-        };
-        terminalLog("Motores en línea. Llama 3.3 preparado para el análisis.");
-    });
-}
 
     /* ── Detecta si el nodo activo tiene hijos visitados ── */
     function tieneHijosVisitados(nodeId) {
@@ -3139,6 +2501,7 @@ function initSystem() {
         const moveOpts = prom ? { from, to, promotion: prom } : { from, to };
         const move = chessA.move(moveOpts);
         if (!move) {
+            console.warn('[pillDblClick] Movimiento ilegal:', uci, 'FEN:', chessA.fen());
             return;
         }
 
@@ -3212,7 +2575,39 @@ function initSystem() {
             motorA.postMessage('uci');
 
             // ★ motorA: listener PERMANENTE — barra eval + panel MultiPV
-            
+            motorA.onmessage = (e) => {
+                const line = e.data;
+
+                // Barra de evaluación (pv1 siempre)
+                if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
+                    const match = line.match(/score (cp -?\d+|mate -?\d+)/);
+                    if (match) actualizarBarraEval(match[1]);
+                }
+
+                // Panel MultiPV — parsea todas las líneas
+                if (line.includes('multipv') && line.includes(' pv ')) {
+                    const parsed = parsearLineaMotor(line);
+                    if (parsed) {
+                        motorPVs[parsed.pvIdx] = {
+                            evalNum:  parsed.evalNum,
+                            evalType: parsed.evalType,
+                            moves:    parsed.moves,
+                            depth:    parsed.depth,
+                        };
+                        // Renderiza solo cada 2 profundidades para no saturar el DOM
+                        if (parsed.depth % 2 === 0 || parsed.depth >= 18) {
+                            renderMotorPanel();
+                        }
+                    }
+                }
+
+                // Fin del análisis
+                if (line.includes('bestmove')) {
+                    motorActive = false;
+                    renderMotorPanel(); // render final con todos los datos
+                }
+            };
+
             motorE.onmessage = (e) => {
                 if (e.data.includes("bestmove")) {
                     const moveRaw = e.data.split(" ")[1];
@@ -3299,50 +2694,34 @@ function initSystem() {
         return { ev, ventaja, quien, cambioEval, tactica, plan, fase, apertura };
     }
 
-    /* ══════════════════════════════════════════════════════════
-       ANÁLISIS IA — Analista Técnico de Ajedrez
-       Sin personalidad, puramente técnico, temperatura 0.2
-    ══════════════════════════════════════════════════════════ */
-
-    async function _llamarGroqConContexto(ctx, _persona, panelEl, btnEl) {
+    /* Llama a Groq con contexto rico — persona 'pepe' o 'tecnico' */
+    async function _llamarGroqConContexto(ctx, persona, panelEl, btnEl) {
         if (!GROQ_API_KEY) {
-            if (panelEl) panelEl.innerHTML = '<div style="color:#e57373;font-size:11px;">Sin clave Groq configurada.</div>';
-            if (btnEl) { btnEl.style.opacity = '1'; btnEl.textContent = btnEl._originalText || '🤖 Análisis IA'; }
+            if (panelEl) panelEl.innerHTML = '<div style="color:#e57373;font-size:11px;">Sin clave Groq.</div>';
             return;
         }
 
-        const datosJSON = JSON.stringify({
-            fen:              ctx.fen || chessA.fen(),
-            apertura_eco:     ctx.apertura || 'No disponible',
-            fase:             ctx.fase,
-            stockfish_lineas: ctx.stockfishLineas || [],
-            chessdb_stats:    ctx.chessdbStats || [],
-            evaluacion:       `${ctx.ev >= 0 ? '+' : ''}${(ctx.ev/100).toFixed(2)} (${ctx.ventaja} para ${ctx.quien})`,
-            cambio_respecto_jugada_anterior: ctx.cambioEval || 'Sin datos',
-            tactica_detectada: ctx.tactica,
-        }, null, 2);
+        const userPrompt = [
+            `Apertura: ${ctx.apertura}.`,
+            `Fase: ${ctx.fase}.`,
+            `Evaluación: ${ctx.ev >= 0 ? '+' : ''}${(ctx.ev/100).toFixed(2)} — ${ctx.ventaja} para ${ctx.quien}.`,
+            ctx.cambioEval,
+            `Táctica: ${ctx.tactica}`,
+            ctx.plan,
+            persona === 'pepe'
+                ? '¡Pepe, saca la magia para Don Manuel!'
+                : 'Explica esta posición de forma pedagógica y concisa.'
+        ].filter(Boolean).join(' ');
 
-        const systemPrompt = `Eres un Analista Técnico de Ajedrez de élite. Tu única función es interpretar métricas de motores de ajedrez (Stockfish) y bases de datos empíricas (ChessDB) para explicar la tensión práctica de una posición.
-
-REGLAS ESTRICTAS:
-1. Cero alucinaciones: tienes prohibido inventar variantes o sugerir movimientos que no estén en el JSON de entrada.
-2. Dependencia absoluta de los datos: todo análisis debe derivar del JSON recibido.
-3. Foco práctico: explica si la posición es fácil o difícil para un humano. Identifica si requiere jugadas únicas (only moves) o fluye de forma natural.
-4. Tono: académico, directo, conciso. Sin humor, sin personalidad, sin emociones.
-5. Notación en español: C=Caballo, A=Alfil, T=Torre, D=Dama, R=Rey.
-
-ESTRUCTURA DE SALIDA (dos apartados):
-**1. Análisis Objetivo (La Verdad de la Máquina):**
-- Resume la evaluación de la línea principal.
-- Indica la diferencia si se opta por alternativas sólidas.
-
-**2. Análisis Práctico (El Factor Humano):**
-- Contrasta la línea del motor con la jugada humana más común (ChessDB).
-- Concluye si la posición es cómoda (planes intuitivos) o crítica (requiere precisión).`;
-
-        const userPrompt = `Analiza esta posición con los siguientes datos:
-
-${datosJSON}`;
+        const systemPrompt = persona === 'pepe'
+            ? `Eres el Gran Maestro Pedagogo AMAI, con la pasión de Pepe Cuenca.
+               Analiza para "Manuel" con energía y humor granaíno. DICCIONARIO:
+               Alfil="Diablillo", Caballo="Potrisho". Peones: A="Aristóteles", C="Charly", F="El Facun".
+               Ventaja = "Bocatta di Cardinale". Remate = "¡Ratatatatatatata!".
+               REGLAS: notación española (C,A,T,D,R), método socrático, máximo 120 palabras.`
+            : `Eres un entrenador de ajedrez experto. Explica la posición en español claro,
+               sin tecnicismos innecesarios. Notación: C=Caballo, A=Alfil, T=Torre, D=Dama, R=Rey.
+               Máximo 100 palabras, directo y útil.`;
 
         try {
             const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -3354,36 +2733,715 @@ ${datosJSON}`;
                         { role: "system", content: systemPrompt },
                         { role: "user",   content: userPrompt   }
                     ],
-                    temperature: 0.2,
+                    temperature: persona === 'pepe' ? 0.9 : 0.3,
+                    max_tokens: 300,
                 })
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error.message);
             const texto = data.choices[0].message.content;
-            if (panelEl) {
-                panelEl.style.display = 'block';
-                panelEl.innerHTML = `
-                    <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px;">
-                        <div style="font-size:9px;font-weight:700;letter-spacing:2px;
-                            text-transform:uppercase;color:var(--accent-blue);margin-bottom:8px;">
-                            🤖 ANÁLISIS TÉCNICO IA
-                        </div>
-                        <div style="font-size:11px;line-height:1.7;color:var(--text-main);">
-                            ${texto.replace(/\r?\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}
-                        </div>
-                    </div>`;
+            const color = persona === 'pepe' ? 'var(--accent)' : 'var(--accent-blue)';
+            const titulo = persona === 'pepe' ? '🎭 PEPE CUENCA' : '🤖 ANÁLISIS TÉCNICO';
+            if (panelEl) panelEl.innerHTML = `
+                <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px;">
+                    <div style="font-size:9px;font-weight:700;letter-spacing:2px;
+                        text-transform:uppercase;color:${color};margin-bottom:8px;">${titulo}</div>
+                    <div style="font-size:11px;line-height:1.7;color:var(--text-main);">
+                        ${texto.replace(/\n/g,'<br>')}
+                    </div>
+                </div>`;
+        } catch(err) {
+            if (panelEl) panelEl.innerHTML = `<div style="color:#e57373;font-size:11px;">❌ ${err.message}</div>`;
+        }
+        if (btnEl) { btnEl.style.opacity = '1'; btnEl.textContent = btnEl._originalText || btnEl.textContent; }
+    }
+
+    async function triggerLlamaAnalysis(enfoque) {
+        // Redirige al nuevo sistema con contexto rico
+        analizarConPepe();
+    }
+
+    async function _triggerLlamaLegacy(enfoque) {
+    const term = document.getElementById('terminalBoard');
+    const fen  = chessA.fen();
+    term.innerHTML = `<div style="color:var(--accent)">Consultando a Groq...</div>`;
+    motorA.postMessage(`position fen ${fen}`);
+    motorA.postMessage('go depth 15');
+    const handler = async (e) => {
+        if (!e.data.includes("pv")) return;
+        motorA.removeEventListener('message', handler);
+        const pv    = e.data.split(" pv ")[1]?.split(" ").slice(0,7).join(" ") || '';
+        const score = e.data.includes("cp")
+            ? (parseInt(e.data.match(/score cp (-?\d+)/)[1]) / 100).toFixed(1)
+            : "Mate";
+        try {
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization":`Bearer ${GROQ_API_KEY}`, "Content-Type":"application/json" },
+                body: JSON.stringify({
+                    model: "llama-3.3-70b-versatile",
+                    messages: [
+                        { 
+                            role: "system", 
+                            // AQUÍ EL PROMPT "PATA NEGRA" ACTUALIZADO
+                            content: `Eres el Gran Maestro Pedagogo AMAI, con la voz, el ritmo y la pasión de Pepe Cuenca. 
+                            Analiza para "Rafa y Manuel" con energía desbordante y mucho humor granaíno, de la chana.
+
+                            DICCIONARIO OBLIGATORIO:
+                            - Piezas: Alfil = "Diablillo", Caballo = "Potrisho".
+                            - Peones con nombre: Columna A = "Aristóteles", Columna C = "Charly", Columna F = "El Facun" (¡el que soluciona tus problemas!).
+                            - Conceptos: Simplificar/Cambiar damas = "Dompepización". Estilo de Magnus = "Cremita Magnusiana" del "Almendrado".
+                            - Evaluación: Ventaja clara = "Bocatta di Cardinale" o "Sabor a curry excepcional". Malas piezas = "Sin futuro (como la melena del Divis)".
+                            - Remates (+3.0 o Mate): ¡Sacar la metralleta y decir "¡Ratatatatatatata!"!
+
+                            REGLAS DE ORO:
+                            1. Notación en español (C, A, T, D, R).
+                            2. Usa el método socrático: pregunta a Manuel "¿Quién soluciona tus problemas aquí?" o "¿Ves el hachazo?".
+                            3. Menciona al Divis y a Miguelito al final si la posición es de "absoluto lío".`
+
+                            
+                        },
+                        { 
+                            role: "user", 
+                            content: `FEN: ${fen}. Eval: ${score}. Línea: ${pv}. Enfoque: ${enfoque}. ¡Pepe, saca la magia para Don Manuel!` 
+                        }
+                    ],
+                    temperature: persona === 'pepe' ? 0.9 : 0.3,
+                })
+            });
+            
+            const data  = await response.json();
+            
+            if (data.error) {
+                term.innerHTML = "Error en el cerebro de Groq.";
+                return;
+            }
+
+            const texto = data.choices[0].message.content;
+            
+            // Traducción de la cabecera técnica a español
+            const pvEsp = pv.replace(/N/g,'C').replace(/B/g,'A').replace(/R/g,'T').replace(/Q/g,'D').replace(/K/g,'R');
+
+            term.innerHTML = `
+                <div style="border-bottom:1px solid var(--accent);padding-bottom:10px;margin-bottom:10px;">
+                    <strong>ANÁLISIS MAGISTRAL DE PEPE CUENCA (${enfoque.toUpperCase()})</strong>
+                </div>
+                <div style="color:var(--accent);margin-bottom:10px;">EVALUACIÓN: ${score} | LÍNEA: ${pvEsp}</div>
+                <div>${texto.replace(/\n/g,'<br>')}</div>`;
+        } catch(err) {
+            term.innerHTML = "Error de conexión con el cerebro Groq.";
+        }
+    };
+    motorA.addEventListener('message', handler);
+}
+
+    /* ── Diálogo de promoción ── */
+    var _pendingPromotion = null;
+    function solicitarPromocion(source, target, callback) {
+        const piezas = [
+            { p: 'q', n: 'Dama',   s: '♛' },
+            { p: 'r', n: 'Torre',  s: '♜' },
+            { p: 'b', n: 'Alfil',  s: '♝' },
+            { p: 'n', n: 'Caballo',s: '♞' },
+        ];
+        // Diálogo simple inline
+        const dlg = document.createElement('div');
+        dlg.style.cssText = `position:fixed;inset:0;z-index:9998;background:rgba(2,4,8,0.85);
+            display:flex;align-items:center;justify-content:center;`;
+        dlg.innerHTML = `<div style="background:var(--bg-panel);border:2px solid var(--accent);
+            border-radius:12px;padding:24px;text-align:center;">
+            <div style="font-size:13px;color:var(--accent);font-weight:700;letter-spacing:2px;
+                text-transform:uppercase;margin-bottom:16px;">Coronación — Elige pieza</div>
+            <div style="display:flex;gap:12px;">
+                ${piezas.map(p => `<button onclick="document.body.removeChild(this.closest('[style*=fixed]'));(${callback.toString()})('${p.p}')"
+                    style="font-size:36px;background:transparent;border:2px solid var(--border);
+                    border-radius:8px;padding:8px 14px;cursor:pointer;color:var(--text-main);
+                    transition:border-color 0.2s;"
+                    onmouseover="this.style.borderColor='var(--accent)'"
+                    onmouseout="this.style.borderColor='var(--border)'"
+                    title="${p.n}">${p.s}</button>`).join('')}
+            </div>
+        </div>`;
+        document.body.appendChild(dlg);
+    }
+
+    /* ── handleMoveC: tu jugada en COMBATE ── */
+    function handleMoveC(source, target) {
+        // En modo puzzle, redirige al handler de puzzles
+        // El puzzle usa el tablero de ANÁLISIS, no el de combate
+
+        // Verifica legalidad ANTES de cualquier otra cosa
+        const movesLegales = chessC.moves({ square: source, verbose: true });
+        const esLegal = movesLegales.some(m => m.to === target);
+        if (!esLegal) return 'snapback';
+
+        // Detecta coronación
+        const piece = chessC.get(source);
+        const isProm = piece?.type === 'p' &&
+            ((piece.color === 'w' && target[1] === '8') ||
+             (piece.color === 'b' && target[1] === '1'));
+
+        if (isProm) {
+            solicitarPromocion(source, target, function(prom) {
+                _ejecutarMovimientoCombate(source, target, prom);
+            });
+            return; // Deja caer la pieza visualmente, el diálogo confirma
+        }
+
+        return _ejecutarMovimientoCombate(source, target, 'q');
+    }
+
+    function _ejecutarMovimientoCombate(source, target, prom) {
+        const move = chessC.move({from:source, to:target, promotion:prom});
+        if (move === null) return 'snapback';
+
+        // Empuja a nuestro array propio y limpia la variante
+        combatMoveHistory.push(move.san);
+        analysisExtraMoves = [];
+        limpiarFlechaDorada('boardCombat');
+        limpiarFlechaDorada('boardAnalysis');
+
+        boardC.position(chessC.fen());
+        chessA.load(chessC.fen());
+        boardA.position(chessC.fen());
+        refrescarPaneles();
+        actualizarTurno();
+        historialAvanzar = [];
+
+        VT.addMove({
+            san: move.san, uci: source+target,
+            fen: chessC.fen(),
+            moveNum: combatMoveHistory.length,
+            side: move.color, eval: 0,
+        }, 'main');
+        VT.combatId = VT.activeId;
+
+        estadoAnalisis = 'teoria';
+        consultarLichess(chessC.fen());
+        checkTablebase(chessC.fen());
+        motorE.postMessage("position fen " + chessC.fen());
+        motorE.postMessage("go movetime 1000");
+    }
+
+    function syncSystems() {
+        chessA.load(chessC.fen());
+        boardA.position(chessC.fen());
+        refrescarPaneles();
+        actualizarTurno();
+    }
+
+    function gameReset() {
+        chessC.reset(); boardC.start();
+        combatMoveHistory  = [];
+        analysisExtraMoves = [];
+        currentOpeningEco  = null;
+        currentOpeningName = null;
+        limpiarTablebase();
+        chessA.reset(); boardA.start();
+        refrescarPaneles();
+        actualizarTurno();
+        VT.reset();
+        document.getElementById('variant-annotation').innerHTML =
+            '<div style="color:var(--text-dim);font-size:11px;">Haz click en un nodo del árbol para ver los detalles.</div>';
+        terminalLog("Laboratorio reiniciado.");
+    }
+
+    function gameUndo() {
+        const lastMove = chessC.undo();
+        if (lastMove) {
+            historialAvanzar.push(lastMove);
+            combatMoveHistory.pop();
+            analysisExtraMoves = [];
+            boardC.position(chessC.fen());
+            chessA.load(chessC.fen()); boardA.position(chessC.fen());
+            refrescarPaneles();
+            actualizarTurno();
+            VT.bifurcation();
+            VT.combatId = VT.activeId;
+            terminalLog("Jugada deshecha.");
+        }
+    }
+
+    function gameRedo() {
+        const move = historialAvanzar.pop();
+        if (move) {
+            chessC.move(move);
+            combatMoveHistory.push(typeof move === 'string' ? move : move.san);
+            analysisExtraMoves = [];
+            boardC.position(chessC.fen());
+            chessA.load(chessC.fen()); boardA.position(chessC.fen());
+            refrescarPaneles();
+            actualizarTurno();
+            terminalLog("Jugada recuperada.");
+        } else {
+            terminalLog("No hay jugadas para avanzar.");
+        }
+    }
+
+    function flipAnalysisBoard() { boardA.orientation('flip'); terminalLog("Vista cambiada."); }
+    function flipCombatBoard()   { boardC.orientation('flip'); terminalLog("Tablero combate girado."); }
+
+    /* ── Análisis Pepe Cuenca — usa contexto rico ── */
+    async function analizarConPepe() {
+        const panel = document.getElementById('analisis-humano');
+        const btn   = document.getElementById('btn-pepe');
+        if (!panel) return;
+
+        const contexto = construirContextoLlama();
+        if (!contexto) return;
+
+        // Muestra placeholder mientras carga
+        panel.style.display = 'block';
+        // Limpia solo la sección Llama, mantiene el análisis técnico si estaba
+        const existente = panel.querySelector('.llama-result');
+        if (existente) existente.remove();
+
+        const placeholder = document.createElement('div');
+        placeholder.className = 'llama-result';
+        placeholder.style.cssText = 'border-top:1px solid var(--border);padding-top:10px;margin-top:10px;';
+        placeholder.innerHTML = `
+            <div style="color:var(--accent);font-size:10px;animation:motor-blink 1s infinite;">
+                🎭 Consultando al Mágico Cuenca...
+            </div>`;
+        panel.appendChild(placeholder);
+
+        if (btn) { btn._originalText = btn.textContent; btn.style.opacity = '0.6'; btn.textContent = '⏳ Consultando...'; }
+
+        await _llamarGroqConContexto(contexto, 'pepe', placeholder, btn);
+    }
+
+    function cargarAperturaSeleccionada() {
+        const fen = document.getElementById('selectApertura').value;
+        if (fen) {
+            chessC.load(fen); boardC.position(fen);
+            combatMoveHistory  = [];
+            analysisExtraMoves = [];
+            syncSystems();
+            VT.reset();
+            document.getElementById('infoApertura').innerText = "Posición teórica cargada en ambos sistemas.";
+            terminalLog("Apertura sincronizada.");
+        }
+    }
+
+    function terminalLog(msg) { document.getElementById('terminalBoard').innerText = msg; }
+
+    // ── Arrays propios de historial (no usamos chessObj.history() porque
+    //    Chess.js no reconstruye historial al hacer load(fen)) ──
+    var combatMoveHistory  = [];  // jugadas SAN de la línea principal (combate)
+    var analysisExtraMoves = [];  // jugadas SAN extra del tablero de análisis (variante)
+    var currentOpeningEco  = null;
+    var currentOpeningName = null;
+
+    // Construye el HTML de una fila de jugadas
+    function _moveRowHtml(num, white, black, wRed, bRed) {
+        const wC = wRed ? '#ef5350' : 'var(--text-main)';
+        const bC = bRed ? '#ef5350' : 'var(--text-main)';
+        const wB = wRed ? 'rgba(239,83,80,0.1)' : 'transparent';
+        const bB = bRed ? 'rgba(239,83,80,0.1)' : 'transparent';
+        return `<div style="display:grid;grid-template-columns:28px 1fr 1fr;gap:6px;
+                    border-bottom:1px solid #1a1f26;padding:2px 0;">
+            <span style="color:var(--text-dim);">${num}.</span>
+            <span style="font-weight:700;padding:1px 4px;border-radius:3px;
+                  color:${wC};background:${wB};">${white}</span>
+            <span style="font-weight:700;padding:1px 4px;border-radius:3px;
+                  color:${bC};background:${bB};">${black}</span>
+        </div>`;
+    }
+
+    // Renderiza los paneles usando los arrays propios
+    function actualizarListaJugadas(panelId, _unused, isAnalysis) {
+        const list = document.getElementById(panelId);
+        if (!list) return;
+
+        const main  = combatMoveHistory;    // jugadas blancas (siempre)
+        const extra = isAnalysis ? analysisExtraMoves : []; // jugadas rojas
+
+        const allMoves = [...main, ...extra];
+        const splitAt  = main.length;       // a partir de aquí → rojo
+        const hasExtra = extra.length > 0;
+
+        let html = '';
+
+        // Cabecera de variante en rojo (solo panel análisis con jugadas extra)
+        if (isAnalysis && hasExtra) {
+            const opLabel = [currentOpeningEco, currentOpeningName].filter(Boolean).join(' — ');
+            if (opLabel) {
+                html += `<div style="color:#ef5350;font-size:0.75rem;font-weight:700;
+                    padding:4px 8px;margin-bottom:4px;background:rgba(239,83,80,0.08);
+                    border-radius:4px;border-left:3px solid #ef5350;">📖 ${opLabel}</div>`;
+            }
+            html += `<div style="color:#ef5350;font-size:0.68rem;letter-spacing:2px;
+                text-transform:uppercase;padding:3px 0;margin-bottom:4px;
+                border-bottom:1px dashed rgba(239,83,80,0.3);">── Variante ──</div>`;
+        }
+
+        for (let i = 0; i < allMoves.length; i += 2) {
+            const num   = Math.floor(i / 2) + 1;
+            const white = allMoves[i]     || '';
+            const black = allMoves[i + 1] || '';
+            html += _moveRowHtml(num, white, black, i >= splitAt, i+1 >= splitAt);
+        }
+
+        list.innerHTML = html;
+        list.scrollTop = list.scrollHeight;
+    }
+
+    // Refresca ambos paneles de jugadas
+    function refrescarPaneles() {
+        actualizarListaJugadas('moveListCombat',   null, false);
+        actualizarListaJugadas('moveListAnalysis', null, true);
+        actualizarPathList();
+        actualizarBotonesNav();
+        renderEvalGraph();
+    }
+
+    // ══════════════════════════════════════════════════════
+    // ★ NAVEGACIÓN DEL TABLERO DE ANÁLISIS
+    // Cada nodo del árbol VT es una posición. La "ruta"
+    // es el camino desde la raíz hasta el nodo activo.
+    // ══════════════════════════════════════════════════════
+
+    // Construye la ruta desde la raíz hasta el nodo activo
+    function getAnalysisPath() {
+        const path = [];
+        let node = VT.nodeMap.get(VT.activeId);
+        while (node && node.san !== '♟') {
+            path.unshift(node);
+            node = VT.nodeMap.get(node.parentId);
+        }
+        return path;
+    }
+
+    // ← Atrás: va al nodo padre (sin borrar la rama actual)
+    function analysisPrev() {
+        const node   = VT.nodeMap.get(VT.activeId);
+        const parent = VT.nodeMap.get(node?.parentId);
+        if (!parent) return;
+
+        VT.activeId = parent.id;
+        chessA.load(parent.fen);
+        boardA.position(parent.fen);
+
+        // Recalcula analysisExtraMoves desde la ruta
+        _syncExtraMovesFromPath();
+        // Volvemos atrás → resetea estado para que la luz reaparezca
+        estadoAnalisis = 'teoria';
+        refrescarPaneles();
+        actualizarTurno();
+        Illuminator.clear();
+        pedirAnalisisMotor(parent.fen);
+        setTimeout(() => consultarLichess(parent.fen), 80);
+        VT.render();
+    }
+
+    // → Adelante: va al primer hijo del nodo activo
+    function analysisNext() {
+        const node = VT.nodeMap.get(VT.activeId);
+        const child = node?.children?.find(c => c.type !== 'discarded');
+        if (!child) return;
+
+        VT.activeId = child.id;
+        chessA.load(child.fen);
+        boardA.position(child.fen);
+
+        _syncExtraMovesFromPath();
+        // El estado depende del tipo del nodo hijo
+        estadoAnalisis = child.type === 'variant' ? 'variante' : 'teoria';
+        refrescarPaneles();
+        actualizarTurno();
+        Illuminator.clear();
+        pedirAnalisisMotor(child.fen);
+        setTimeout(() => consultarLichess(child.fen), 80);
+        VT.render();
+    }
+
+    // ⏮ / ⏭ — ir al primer/último nodo de la ruta
+    function analysisGoTo(index) {
+        const path = getAnalysisPath();
+        if (!path.length) return;
+        const target = index === 0
+            ? VT.rootData                    // inicio absoluto
+            : path[path.length - 1];         // último nodo de la ruta
+        if (!target) return;
+
+        VT.activeId = target.id;
+        chessA.load(target.fen);
+        boardA.position(target.fen);
+        _syncExtraMovesFromPath();
+        estadoAnalisis = (!target.type || target.type === 'main') ? 'teoria' : 'variante';
+        refrescarPaneles();
+        actualizarTurno();
+        Illuminator.clear();
+        pedirAnalisisMotor(target.fen);
+        setTimeout(() => consultarLichess(target.fen), 80);
+        VT.render();
+    }
+
+    // Navega a un nodo concreto por su id (desde click en jugada clickable)
+    function analysisGoToNode(nodeId) {
+        const node = VT.nodeMap.get(nodeId);
+        if (!node || node.type === 'discarded') return;
+
+        VT.activeId = nodeId;
+        chessA.load(node.fen);
+        boardA.position(node.fen);
+        _syncExtraMovesFromPath();
+        refrescarPaneles();
+        actualizarTurno();
+        Illuminator.clear();
+        renderAnnotation(node);
+        setTimeout(() => consultarLichess(node.fen), 80);
+        VT.render();
+    }
+
+    // Recalcula analysisExtraMoves a partir de la ruta del árbol
+    // (jugadas que van más allá de combatMoveHistory)
+    function _syncExtraMovesFromPath() {
+        const path = getAnalysisPath();
+        const extra = path.slice(combatMoveHistory.length);
+        analysisExtraMoves = extra.map(n => n.san);
+    }
+
+    // Actualiza el estado habilitado/deshabilitado de los botones ← →
+    function actualizarBotonesNav() {
+        const node   = VT.nodeMap.get(VT.activeId);
+        const parent = VT.nodeMap.get(node?.parentId);
+        const child  = node?.children?.find(c => c.type !== 'discarded');
+
+        const btnPrev  = document.getElementById('btn-analysis-prev');
+        const btnNext  = document.getElementById('btn-analysis-next');
+        const btnStart = document.getElementById('btn-analysis-start');
+        const btnEnd   = document.getElementById('btn-analysis-end');
+
+        if (btnPrev)  { btnPrev.disabled  = !parent; btnPrev.style.opacity  = parent ? '1' : '0.35'; }
+        if (btnNext)  { btnNext.disabled  = !child;  btnNext.style.opacity  = child  ? '1' : '0.35'; }
+        if (btnStart) { btnStart.disabled = !parent; btnStart.style.opacity = parent ? '1' : '0.35'; }
+        if (btnEnd)   { btnEnd.disabled   = !child;  btnEnd.style.opacity   = child  ? '1' : '0.35'; }
+    }
+
+    // Renderiza la "Ruta del árbol" con jugadas clickables
+    function actualizarPathList() {
+        const list = document.getElementById('analysis-path-list');
+        if (!list) return;
+
+        const path = getAnalysisPath();
+        if (!path.length) {
+            list.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">Posición inicial</span>';
+            return;
+        }
+
+        let html = '';
+        path.forEach((node, i) => {
+            const isActive   = node.id === VT.activeId;
+            const isVariant  = node.type !== 'main';
+            const isDiscarded = node.type === 'discarded';
+            if (isDiscarded) return;
+
+            // Número de jugada
+            if (node.side === 'w' || i === 0) {
+                const moveNum = Math.floor((combatMoveHistory.length + i) / 2) + 1;
+                if (node.side === 'w') {
+                    html += `<span class="path-num">${moveNum}.</span>`;
+                }
+            }
+
+            const cls = [
+                'path-chip',
+                isVariant  ? 'var-chip'  : 'main-chip',
+                isActive   ? 'active-chip' : ''
+            ].join(' ');
+
+            html += `<span class="${cls}"
+                onclick="analysisGoToNode('${node.id}')"
+                title="${isVariant ? 'Variante' : 'Línea principal'}"
+            >${node.san}</span>`;
+        });
+
+        // Si el nodo activo tiene varios hijos → mostrar bifurcaciones disponibles
+        const activeNode = VT.nodeMap.get(VT.activeId);
+        const branches = (activeNode?.children || []).filter(c => c.type !== 'discarded');
+        if (branches.length > 1) {
+            html += `<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);">
+                <span style="color:var(--text-dim);font-size:10px;letter-spacing:1px;">BIFURCACIONES:</span><br>`;
+            branches.forEach(b => {
+                const cls = b.type !== 'main' ? 'path-chip var-chip' : 'path-chip main-chip';
+                html += `<span class="${cls}" onclick="analysisGoToNode('${b.id}')">${b.san}</span>`;
+            });
+            html += '</div>';
+        }
+
+        list.innerHTML = html;
+    }
+
+    // ── Indicador de turno + detección jaque + fin de partida ──
+    function actualizarTurno() {
+        // Turno
+        const turnoC = chessC.turn() === 'w' ? '⬜ Turno: BLANCAS' : '⬛ Turno: NEGRAS';
+        const turnoA = chessA.turn() === 'w' ? '⬜ Turno: BLANCAS' : '⬛ Turno: NEGRAS';
+        const colorC = chessC.turn() === 'w' ? '#e6edf3' : '#8b949e';
+        const colorA = chessA.turn() === 'w' ? '#e6edf3' : '#8b949e';
+        const elC = document.getElementById('turno-combat');
+        const elA = document.getElementById('turno-analysis');
+        if (elC) { elC.textContent = turnoC; elC.style.color = colorC; }
+        if (elA) { elA.textContent = turnoA; elA.style.color = colorA; }
+
+        // Marcar rey en jaque
+        marcarJaque();
+
+        // Detectar fin de partida en combate
+        detectarFinPartida();
+    }
+
+    // Marca visualmente el rey en jaque con pulso rojo
+    function marcarJaque() {
+        // Limpia jaque anterior
+        document.querySelectorAll('.sq-jaque').forEach(el => el.classList.remove('sq-jaque'));
+
+        [{ chess: chessC, boardId: 'boardCombat' },
+         { chess: chessA, boardId: 'boardAnalysis' }].forEach(({ chess, boardId }) => {
+            if (!chess.in_check()) return;
+
+            // Encuentra la casilla del rey del bando activo
+            const turno = chess.turn(); // 'w' o 'b'
+            const board = chess.board();
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const piece = board[r][c];
+                    if (piece && piece.type === 'k' && piece.color === turno) {
+                        const files = ['a','b','c','d','e','f','g','h'];
+                        const ranks = ['8','7','6','5','4','3','2','1'];
+                        const sq    = files[c] + ranks[r];
+                        const el = document.querySelector(`#${boardId} .square-${sq}`);
+                        if (el) el.classList.add('sq-jaque');
+                    }
+                }
+            }
+        });
+    }
+
+    // Detecta jaque mate, ahogado y tablas en la partida de combate
+    function detectarFinPartida() {
+        if (!chessC.game_over()) return;
+
+        let emoji = '🤝', titulo = '', subtitulo = '';
+
+        if (chessC.in_checkmate()) {
+            const ganador = chessC.turn() === 'b' ? 'BLANCAS' : 'NEGRAS';
+            emoji     = ganador === 'BLANCAS' ? '🏆' : '🏴';
+            titulo    = `¡JAQUE MATE! Ganan las ${ganador}`;
+            subtitulo = ganador === 'NEGRAS' ? 'Stockfish te ha derrotado. ¡Sigue practicando!' : '¡Increíble! Has vencido a Stockfish.';
+        } else if (chessC.in_stalemate()) {
+            titulo    = 'AHOGADO — Tablas';
+            subtitulo = 'El rey no puede moverse. Tablas por ahogado.';
+        } else if (chessC.in_threefold_repetition()) {
+            titulo    = 'TABLAS — Triple repetición';
+            subtitulo = 'La misma posición se ha repetido 3 veces.';
+        } else if (chessC.insufficient_material()) {
+            titulo    = 'TABLAS — Material insuficiente';
+            subtitulo = 'Ninguno de los dos bandos puede dar mate.';
+        } else if (chessC.in_draw()) {
+            titulo    = 'TABLAS — Regla de los 50 movimientos';
+            subtitulo = '50 movimientos sin capturas ni peones.';
+        }
+
+        if (titulo) {
+            document.getElementById('resultado-emoji').textContent    = emoji;
+            document.getElementById('resultado-titulo').textContent   = titulo;
+            document.getElementById('resultado-subtitulo').textContent = subtitulo;
+            document.getElementById('resultado-overlay').classList.add('visible');
+            terminalLog(`⚑ ${titulo}`);
+        }
+    }
+
+    // Sincroniza la altura de la barra eval con la del tablero real
+    function sincronizarAlturaEvalBar() {
+        const board = document.getElementById('boardAnalysis');
+        const bar   = document.getElementById('eval-bar-analysis');
+        if (!board || !bar) return;
+        const h = board.offsetHeight;
+        if (h > 50) bar.style.height = h + 'px';
+    }
+
+    async function consultarLichess(fen) {
+        const infoDiv = document.getElementById('theoryData');
+        if (!infoDiv) return;
+
+        // ★ FIX RACE CONDITION: capturamos el nodeId AHORA, antes del await.
+        const capturedNodeId = VT.activeId;
+        // Guardamos el FEN para que pillDblClick sepa desde dónde mover
+        fenParaPildoras = fen;
+
+        const encodedFen = encodeURIComponent(fen);
+        // Todos los rangos de ELO y velocidades para maximizar partidas en apertura
+        const url = `https://explorer.lichess.ovh/lichess?variant=standard&fen=${encodedFen}&speeds=ultraBullet,bullet,blitz,rapid,classical,correspondence&ratings=1600,1800,2000,2200,2500&moves=8`;
+
+        const miToken = localStorage.getItem('lichess_token');
+        const headers  = { 'Accept': 'application/json' };
+        if (miToken) headers['Authorization'] = `Bearer ${miToken}`;
+
+        try {
+            infoDiv.innerHTML = '<div style="color:#aaa;font-size:0.8rem;">Consultando maestros...</div>';
+            const response = await fetch(url, { headers });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const data = await response.json();
+
+            // ★ FIX: usamos capturedNodeId (clausura), NO VT.activeId (puede haber cambiado)
+            if (data.opening) {
+                // Guarda en variables globales para el encabezado del panel de análisis
+                currentOpeningEco  = data.opening.eco;
+                currentOpeningName = data.opening.name;
+                VT.updateOpening(capturedNodeId, data.opening);
+                // updateOpening ya llama a renderAnnotation si el nodo sigue activo
+                // Refresca el panel de análisis con la apertura en rojo (si hay variante)
+                actualizarListaJugadas('moveListAnalysis', chessA, true);
+            }
+
+            // ★ FIX: recuperamos la referencia FRESCA del nodeMap (ya mutada con opening)
+            const freshNode = VT.nodeMap.get(capturedNodeId);
+            renderAnnotation(freshNode, data);
+
+            // ★ 3. Iluminación según estado (ya lo hace renderAnnotation)
+            // illuminateMany eliminado — ahora son píldoras + iluminación de una sola jugada
+
+            // 4. Panel TEORÍA DE MAESTROS (columna derecha)
+            if (data.moves?.length) {
+                let html = '';
+                // Cabecera con nombre de apertura
+                if (data.opening) {
+                    html += `<div style="color:var(--accent);font-weight:bold;font-size:0.8rem;margin-bottom:6px;
+                                padding:3px 6px;background:rgba(241,196,15,0.08);border-radius:4px;">
+                                📖 ${data.opening.eco} — ${data.opening.name}
+                             </div>`;
+                }
+                html += '<div style="display:grid;gap:3px;">';
+                data.moves.slice(0, 6).forEach(m => {
+                    const total   = (m.white + m.draws + m.black) || 1;
+                    const winPct  = Math.round((m.white / total) * 100);
+                    const drawPct = Math.round((m.draws / total) * 100);
+                    const lossPct = 100 - winPct - drawPct;
+                    html += `
+                        <div style="border-left:3px solid var(--accent);padding:3px 8px;background:rgba(255,255,255,0.04);border-radius:0 4px 4px 0;">
+                            <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                                <strong style="color:var(--accent);font-size:0.9rem;min-width:36px;">${m.san}</strong>
+                                <span style="font-size:0.65rem;color:#8b949e;">⌀${m.averageRating ?? '?'} ELO · ${total.toLocaleString()} partidas</span>
+                            </div>
+                            <div style="display:flex;height:5px;border-radius:2px;overflow:hidden;">
+                                <div style="width:${winPct}%;background:#e8e0d0;" title="Blancas ${winPct}%"></div>
+                                <div style="width:${drawPct}%;background:#757575;" title="Tablas ${drawPct}%"></div>
+                                <div style="width:${lossPct}%;background:#222;" title="Negras ${lossPct}%"></div>
+                            </div>
+                        </div>`;
+                });
+                infoDiv.innerHTML = html + '</div>';
+            } else {
+                infoDiv.innerHTML = '<div style="color:#8b949e;font-size:0.8rem;">Sin datos en Lichess para esta posición.</div>';
             }
         } catch(err) {
-            if (panelEl) panelEl.innerHTML = `<div style="color:#e57373;font-size:11px;">❌ Error Groq: ${err.message}</div>`;
+            console.error('[Lichess]', err);
+            infoDiv.innerHTML = `<div style="color:#da3633;font-size:0.8rem;">Sin conexión con Lichess.</div>`;
         }
-        if (btnEl) { btnEl.style.opacity = '1'; btnEl.textContent = btnEl._originalText || '🤖 Análisis IA'; }
     }
 
-    async function triggerLlamaAnalysis(_enfoque) {
-        analizarPosicionIA();
-    }
-
-    
     /* ════════════════════════════════════════════════════════════
        ARRANQUE
     ════════════════════════════════════════════════════════════ */
@@ -3618,6 +3676,7 @@ ${datosJSON}`;
             return data;
         } catch (err) {
             pzSetEstado('error', 'Error cargando puzzle. Comprueba conexión.');
+            console.error('[Puzzle]', err);
             return null;
         }
     }
@@ -3637,6 +3696,7 @@ ${datosJSON}`;
             }
             return chess2.fen();
         } catch(e) {
+            console.warn('[Puzzle] pzReconstruirFEN error:', e);
             return new Chess().fen();
         }
     }
@@ -3657,6 +3717,7 @@ ${datosJSON}`;
             const pieza = chess.get(fromSq);
             // ★ Condición clave: la pieza existe Y es del bando que tiene el turno
             if (pieza && pieza.color === chess.turn()) {
+                console.log(`[Puzzle] Posición encontrada en ply ${ply} (offset ${offset}), turno: ${chess.turn()}`);
                 return { fen, color: pieza.color };
             }
         }
@@ -3664,6 +3725,7 @@ ${datosJSON}`;
         const fenFallback = pzReconstruirFEN(pgn, initialPly);
         const chessFallback = new Chess();
         chessFallback.load(fenFallback);
+        console.warn('[Puzzle] Usando fallback, turno:', chessFallback.turn());
         return { fen: fenFallback, color: chessFallback.turn() };
     }
 
@@ -3690,6 +3752,9 @@ ${datosJSON}`;
         puzzleMode.chess.load(fen);
 
         // Verificación de consistencia en consola (para debug)
+        console.log('[Puzzle] FEN:', fen);
+        console.log('[Puzzle] chess.turn():', puzzleMode.chess.turn(), '| colorJugador:', colorJugador);
+        console.log('[Puzzle] solution[0]:', solution[0]);
 
         // Carga en el tablero de ANÁLISIS
         chessA.load(fen);
@@ -3742,10 +3807,12 @@ ${datosJSON}`;
         // Verificación extra: la pieza en from debe ser del color del jugador
         const pieza = puzzleMode.chess.get(from);
         if (!pieza) {
+            console.warn('[Puzzle] Pista: no hay pieza en', from);
             pzSetEstado('esperando', '💡 Busca la jugada clave...');
             return;
         }
         if (pieza.color !== puzzleMode.colorJugador) {
+            console.warn('[Puzzle] Pista: pieza del color equivocado en', from);
             pzSetEstado('esperando', '💡 Es tu turno — mueve una pieza tuya');
             return;
         }
@@ -4173,6 +4240,7 @@ ${datosJSON}`;
                 });
 
             } catch(e) {
+                console.error('[Análisis]', e);
                 panel.innerHTML = `<div style="color:var(--text-dim);font-size:11px;">
                     Error al analizar. Asegúrate de que Stockfish está activo.
                 </div>`;
@@ -4211,6 +4279,7 @@ ${datosJSON}`;
         if (!texto || texto.trim() === 'unknown' || texto.trim() === 'nobestmove') return [];
 
         // Log para depuración — ver respuesta cruda
+        console.log('[ChessDB] Respuesta cruda:', texto.slice(0, 300));
 
         return texto.split('|').map(entry => {
             entry = entry.trim();
@@ -4239,6 +4308,7 @@ ${datosJSON}`;
             };
 
             // Log cada entrada para depuración
+            console.log('[ChessDB] Entrada:', { uci: obj.uci, score: obj.score, note: obj.note, depth: obj.depth });
             return obj;
         }).filter(Boolean);
     }
@@ -4272,10 +4342,12 @@ ${datosJSON}`;
         try {
             // Primero intenta con json=1 para respuesta estructurada
             const url = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1&json=1&pv=1`;
+            console.log('[ChessDB] URL:', url);
             const res = await fetch(url);
             if (!res.ok) throw new Error(`CDB HTTP ${res.status}`);
 
             const texto = await res.text();
+            console.log('[ChessDB] Respuesta completa:', texto.slice(0, 500));
 
             let datos = null;
 
@@ -4291,15 +4363,18 @@ ${datosJSON}`;
                         note:  m.note ? m.note.trim().toLowerCase() : null,
                         san:   m.san  || null,
                     }));
+                    console.log('[ChessDB] Parseado como JSON, jugadas:', datos.length);
                 }
             } catch(e) {
                 // No es JSON — parsea como texto plano
+                console.log('[ChessDB] No es JSON, parseando como texto...');
                 datos = cdb_parsear(texto);
             }
 
             // Si json=1 no devuelve notas, reintenta sin json para el texto plano
             const tieneNotas = datos?.some(d => d.note);
             if (!tieneNotas && datos?.length) {
+                console.log('[ChessDB] Sin notas en JSON, reintentando en texto plano...');
                 const url2 = `https://www.chessdb.cn/cdb.php?action=queryall&board=${encodeURIComponent(fen)}&showall=1`;
                 const res2 = await fetch(url2);
                 const texto2 = await res2.text();
@@ -4311,6 +4386,7 @@ ${datosJSON}`;
             CDB_CACHE.set(fen, datos);
             return datos;
         } catch(err) {
+            console.warn('[ChessDB]', err.message);
             return null;
         }
     }
@@ -4563,9 +4639,6 @@ ${datosJSON}`;
     const replayChess = new Chess();
     replayChess.load(fenInicial);
 
-    // Extrae los NAGs del texto PGN crudo
-    const nagsArray = extraerNAGsDePGN(texto);
-
     historia.forEach((mv, i) => {
         const moved = replayChess.move(mv);
         if (!moved) return;
@@ -4579,7 +4652,6 @@ ${datosJSON}`;
                 moveNum: i + 1,
                 side:    moved.color,
                 eval:    0,
-                nag:     nagsArray[i] || null,  // ★ asigna el NAG de la jugada
             }, 'main');
         }
     });
@@ -4604,6 +4676,7 @@ ${datosJSON}`;
 }
 
     function procesarPgnEntrante() {
+    console.log("-> ¡Botón pulsado con éxito! Leyendo el cuadro de texto...");
     
     // Capturamos el texto que Manuel ha pegado en la caja
     const textoDelCuadro = document.getElementById('pgn-input')?.value?.trim();
@@ -4681,6 +4754,7 @@ ${datosJSON}`;
         
     } catch(e) {
         terminalLog('❌ Error al conectar con el usuario: ' + e.message);
+        console.error(e);
     }
 }
 
@@ -4688,136 +4762,6 @@ ${datosJSON}`;
        GUARDAR / CARGAR ESTUDIOS en localStorage
     ══════════════════════════════════════════════════════════ */
     const ESTUDIOS_KEY = 'margarita_estudios_v1';
-
-    /* ══════════════════════════════════════════════════════════
-       ANÁLISIS COMPLETO DE PARTIDA
-       Stockfish analiza todas las jugadas → IA genera informe
-    ══════════════════════════════════════════════════════════ */
-    async function analizarPartidaCompleta() {
-        const btn = document.querySelector('#analizar-partida-seccion .estudio-btn.gold');
-        const resultDiv = document.getElementById('analisis-partida-resultado');
-        if (!btn || !resultDiv) return;
-
-        // Recopilar todos los nodos de la línea principal
-        const nodos = [];
-        let nodo = VT.rootData;
-        while (nodo) {
-            const mainHijo = (nodo.children || []).find(c => c.type === 'main');
-            if (!mainHijo) break;
-            nodos.push(mainHijo);
-            nodo = mainHijo;
-        }
-
-        if (nodos.length < 2) {
-            terminalLog('⚠️ Importa una partida primero para analizarla.');
-            return;
-        }
-
-        btn.style.opacity = '0.5';
-        btn.textContent   = '⏳ Analizando... (puede tardar)';
-        resultDiv.style.display = 'block';
-        resultDiv.innerHTML = '<div style="animation:motor-blink 1s infinite;color:var(--accent-blue);">🔄 Stockfish analizando jugadas...</div>';
-
-        // Analizar cada posición con Stockfish (rápido, depth 12)
-        const evaluaciones = [];
-        for (let i = 0; i < nodos.length; i++) {
-            const nd = nodos[i];
-            await new Promise(resolve => {
-                const handler = (e) => {
-                    if (e.data.includes('bestmove')) {
-                        motorA.removeEventListener('message', handler);
-                        // Usar el eval que tenga el nodo (ya actualizado por Stockfish)
-                        resolve();
-                    }
-                    if (e.data.includes('score cp') || e.data.includes('score mate')) {
-                        const m = e.data.match(/score (cp -?\d+|mate -?\d+)/);
-                        if (m) {
-                            const parts = m[1].split(' ');
-                            nd.eval = parts[0] === 'cp' ? parseInt(parts[1]) : (parseInt(parts[1]) > 0 ? 9999 : -9999);
-                        }
-                    }
-                };
-                motorA.addEventListener('message', handler);
-                motorA.postMessage('stop');
-                motorA.postMessage(`position fen ${nd.fen}`);
-                motorA.postMessage('go depth 12');
-            });
-
-            const prev = i > 0 ? nodos[i-1] : null;
-            evaluaciones.push({
-                jugada:  nd.san,
-                moveNum: nd.moveNum,
-                side:    nd.side,
-                eval:    nd.eval || 0,
-                diffPrev: prev ? (nd.side === 'w' ? (nd.eval||0) - (prev.eval||0) : (prev.eval||0) - (nd.eval||0)) : 0,
-                nag:     nd.nag || null,
-            });
-        }
-
-        resultDiv.innerHTML = '<div style="animation:motor-blink 1s infinite;color:var(--accent-blue);">🤖 IA generando informe...</div>';
-
-        // Calcular estadísticas para el informe
-        const errores    = evaluaciones.filter(e => e.diffPrev <= -150).sort((a,b) => a.diffPrev - b.diffPrev);
-        const brillantes = evaluaciones.filter(e => e.diffPrev >= 100).sort((a,b) => b.diffPrev - a.diffPrev);
-        const apertura   = VT.nodeMap.get(nodos[0]?.id)?.opening;
-
-        const resumenJSON = JSON.stringify({
-            apertura:   apertura ? `${apertura.eco} — ${apertura.name}` : 'Desconocida',
-            total_jugadas: nodos.length,
-            errores_graves: errores.slice(0,3).map(e => ({ jugada: `${Math.ceil(e.moveNum/2)}${e.side==='w'?'.':'…'}${e.san}`, perdida_cp: Math.abs(e.diffPrev) })),
-            mejores_jugadas: brillantes.slice(0,3).map(e => ({ jugada: `${Math.ceil(e.moveNum/2)}${e.side==='w'?'.':'…'}${e.san}`, ganancia_cp: e.diffPrev })),
-            eval_final: `${evaluaciones[evaluaciones.length-1]?.eval >= 0 ? '+' : ''}${((evaluaciones[evaluaciones.length-1]?.eval||0)/100).toFixed(2)}`,
-            curva_eval_simplificada: evaluaciones.filter((_,i) => i % 5 === 0).map(e => `${Math.ceil(e.moveNum/2)}:${((e.eval||0)/100).toFixed(1)}`),
-        }, null, 2);
-
-        const systemPrompt = `Eres un Analista Técnico de Ajedrez de élite. Recibirás el resumen estadístico de una partida completa y deberás generar un informe de revisión estructurado.
-
-REGLAS:
-1. Usa solo los datos del JSON. No inventes variantes.
-2. Identifica los momentos decisivos: dónde se ganó o perdió la ventaja.
-3. Señala patrones: ¿el jugador falla en el final? ¿comete errores en posiciones complejas?
-4. Tono académico, directo. Notación española (C,A,T,D,R).
-
-ESTRUCTURA DE SALIDA:
-**Resumen General** — evaluación global de la partida
-**Errores Clave** — los peores momentos y qué indican
-**Puntos Fuertes** — las mejores jugadas
-**Conclusión** — qué debe trabajar el jugador`;
-
-        try {
-            if (!GROQ_API_KEY) throw new Error('Sin clave Groq');
-            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
-                    messages: [
-                        { role: "system", content: systemPrompt },
-                        { role: "user",   content: `Analiza esta partida:
-
-${resumenJSON}` }
-                    ],
-                    temperature: 0.2,
-                })
-            });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error.message);
-            const texto = data.choices[0].message.content;
-            resultDiv.innerHTML = `
-                <div style="font-size:9px;color:var(--accent-blue);font-weight:700;
-                    letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">
-                    📊 INFORME DE PARTIDA
-                </div>
-                ${texto.replace(/\r?\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--accent);">$1</strong>')}`;
-        } catch(err) {
-            resultDiv.innerHTML = `<div style="color:#e57373;">❌ ${err.message}</div>`;
-        }
-
-        btn.style.opacity = '1';
-        btn.textContent   = '🔍 Analizar partida completa';
-        // Actualiza el gráfico con los nuevos evals
-        renderEvalGraph();
-    }
 
     function guardarEstudio() {
         const nombre = document.getElementById('estudio-nombre')?.value?.trim();
@@ -4904,6 +4848,7 @@ ${resumenJSON}` }
     </script>
 </body>
 </html>
+
 
 
 
