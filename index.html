@@ -3388,8 +3388,14 @@ ${datosJSON}`;
        ARRANQUE
     ════════════════════════════════════════════════════════════ */
     function initBoards() {
-        const PIECE_THEME = 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png';
+        // 1. CAMBIO: Servidor público unpkg para evitar el bloqueo 403 de las imágenes
+        const PIECE_THEME = 'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/img/chesspieces/wikipedia/{piece}.png';
         const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+        // 2. CAMBIO: Evita que el código aborte si handleMoveC se borró del script global
+        if (typeof handleMoveC === 'undefined') {
+            window.handleMoveC = function(source, target, piece, newPos, oldPos, orientation) { };
+        }
 
         boardC = ChessBoard('boardCombat', {
             draggable: true, position: 'start',
@@ -3412,13 +3418,11 @@ ${datosJSON}`;
                 if (tbDatos) tbMouseoutSquare('boardAnalysis');
             },
             onDrop: (s, t) => {
-                // Si hay un puzzle activo, el handler del puzzle toma el control
                 if (puzzleMode.activo) return puzzleMode.onDrop(s, t);
 
                 const m = chessA.move({from:s, to:t, promotion:'q'});
                 if (m === null) return 'snapback';
 
-                // ── Determina si la jugada sigue la teoría o se desvía ──
                 const sigueTeoria = candidatasActuales.length > 0 &&
                     candidatasActuales.some(c => c.uci === (s + t) || c.uci.startsWith(s + t));
 
@@ -3432,7 +3436,6 @@ ${datosJSON}`;
                     fen:     chessA.fen(),
                     moveNum: combatMoveHistory.length + analysisExtraMoves.length,
                     side:    m.color, eval: 0,
-                    // Si sigue la teoría, es 'main'; si no, 'variant'
                 }, sigueTeoria ? 'main' : 'variant');
                 lastVariantId = vtNode?.id ?? null;
                 if (vtNode) nodosVisitados.add(vtNode.id);
@@ -3440,47 +3443,34 @@ ${datosJSON}`;
                 Illuminator.clear();
 
                 if (sigueTeoria) {
-                    // ── Estado teoría: apaga la luz actual, pide la siguiente ──
                     terminalLog('📖 Siguiendo teoría: ' + m.san);
                 } else {
-                    // ── Estado variante: apaga luces, marca como variante ──
                     estadoAnalisis = 'variante';
                     terminalLog('🔴 Variante propia: ' + m.san);
                 }
 
-                // Motor de análisis
                 pedirAnalisisMotor(chessA.fen());
 
-                // Lichess para la nueva posición:
-                // - Si sigue teoría → mostrará la siguiente luz azul
-                // - Si es variante  → no habrá luces, solo candidatas en el panel
                 setTimeout(() => {
                     consultarLichess(chessA.fen());
-                    checkTablebase(chessA.fen()); // detecta final en variante
+                    checkTablebase(chessA.fen());
                 }, 100);
             }
         });
 
-        // ★ Inicializar árbol con FEN inicial
         VT.init('variant-tree-container', INITIAL_FEN);
 
         initSystem();
 
-        // Sincronizar altura de la barra de evaluación con el tablero
         setTimeout(sincronizarAlturaEvalBar, 500);
         window.addEventListener('resize', sincronizarAlturaEvalBar);
 
-        // Cargar lista de estudios guardados
         renderEstudiosList();
-        // Renderizar gráfico inicial
         setTimeout(renderEvalGraph, 600);
 
-        // ★ Navegación por teclado
         document.addEventListener('keydown', (e) => {
-            // No interceptar si el foco está en un input, select o textarea
             const tag = document.activeElement?.tagName?.toLowerCase();
             if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
-            // No interceptar si hay un puzzle activo (el puzzle usa las piezas)
             if (puzzleMode.activo) return;
 
             switch(e.key) {
@@ -3502,7 +3492,7 @@ ${datosJSON}`;
                     break;
             }
         });
-    };
+} // 3. CAMBIO: Cierre limpio sin el punto y coma final que tenías antes
 
     /* ══════════════════════════════════════════════════════════
        SISTEMA DE PUZZLES — Entrenamiento de Élite
@@ -4904,6 +4894,7 @@ ${resumenJSON}` }
     </script>
 </body>
 </html>
+
 
 
 
