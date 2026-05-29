@@ -753,7 +753,7 @@
             opacity: 0.6; cursor: wait;
             animation: motor-blink 0.8s ease-in-out infinite;
         }
-        #btn-pepe:hover {
+        #btn-analisis:hover {
             background: rgba(241,196,15,0.18) !important;
             border-color: #ffd700 !important;
         }
@@ -1263,6 +1263,21 @@
                 </div>
 
                 <!-- Guardar estudio -->
+                <!-- ANALIZAR PARTIDA COMPLETA -->
+                <div class="estudio-seccion" id="seccion-analizar-partida" style="display:none;">
+                    <div class="estudio-label">🔍 Análisis de partida</div>
+                    <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;line-height:1.4;">
+                        Stockfish analizará todas las jugadas y generará un informe completo con errores, táctica y estrategia.
+                    </div>
+                    <button class="estudio-btn gold" id="btn-analizar-partida" onclick="analizarPartidaCompleta()">
+                        🔍 Analizar partida completa
+                    </button>
+                    <div id="resultado-analisis-partida" style="display:none; margin-top:8px;
+                        padding:10px; background:rgba(0,0,0,0.3); border-radius:6px;
+                        font-size:11px; line-height:1.7; color:var(--text-main);
+                        max-height:350px; overflow-y:auto; border:1px solid var(--border);"></div>
+                </div>
+
                 <div class="estudio-seccion">
                     <div class="estudio-label">💾 Guardar estudio</div>
                     <input type="text" id="estudio-nombre" class="estudio-input"
@@ -1834,12 +1849,12 @@
             <button id="btn-analizar" onclick="analizarPosicion()">
                 🔍 Analizar posición
             </button>
-            <button id="btn-pepe" onclick="analizarConPepe()" style="
+            <button id="btn-analisis" onclick="analizarConIA()" style="
                 width:100%; margin-top:6px; padding:7px; border-radius:6px;
-                border:1px solid var(--accent); background:rgba(241,196,15,0.08);
-                color:var(--accent); font-size:11px; font-family:var(--font-mono);
+                border:1px solid var(--accent-blue); background:rgba(31,111,235,0.08);
+                color:var(--accent-blue); font-size:11px; font-family:var(--font-mono);
                 font-weight:700; cursor:pointer; letter-spacing:1px; transition:all 0.2s;">
-                🎭 Análisis Pepe Cuenca
+                🤖 Análisis
             </button>
             <div id="analisis-humano"></div>
         `;
@@ -2694,34 +2709,48 @@
         return { ev, ventaja, quien, cambioEval, tactica, plan, fase, apertura };
     }
 
-    /* Llama a Groq con contexto rico — persona 'pepe' o 'tecnico' */
-    async function _llamarGroqConContexto(ctx, persona, panelEl, btnEl) {
+    /* ── Llama a Groq — Analista Técnico, sin personalidad ── */
+    async function _llamarGroqConContexto(ctx, panelEl, btnEl) {
         if (!GROQ_API_KEY) {
             if (panelEl) panelEl.innerHTML = '<div style="color:#e57373;font-size:11px;">Sin clave Groq.</div>';
+            if (btnEl)   { btnEl.style.opacity='1'; btnEl.textContent = btnEl._originalText || '🤖 Análisis'; }
             return;
         }
 
-        const userPrompt = [
-            `Apertura: ${ctx.apertura}.`,
-            `Fase: ${ctx.fase}.`,
-            `Evaluación: ${ctx.ev >= 0 ? '+' : ''}${(ctx.ev/100).toFixed(2)} — ${ctx.ventaja} para ${ctx.quien}.`,
-            ctx.cambioEval,
-            `Táctica: ${ctx.tactica}`,
-            ctx.plan,
-            persona === 'pepe'
-                ? '¡Pepe, saca la magia para Don Manuel!'
-                : 'Explica esta posición de forma pedagógica y concisa.'
-        ].filter(Boolean).join(' ');
+        // Enriquecer con datos Stockfish MultiPV
+        const sfLineas = ['1','2','3'].filter(k => motorPVs[k]).map(k => {
+            const pv = motorPVs[k];
+            const tmp = new Chess(); tmp.load(chessA.fen());
+            const sans = (pv.moves||[]).slice(0,5).map(uci => {
+                const m = tmp.move({from:uci.slice(0,2),to:uci.slice(2,4),promotion:uci[4]||'q'});
+                return m ? m.san : null;
+            }).filter(Boolean);
+            const evStr = pv.evalType==='mate' ? `Mate en ${Math.abs(pv.evalNum)}` : `${pv.evalNum>=0?'+':''}${(pv.evalNum/100).toFixed(2)}`;
+            return { linea: sans.join(' '), eval: evStr, depth: pv.depth };
+        });
 
-        const systemPrompt = persona === 'pepe'
-            ? `Eres el Gran Maestro Pedagogo AMAI, con la pasión de Pepe Cuenca.
-               Analiza para "Manuel" con energía y humor granaíno. DICCIONARIO:
-               Alfil="Diablillo", Caballo="Potrisho". Peones: A="Aristóteles", C="Charly", F="El Facun".
-               Ventaja = "Bocatta di Cardinale". Remate = "¡Ratatatatatatata!".
-               REGLAS: notación española (C,A,T,D,R), método socrático, máximo 120 palabras.`
-            : `Eres un entrenador de ajedrez experto. Explica la posición en español claro,
-               sin tecnicismos innecesarios. Notación: C=Caballo, A=Alfil, T=Torre, D=Dama, R=Rey.
-               Máximo 100 palabras, directo y útil.`;
+        const datosJSON = JSON.stringify({
+            fen:             chessA.fen(),
+            apertura_eco:    ctx.apertura || 'No disponible',
+            fase_partida:    ctx.fase,
+            evaluacion:      `${ctx.ev>=0?'+':''}${(ctx.ev/100).toFixed(2)} — ${ctx.ventaja} para ${ctx.quien}`,
+            cambio_eval:     ctx.cambioEval || 'Primera jugada analizada',
+            tactica:         ctx.tactica,
+            stockfish_lineas: sfLineas,
+        }, null, 2);
+
+        const systemPrompt = `Eres un Analista Técnico de Ajedrez de élite. Tu única función es interpretar métricas de motores de ajedrez (Stockfish) para explicar la tensión práctica de una posición.
+
+REGLAS ESTRICTAS:
+1. Cero alucinaciones: prohibido inventar variantes o movimientos que no estén en el JSON.
+2. Todo análisis deriva del JSON recibido.
+3. Explica si la posición es fácil o difícil para un humano. Identifica si requiere jugadas únicas o fluye de forma natural.
+4. Tono: académico, directo, conciso. Sin humor, sin personalidad.
+5. Notación española: C=Caballo, A=Alfil, T=Torre, D=Dama, R=Rey.
+
+ESTRUCTURA DE SALIDA (dos apartados breves):
+**1. La Verdad de la Máquina:** evalúa la línea principal y la diferencia con las alternativas.
+**2. El Factor Humano:** explica si la posición es cómoda (planes intuitivos) o crítica (requiere precisión).`;
 
         try {
             const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -2731,35 +2760,32 @@
                     model: "llama-3.3-70b-versatile",
                     messages: [
                         { role: "system", content: systemPrompt },
-                        { role: "user",   content: userPrompt   }
+                        { role: "user",   content: `Analiza esta posición:
+
+${datosJSON}` }
                     ],
-                    temperature: persona === 'pepe' ? 0.9 : 0.3,
-                    max_tokens: 300,
+                    temperature: 0.2,
                 })
             });
             const data = await res.json();
             if (data.error) throw new Error(data.error.message);
             const texto = data.choices[0].message.content;
-            const color = persona === 'pepe' ? 'var(--accent)' : 'var(--accent-blue)';
-            const titulo = persona === 'pepe' ? '🎭 PEPE CUENCA' : '🤖 ANÁLISIS TÉCNICO';
             if (panelEl) panelEl.innerHTML = `
                 <div style="border-top:1px solid var(--border);padding-top:10px;margin-top:6px;">
                     <div style="font-size:9px;font-weight:700;letter-spacing:2px;
-                        text-transform:uppercase;color:${color};margin-bottom:8px;">${titulo}</div>
+                        text-transform:uppercase;color:var(--accent-blue);margin-bottom:8px;">🤖 ANÁLISIS</div>
                     <div style="font-size:11px;line-height:1.7;color:var(--text-main);">
-                        ${texto.replace(/\n/g,'<br>')}
+                        ${texto.replace(/\r?\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--accent)">$1</strong>')}
                     </div>
                 </div>`;
         } catch(err) {
             if (panelEl) panelEl.innerHTML = `<div style="color:#e57373;font-size:11px;">❌ ${err.message}</div>`;
         }
-        if (btnEl) { btnEl.style.opacity = '1'; btnEl.textContent = btnEl._originalText || btnEl.textContent; }
+        if (btnEl) { btnEl.style.opacity='1'; btnEl.textContent = btnEl._originalText || '🤖 Análisis'; }
     }
 
-    async function triggerLlamaAnalysis(enfoque) {
-        // Redirige al nuevo sistema con contexto rico
-        analizarConPepe();
-    }
+
+    async function triggerLlamaAnalysis(_enfoque) { await analizarConIA(); }
 
     async function _triggerLlamaLegacy(enfoque) {
     const term = document.getElementById('terminalBoard');
@@ -2981,34 +3007,33 @@
     function flipAnalysisBoard() { boardA.orientation('flip'); terminalLog("Vista cambiada."); }
     function flipCombatBoard()   { boardC.orientation('flip'); terminalLog("Tablero combate girado."); }
 
-    /* ── Análisis Pepe Cuenca — usa contexto rico ── */
-    async function analizarConPepe() {
+    /* ── Análisis técnico IA — sin personalidad, puramente técnico ── */
+    async function analizarConIA() {
         const panel = document.getElementById('analisis-humano');
-        const btn   = document.getElementById('btn-pepe');
+        const btn   = document.getElementById('btn-analisis');
         if (!panel) return;
 
         const contexto = construirContextoLlama();
         if (!contexto) return;
 
-        // Muestra placeholder mientras carga
         panel.style.display = 'block';
-        // Limpia solo la sección Llama, mantiene el análisis técnico si estaba
         const existente = panel.querySelector('.llama-result');
         if (existente) existente.remove();
 
         const placeholder = document.createElement('div');
         placeholder.className = 'llama-result';
         placeholder.style.cssText = 'border-top:1px solid var(--border);padding-top:10px;margin-top:10px;';
-        placeholder.innerHTML = `
-            <div style="color:var(--accent);font-size:10px;animation:motor-blink 1s infinite;">
-                🎭 Consultando al Mágico Cuenca...
-            </div>`;
+        placeholder.innerHTML = `<div style="color:var(--accent-blue);font-size:10px;
+            animation:motor-blink 1s infinite;">🤖 Analizando posición...</div>`;
         panel.appendChild(placeholder);
 
-        if (btn) { btn._originalText = btn.textContent; btn.style.opacity = '0.6'; btn.textContent = '⏳ Consultando...'; }
+        if (btn) { btn._originalText = btn.textContent; btn.style.opacity = '0.6'; btn.textContent = '⏳ Analizando...'; }
 
-        await _llamarGroqConContexto(contexto, 'pepe', placeholder, btn);
+        await _llamarGroqConContexto(contexto, placeholder, btn);
     }
+
+    /* ── triggerLlamaAnalysis redirige al análisis técnico ── */
+    async function analizarConPepe() { await analizarConIA(); } // compatibilidad
 
     function cargarAperturaSeleccionada() {
         const fen = document.getElementById('selectApertura').value;
@@ -4763,6 +4788,119 @@
     ══════════════════════════════════════════════════════════ */
     const ESTUDIOS_KEY = 'margarita_estudios_v1';
 
+    /* ══════════════════════════════════════════════════════════
+       ANALIZAR PARTIDA COMPLETA
+       Stockfish analiza todas las posiciones → IA genera informe
+    ══════════════════════════════════════════════════════════ */
+    async function analizarPartidaCompleta() {
+        const btn     = document.getElementById('btn-analizar-partida');
+        const resDiv  = document.getElementById('resultado-analisis-partida');
+        if (!btn || !resDiv) return;
+
+        // Recopilar todos los nodos de la línea principal
+        const nodos = [];
+        let nodo = VT.rootData;
+        while (nodo) {
+            const hijo = (nodo.children||[]).find(c => c.type==='main');
+            if (!hijo) break;
+            nodos.push(hijo);
+            nodo = hijo;
+        }
+        if (nodos.length < 2) {
+            terminalLog('⚠️ Importa una partida primero.');
+            return;
+        }
+
+        btn.style.opacity = '0.5';
+        btn.textContent   = '⏳ Analizando... (puede tardar)';
+        resDiv.style.display  = 'block';
+        resDiv.innerHTML = '<div style="animation:motor-blink 1s infinite;color:var(--accent-blue);">🔄 Stockfish analizando jugadas...</div>';
+
+        // Analizar cada posición con Stockfish depth 12 (rápido)
+        for (let i = 0; i < nodos.length; i++) {
+            const nd = nodos[i];
+            await new Promise(resolve => {
+                let bestEval = nd.eval || 0;
+                const handler = (e) => {
+                    const m = e.data.match(/score (cp|mate) (-?\d+)/);
+                    if (m) bestEval = m[1]==='cp' ? parseInt(m[2]) : (parseInt(m[2])>0 ? 9000 : -9000);
+                    if (e.data.includes('bestmove')) {
+                        motorA.removeEventListener('message', handler);
+                        nd.eval = bestEval;
+                        resolve();
+                    }
+                };
+                motorA.addEventListener('message', handler);
+                motorA.postMessage('stop');
+                motorA.postMessage(`position fen ${nd.fen}`);
+                motorA.postMessage('go depth 12');
+            });
+        }
+
+        resDiv.innerHTML = '<div style="animation:motor-blink 1s infinite;color:var(--accent-blue);">🤖 IA generando informe...</div>';
+
+        // Calcular estadísticas
+        const evaluaciones = nodos.map((nd,i) => {
+            const prev = i>0 ? nodos[i-1] : null;
+            const diffPov = !prev ? 0 : (nd.side==='w' ? nd.eval-prev.eval : prev.eval-nd.eval);
+            return { jugada:`${Math.ceil(nd.moveNum/2)}${nd.side==='w'?'.':'…'}${nd.san}`, eval:nd.eval, diffPov };
+        });
+        const errores    = evaluaciones.filter(e=>e.diffPov<=-150).sort((a,b)=>a.diffPov-b.diffPov).slice(0,3);
+        const brillantes = evaluaciones.filter(e=>e.diffPov>=100).sort((a,b)=>b.diffPov-a.diffPov).slice(0,3);
+        const apertura   = VT.nodeMap.get(nodos[0]?.id)?.opening;
+
+        const resumenJSON = JSON.stringify({
+            apertura: apertura ? `${apertura.eco} — ${apertura.name}` : 'Desconocida',
+            total_jugadas: nodos.length,
+            eval_final: `${evaluaciones[evaluaciones.length-1]?.eval>=0?'+':''}${((evaluaciones[evaluaciones.length-1]?.eval||0)/100).toFixed(2)}`,
+            errores_graves: errores.map(e=>({ jugada:e.jugada, perdida_cp:Math.abs(e.diffPov) })),
+            mejores_jugadas: brillantes.map(e=>({ jugada:e.jugada, ganancia_cp:e.diffPov })),
+            curva_evaluacion: evaluaciones.filter((_,i)=>i%Math.max(1,Math.floor(nodos.length/10))===0)
+                .map(e=>`${e.jugada}:${(e.eval/100).toFixed(1)}`),
+        }, null, 2);
+
+        const systemPrompt = `Eres un Analista Técnico de Ajedrez. Recibirás las estadísticas de una partida completa y generarás un informe de revisión estructurado.
+REGLAS: Usa solo los datos del JSON. Notación española (C,A,T,D,R). Tono académico.
+ESTRUCTURA:
+**Resumen General** — evaluación global
+**Errores Clave** — los peores momentos y qué indican táctica o estratégicamente
+**Puntos Fuertes** — las mejores jugadas
+**Conclusión** — qué debe trabajar el jugador`;
+
+        try {
+            if (!GROQ_API_KEY) throw new Error('Sin clave Groq');
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "llama-3.3-70b-versatile",
+                    messages: [
+                        { role:"system", content: systemPrompt },
+                        { role:"user",   content: `Analiza esta partida:
+
+${resumenJSON}` }
+                    ],
+                    temperature: 0.2,
+                })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message);
+            const texto = data.choices[0].message.content;
+            resDiv.innerHTML = `
+                <div style="font-size:9px;color:var(--accent-blue);font-weight:700;
+                    letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;">
+                    📊 INFORME DE PARTIDA
+                </div>
+                ${texto.replace(/\r?\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--accent);">$1</strong>')}`;
+            renderEvalGraph();
+        } catch(err) {
+            resDiv.innerHTML = `<div style="color:#e57373;">❌ ${err.message}</div>`;
+        }
+
+        btn.style.opacity = '1';
+        btn.textContent   = '🔍 Analizar partida completa';
+    }
+
     function guardarEstudio() {
         const nombre = document.getElementById('estudio-nombre')?.value?.trim();
         if (!nombre) { terminalLog('⚠️ Escribe un nombre para el estudio.'); return; }
@@ -4848,6 +4986,7 @@
     </script>
 </body>
 </html>
+
 
 
 
