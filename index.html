@@ -1264,7 +1264,7 @@
 
                 <!-- Guardar estudio -->
                 <!-- ANALIZAR PARTIDA COMPLETA -->
-                <div class="estudio-seccion" id="seccion-analizar-partida" style="display:none;">
+                <div class="estudio-seccion" id="seccion-analizar-partida">
                     <div class="estudio-label">🔍 Análisis de partida</div>
                     <div style="font-size:10px;color:var(--text-dim);margin-bottom:6px;line-height:1.4;">
                         Stockfish analizará todas las jugadas y generará un informe completo con errores, táctica y estrategia.
@@ -2593,13 +2593,7 @@
             motorA.onmessage = (e) => {
                 const line = e.data;
 
-                // Barra de evaluación (pv1 siempre)
-                if (line.includes('multipv 1') || (!line.includes('multipv') && line.includes('score'))) {
-                    const match = line.match(/score (cp -?\d+|mate -?\d+)/);
-                    if (match) actualizarBarraEval(match[1]);
-                }
-
-                // Panel MultiPV — parsea todas las líneas
+                // Panel MultiPV — parsea todas las líneas en tiempo real
                 if (line.includes('multipv') && line.includes(' pv ')) {
                     const parsed = parsearLineaMotor(line);
                     if (parsed) {
@@ -2609,17 +2603,25 @@
                             moves:    parsed.moves,
                             depth:    parsed.depth,
                         };
-                        // Renderiza solo cada 2 profundidades para no saturar el DOM
                         if (parsed.depth % 2 === 0 || parsed.depth >= 18) {
                             renderMotorPanel();
                         }
                     }
                 }
 
-                // Fin del análisis
+                // ★ FIX BARRA: Solo actualizar cuando Stockfish termina (bestmove)
+                // Así la barra no da brincos con evaluaciones parciales intermedias
                 if (line.includes('bestmove')) {
                     motorActive = false;
                     renderMotorPanel(); // render final con todos los datos
+                    // Tomar la evaluación final de pv1 para la barra
+                    const pv1 = motorPVs['1'];
+                    if (pv1) {
+                        const scoreText = pv1.evalType === 'mate'
+                            ? `mate ${pv1.evalNum}`
+                            : `cp ${pv1.evalNum}`;
+                        actualizarBarraEval(scoreText);
+                    }
                 }
             };
 
@@ -4806,8 +4808,13 @@ ${datosJSON}` }
             nodos.push(hijo);
             nodo = hijo;
         }
+
+        // Avisa si no hay partida cargada
         if (nodos.length < 2) {
-            terminalLog('⚠️ Importa una partida primero.');
+            resDiv.style.display = 'block';
+            resDiv.innerHTML = `<div style="color:#ffd54f;font-size:11px;padding:8px;">
+                ⚠️ No hay partida cargada. Importa un PGN en la sección de arriba o carga un estudio guardado.
+            </div>`;
             return;
         }
 
@@ -4986,6 +4993,7 @@ ${resumenJSON}` }
     </script>
 </body>
 </html>
+
 
 
 
