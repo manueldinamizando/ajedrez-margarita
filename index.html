@@ -913,6 +913,50 @@
             overflow: hidden; cursor: pointer;
         }
 
+        /* ── Explorer de Aperturas eco.json ── */
+        .eco-header {
+            background: rgba(31,111,235,0.08);
+            border: 1px solid var(--accent-blue);
+            border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+        }
+        .eco-code { font-size: 22px; font-weight: 900; color: var(--accent); font-family: var(--font-mono); }
+        .eco-name { font-size: 12px; color: var(--text-main); font-weight: 700; margin-top: 2px; }
+        .eco-moves { font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);
+            margin-top: 4px; line-height: 1.5; }
+        .eco-variantes { margin-top: 8px; }
+        .eco-var-item {
+            padding: 4px 8px; margin-bottom: 3px; border-radius: 4px; cursor: pointer;
+            border: 1px solid var(--border); background: rgba(255,255,255,0.02);
+            font-size: 11px; font-family: var(--font-mono); transition: all 0.15s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .eco-var-item:hover { border-color: var(--accent-blue); background: rgba(31,111,235,0.08); }
+        .eco-var-code { color: var(--accent); font-weight: 700; min-width: 36px; }
+        .eco-var-name { color: var(--text-dim); font-size: 10px; }
+        .eco-btn {
+            width: 100%; padding: 7px; border-radius: 6px; margin-top: 6px; margin-bottom: 4px;
+            border: 1px solid var(--accent-blue); background: rgba(31,111,235,0.08);
+            color: var(--accent-blue); font-size: 11px; font-family: var(--font-mono);
+            font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .eco-btn:hover { background: rgba(31,111,235,0.18); }
+        .eco-btn.gold { border-color: var(--accent); background: rgba(241,196,15,0.08); color: var(--accent); }
+        .eco-btn.gold:hover { background: rgba(241,196,15,0.18); }
+        #eco-analisis-resultado {
+            margin-top: 8px; padding: 10px; border-radius: 6px;
+            background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+            font-size: 11px; line-height: 1.7; color: var(--text-main);
+            display: none; max-height: 280px; overflow-y: auto;
+        }
+        .eco-buscador {
+            width: 100%; padding: 6px 8px; border-radius: 5px; margin-bottom: 6px;
+            background: #010409; border: 1px solid var(--border);
+            color: var(--text-main); font-size: 11px; font-family: var(--font-mono);
+        }
+        .eco-buscador:focus { border-color: var(--accent-blue); outline: none; }
+        .eco-no-data { color: var(--text-dim); font-size: 11px; padding: 8px 0; font-style: italic; }
+        .eco-loading { color: var(--accent-blue); font-size: 10px; animation: motor-blink 1s infinite; }
+
         /* Animación pulso en casillas iluminadas (legacy) */
         @keyframes vt-pulse {
             0%,100% { opacity: 0.55; }
@@ -1210,26 +1254,29 @@
             </div>
 
             <!-- TAB: Aperturas -->
-            <div id="tab-apertura" class="tab-content">
-                <div style="color:var(--accent);font-size:0.75rem;font-weight:700;letter-spacing:2px;
-                    text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid var(--border);
-                    padding-bottom:5px;">📖 Explorador de Aperturas</div>
-                <select id="selectApertura" class="select-margarita" style="width:100%;margin-bottom:8px;">
-                    <option value="">Selecciona una apertura...</option>
-                    <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 0 3">#1 Española / Ruy López</option>
-                    <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 5 4">#2 Siciliana Najdorf</option>
-                    <option value="rnbqk2r/ppppppbp/5np1/8/2PP4/5N2/PP2PPPP/RNBQKB1R w KQkq - 4 4">#3 India de Rey</option>
-                    <option value="r1bqkb1r/pp1p1ppp/2n1pn2/2p5/2PP4/2N1P3/PP3PPP/R1BQKBNR w KQkq - 0 5">#4 Nimzo-India</option>
-                    <option value="rn1qkb1r/pb3ppp/4pn2/1pp5/2PP4/5NP1/PP2PPBP/RNBQK2R w KQkq - 0 7">#5 Gambito de Dama Rehusado</option>
-                    <option value="rnbqkb1r/pp2pppp/2p2n2/3p4/2PP4/2N5/PP2PPPP/R1BQKBNR w KQkq - 0 4">#6 Semi-Eslava Botvinnik</option>
-                    <option value="rn1qkbnr/pp1b1ppp/4p3/2ppP3/3P4/2P5/PP3PPP/RNBQKBNR w KQkq - 1 6">#7 Francesa Winawer</option>
-                    <option value="rn1qkbnr/pp2pppp/2p5/3pP3/3P4/5N2/PP2PPPP/RNBQKB1R b KQkq - 0 4">#8 Caro-Kann</option>
-                    <option value="rn1qkb1r/pp2pppp/2p2n2/3p2B1/2PP2b1/2N2N2/PP2PPPP/R2QKB1R w KQkq - 4 6">#9 Holandesa</option>
-                    <option value="r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 1 3">#10 Berlinesa</option>
-                </select>
-                <button class="btn-margarita" style="background:var(--accent-blue);width:100%;padding:8px;"
-                    onclick="cargarAperturaSeleccionada()">Cargar en Tablero</button>
-                <div id="infoApertura" style="color:var(--text-dim);font-size:0.8rem;margin-top:6px;"></div>
+                        <div id="tab-apertura" class="tab-content">
+                <!-- Buscador manual -->
+                <input type="text" id="eco-buscador" class="eco-buscador"
+                    placeholder="Buscar apertura (ej: Siciliana, C65...)"
+                    oninput="ecoFiltrarBusqueda(this.value)">
+
+                <!-- Info de la apertura actual (auto-detectada) -->
+                <div id="eco-panel-actual">
+                    <div class="eco-no-data">Mueve en el tablero de análisis para detectar la apertura automáticamente.</div>
+                </div>
+
+                <!-- Botones de acción -->
+                <button class="eco-btn gold" id="eco-btn-explicar" onclick="ecoExplicarApertura()" style="display:none;">
+                    📚 Plan y objetivos de esta apertura
+                </button>
+                <div id="eco-analisis-resultado"></div>
+
+                <!-- Lista de resultados de búsqueda -->
+                <div id="eco-lista-busqueda" style="display:none;margin-top:8px;">
+                    <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;
+                        text-transform:uppercase;margin-bottom:5px;">Resultados</div>
+                    <div id="eco-resultados"></div>
+                </div>
             </div>
 
             <!-- TAB: Estudio -->
@@ -3418,6 +3465,8 @@ ${datosJSON}` }
                 currentOpeningEco  = data.opening.eco;
                 currentOpeningName = data.opening.name;
                 VT.updateOpening(capturedNodeId, data.opening);
+                // ★ Actualizar explorador de aperturas eco.json
+                ecoActualizarDesdeLichess(data.opening);
                 // updateOpening ya llama a renderAnnotation si el nodo sigue activo
                 // Refresca el panel de análisis con la apertura en rojo (si hay variante)
                 actualizarListaJugadas('moveListAnalysis', chessA, true);
@@ -3554,6 +3603,14 @@ ${datosJSON}` }
         // Sincronizar altura de la barra de evaluación con el tablero
         setTimeout(sincronizarAlturaEvalBar, 500);
         window.addEventListener('resize', sincronizarAlturaEvalBar);
+
+        // Cargar eco.json en segundo plano (empieza por A y B, los más comunes)
+        setTimeout(() => {
+            ecoCargarCategoria('A').then(() => ecoCargarCategoria('B'))
+                .then(() => ecoCargarCategoria('C')).then(() => ecoCargarCategoria('D'))
+                .then(() => ecoCargarCategoria('E'))
+                .then(() => console.log('[eco.json] Todas las categorías cargadas'));
+        }, 2000);
 
         // Cargar lista de estudios guardados
         renderEstudiosList();
@@ -4960,14 +5017,257 @@ ${resumenJSON}` }
             </div>`).join('');
     }
 
+    /* ══════════════════════════════════════════════════════════
+       EXPLORADOR DE APERTURAS eco.json
+       Fuente: github.com/JeffML/eco.json (via raw.githubusercontent.com)
+       Búsqueda automática por FEN + búsqueda manual por nombre/ECO
+    ══════════════════════════════════════════════════════════ */
+
+    const ECO_CACHE  = {};   // { 'A': [...], 'B': [...], ... }
+    const ECO_BASE   = 'https://raw.githubusercontent.com/JeffML/eco.json/main/eco';
+    let   ECO_ACTUAL = null; // apertura detectada actualmente
+    let   ECO_TODOS  = [];   // índice plano de todas las aperturas cargadas
+
+    /* Carga un fichero eco (A-E) si no está en caché */
+    async function ecoCargarCategoria(letra) {
+        if (ECO_CACHE[letra]) return ECO_CACHE[letra];
+        try {
+            const res = await fetch(`${ECO_BASE}${letra}.json`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            // El fichero es un objeto FEN → apertura O un array
+            let lista = [];
+            if (Array.isArray(data)) {
+                lista = data;
+            } else {
+                lista = Object.entries(data).map(([fen, info]) => ({ fen, ...info }));
+            }
+            ECO_CACHE[letra] = lista;
+            // Añadir al índice global
+            lista.forEach(ap => { if (!ECO_TODOS.find(x => x.eco === ap.eco && x.name === ap.name)) ECO_TODOS.push(ap); });
+            return lista;
+        } catch(e) {
+            console.warn('[eco.json]', e.message);
+            return [];
+        }
+    }
+
+    /* Cargar todas las categorías en segundo plano */
+    async function ecoCargarTodo() {
+        for (const letra of ['A','B','C','D','E']) {
+            await ecoCargarCategoria(letra);
+        }
+    }
+
+    /* Normaliza FEN para búsqueda: solo los 3 primeros campos */
+    function ecoNormalizarFEN(fen) {
+        if (!fen) return '';
+        const partes = fen.split(' ');
+        return partes.slice(0, 3).join(' ');  // posición + turno + enroque
+    }
+
+    /* Busca apertura por FEN en todas las categorías cargadas */
+    function ecoBuscarPorFEN(fen) {
+        const fenNorm  = ecoNormalizarFEN(fen);
+        const fenCorto = fen.split(' ')[0]; // solo piezas
+        for (const lista of Object.values(ECO_CACHE)) {
+            for (const ap of lista) {
+                const apFenNorm  = ecoNormalizarFEN(ap.fen || ap.moves || '');
+                const apFenCorto = (ap.fen || '').split(' ')[0];
+                if (apFenNorm === fenNorm || apFenCorto === fenCorto) return ap;
+            }
+        }
+        return null;
+    }
+
+    /* Busca apertura por código ECO */
+    function ecoBuscarPorCodigo(eco) {
+        for (const lista of Object.values(ECO_CACHE)) {
+            const encontrada = lista.find(ap => ap.eco === eco);
+            if (encontrada) return encontrada;
+        }
+        return null;
+    }
+
+    /* Renderiza la info de una apertura en el panel */
+    function ecoMostrarApertura(ap, forzar) {
+        if (!ap) return;
+        ECO_ACTUAL = ap;
+
+        const panel = document.getElementById('eco-panel-actual');
+        const btnEx = document.getElementById('eco-btn-explicar');
+        if (!panel) return;
+
+        const aliases = (ap.aliases || []).slice(0,3).join(', ');
+        const moves   = ap.moves || ap.pgn || '';
+
+        panel.innerHTML = `
+            <div class="eco-header">
+                <div class="eco-code">${ap.eco || '—'}</div>
+                <div class="eco-name">${ap.name || ap.opening || 'Apertura desconocida'}</div>
+                ${moves ? `<div class="eco-moves">${moves}</div>` : ''}
+                ${aliases ? `<div style="font-size:9px;color:var(--text-dim);margin-top:3px;">También: ${aliases}</div>` : ''}
+            </div>`;
+
+        if (btnEx) btnEx.style.display = 'block';
+
+        // Buscar variantes del mismo grupo ECO (misma letra+número base)
+        const base = (ap.eco || '').slice(0,2);
+        const variantes = ECO_TODOS
+            .filter(x => x.eco?.startsWith(base) && x.eco !== ap.eco && x.name !== ap.name)
+            .slice(0,6);
+
+        if (variantes.length) {
+            panel.innerHTML += `<div class="eco-variantes">
+                <div style="font-size:9px;color:var(--text-dim);letter-spacing:1px;
+                    text-transform:uppercase;margin-bottom:4px;">Variantes del grupo ${base}</div>
+                ${variantes.map(v => `
+                    <div class="eco-var-item" onclick="ecoCargarVariante(${JSON.stringify(v.eco)})">
+                        <span class="eco-var-code">${v.eco}</span>
+                        <span class="eco-var-name">${v.name || ''}</span>
+                    </div>`).join('')}
+            </div>`;
+        }
+    }
+
+    /* Carga una variante al tablero de análisis */
+    function ecoCargarVariante(ecoCode) {
+        const ap = ecoBuscarPorCodigo(ecoCode);
+        if (!ap) return;
+        ecoMostrarApertura(ap);
+        // Si tiene FEN válido, cargar en tablero
+        if (ap.fen && ap.fen.includes('/')) {
+            chessA.load(ap.fen);
+            boardA.position(ap.fen);
+            consultarLichess(ap.fen);
+            terminalLog(`📖 Cargada: ${ap.eco} — ${ap.name}`);
+        }
+    }
+
+    /* Filtrar por búsqueda de texto */
+    function ecoFiltrarBusqueda(texto) {
+        const lista    = document.getElementById('eco-lista-busqueda');
+        const resultEl = document.getElementById('eco-resultados');
+        if (!lista || !resultEl) return;
+
+        if (!texto || texto.length < 2) {
+            lista.style.display = 'none';
+            return;
+        }
+
+        const q = texto.toLowerCase();
+        const resultados = ECO_TODOS
+            .filter(ap => (ap.name||'').toLowerCase().includes(q) || (ap.eco||'').toLowerCase().includes(q))
+            .slice(0, 12);
+
+        if (!resultados.length) {
+            resultEl.innerHTML = '<div class="eco-no-data">Sin resultados.</div>';
+            lista.style.display = 'block';
+            return;
+        }
+
+        resultEl.innerHTML = resultados.map(ap => `
+            <div class="eco-var-item" onclick="ecoCargarVariante(${JSON.stringify(ap.eco)})">
+                <span class="eco-var-code">${ap.eco}</span>
+                <span class="eco-var-name">${ap.name || ''}</span>
+            </div>`).join('');
+        lista.style.display = 'block';
+    }
+
+    /* Explicar apertura con IA técnica */
+    async function ecoExplicarApertura() {
+        const btn    = document.getElementById('eco-btn-explicar');
+        const resDiv = document.getElementById('eco-analisis-resultado');
+        if (!btn || !resDiv || !ECO_ACTUAL) return;
+        if (!GROQ_API_KEY) { resDiv.innerHTML='<div style="color:#e57373">Sin clave Groq.</div>'; resDiv.style.display='block'; return; }
+
+        btn.style.opacity  = '0.5';
+        btn.textContent    = '⏳ Analizando...';
+        resDiv.style.display = 'block';
+        resDiv.innerHTML   = '<div class="eco-loading">🤖 Consultando base de conocimiento...</div>';
+
+        const ap = ECO_ACTUAL;
+        const prompt = `Apertura: ${ap.eco} — ${ap.name || ap.opening}.
+Movimientos: ${ap.moves || ap.pgn || 'No disponible'}.
+${(ap.aliases||[]).length ? 'También conocida como: ' + ap.aliases.join(', ') + '.' : ''}
+
+Explica esta apertura de ajedrez de forma técnica y estructurada:
+1. Objetivos principales de cada bando
+2. Plan típico de ataque
+3. Recursos defensivos más importantes
+4. Estructura de peones resultante
+5. Errores frecuentes a evitar`;
+
+        try {
+            const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: "llama-3.3-70b-versatile",
+                    messages: [
+                        { role: "system", content: "Eres un analista técnico de ajedrez. Explica aperturas de forma estructurada, académica y concisa. Usa notación española (C=Caballo, A=Alfil, T=Torre, D=Dama, R=Rey). Sin humor, sin personalidad." },
+                        { role: "user",   content: prompt }
+                    ],
+                    temperature: 0.2,
+                })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error.message);
+            const texto = data.choices[0].message.content;
+            resDiv.innerHTML = texto.replace(/\n/g, '<br>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--accent)">$1</strong>')
+            .replace(/^(\d+\.)/gm, '<strong>$1</strong>');
+        } catch(e) {
+            resDiv.innerHTML = `<div style="color:#e57373">❌ ${e.message}</div>`;
+        }
+
+        btn.style.opacity = '1';
+        btn.textContent   = '📚 Plan y objetivos de esta apertura';
+    }
+
+    /* Hook: conectar eco.json con consultarLichess */
+    /* Se llama desde consultarLichess cuando hay apertura detectada */
+    async function ecoActualizarDesdeLichess(opening) {
+        if (!opening?.eco) return;
+        const letra = opening.eco[0];
+
+        // Cargar la categoría si no está en caché
+        if (!ECO_CACHE[letra]) {
+            const panel = document.getElementById('eco-panel-actual');
+            if (panel) panel.innerHTML = `<div class="eco-loading">📖 Cargando eco${letra}.json...</div>`;
+            await ecoCargarCategoria(letra);
+        }
+
+        // Buscar por código ECO exacto
+        let ap = ecoBuscarPorCodigo(opening.eco);
+
+        // Si no, buscar por FEN actual
+        if (!ap) ap = ecoBuscarPorFEN(chessA.fen());
+
+        // Si tampoco, crear una entrada mínima con datos de Lichess
+        if (!ap) {
+            ap = { eco: opening.eco, name: opening.name, moves: '', aliases: [] };
+        }
+
+        ecoMostrarApertura(ap);
+    }
+
     /* ── Tabs del panel derecho ── */
     function switchTab(tabId, btn) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
         btn.classList.add('active');
-        if (tabId === 'tab-arbol')   { try { VT.render(); renderEvalGraph(); } catch(e){} }
-        if (tabId === 'tab-estudio') { renderEstudiosList(); }
+        if (tabId === 'tab-arbol')    { try { VT.render(); renderEvalGraph(); } catch(e){} }
+        if (tabId === 'tab-estudio')  { renderEstudiosList(); }
+        if (tabId === 'tab-apertura') {
+            // Si hay apertura activa, mostrarla
+            if (ECO_ACTUAL) ecoMostrarApertura(ECO_ACTUAL);
+            else if (currentOpeningEco) {
+                const ap = ecoBuscarPorCodigo(currentOpeningEco);
+                if (ap) ecoMostrarApertura(ap);
+            }
+        }
     }
 
     /* ── Terminal colapsable ── */
@@ -4993,6 +5293,7 @@ ${resumenJSON}` }
     </script>
 </body>
 </html>
+
 
 
 
