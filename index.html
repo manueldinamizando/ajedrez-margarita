@@ -957,6 +957,40 @@
         .eco-no-data { color: var(--text-dim); font-size: 11px; padding: 8px 0; font-style: italic; }
         .eco-loading { color: var(--accent-blue); font-size: 10px; animation: motor-blink 1s infinite; }
 
+        /* ── Insignias NAG en el tablero ── */
+        .nag-badge {
+            position: absolute;
+            z-index: 30;
+            right: 0; top: 0;
+            font-size: 12px; font-weight: 900;
+            line-height: 1; padding: 1px 3px;
+            border-radius: 0 0 0 4px;
+            pointer-events: none;
+            animation: nag-pop 0.25s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        @keyframes nag-pop {
+            from { transform: scale(0.3); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        .nag-brilliant { color: #00e5ff; text-shadow: 0 0 6px #00e5ff; background: rgba(0,0,0,0.7); }
+        .nag-good      { color: #4caf50; text-shadow: 0 0 5px #4caf50; background: rgba(0,0,0,0.7); }
+        .nag-interest  { color: #ffc107; text-shadow: 0 0 5px #ffc107; background: rgba(0,0,0,0.7); }
+        .nag-dubious   { color: #ff9800; text-shadow: 0 0 5px #ff9800; background: rgba(0,0,0,0.7); }
+        .nag-mistake   { color: #ef5350; text-shadow: 0 0 5px #ef5350; background: rgba(0,0,0,0.7); }
+        .nag-blunder   { color: #fff; background: #b71c1c; padding: 1px 4px; border-radius: 2px; }
+
+        /* Símbolo NAG inline en paneles */
+        .nag-inline {
+            display: inline-block; font-size: 11px; font-weight: 900;
+            padding: 0 3px; border-radius: 3px; margin-left: 2px; vertical-align: middle;
+        }
+        .nag-inline.brilliant { color:#00e5ff; background:rgba(0,229,255,0.12); }
+        .nag-inline.good      { color:#4caf50; background:rgba(76,175,80,0.12); }
+        .nag-inline.interest  { color:#ffc107; background:rgba(255,193,7,0.12); }
+        .nag-inline.dubious   { color:#ff9800; background:rgba(255,152,0,0.12); }
+        .nag-inline.mistake   { color:#ef5350; background:rgba(239,83,80,0.12); }
+        .nag-inline.blunder   { color:#fff;    background:#b71c1c; }
+
         /* Animación pulso en casillas iluminadas (legacy) */
         @keyframes vt-pulse {
             0%,100% { opacity: 0.55; }
@@ -1493,6 +1527,7 @@
                 parentId, fen:d.fen, san:d.san, uci:d.uci,
                 moveNum:d.moveNum, side:d.side, eval:d.eval??0,
                 opening:d.opening??null, type:d.type??'main',
+                nag:     d.nag??null,
                 children: [],
             };
         },
@@ -1828,6 +1863,97 @@
     }
     function closeCtx() { _ctxMenu?.remove(); _ctxMenu = null; }
 
+    /* ══════════════════════════════════════════════════════════
+       SISTEMA NAG — Glifos de Anotación Numérica
+       Regla clave: el badge se dibuja UNA SOLA VEZ desde renderAnnotation.
+       Stockfish pasa por aquí solo cuando termina (bestmove), no antes.
+    ══════════════════════════════════════════════════════════ */
+
+    const NAG_MAP = {
+        '$1':  { sym: '!',  cls: 'good',      label: 'Buena jugada'              },
+        '$2':  { sym: '?',  cls: 'mistake',   label: 'Error'                     },
+        '$3':  { sym: '!!', cls: 'brilliant', label: 'Jugada brillante'          },
+        '$4':  { sym: '??', cls: 'blunder',   label: 'Error grave'               },
+        '$5':  { sym: '!?', cls: 'interest',  label: 'Jugada interesante'        },
+        '$6':  { sym: '?!', cls: 'dubious',   label: 'Jugada dudosa'             },
+        '$10': { sym: '=',  cls: 'interest',  label: 'Igualdad'                  },
+        '$14': { sym: '⩲',  cls: 'good',      label: 'Ligera ventaja blancas'    },
+        '$15': { sym: '⩱',  cls: 'mistake',   label: 'Ligera ventaja negras'     },
+        '$16': { sym: '±',  cls: 'good',      label: 'Ventaja blancas'           },
+        '$17': { sym: '∓',  cls: 'mistake',   label: 'Ventaja negras'            },
+        '$18': { sym: '+-', cls: 'brilliant', label: 'Ventaja decisiva blancas'  },
+        '$19': { sym: '-+', cls: 'blunder',   label: 'Ventaja decisiva negras'   },
+    };
+
+    /* Calcula NAG automático desde diferencia de evaluación */
+    function nagDesdeEval(diffCp, sideQueJugó) {
+        // diffCp = eval_actual - eval_padre (centipeones, perspectiva absoluta)
+        const pov = sideQueJugó === 'w' ? diffCp : -diffCp;
+        if (pov >= 150)  return '$3';   // !!
+        if (pov >= 50)   return '$1';   // !
+        if (pov >= -50)  return null;   // normal
+        if (pov >= -100) return '$6';   // ?!
+        if (pov >= -200) return '$2';   // ?
+        return '$4';                    // ??
+    }
+
+    /* Extrae array de NAGs desde texto PGN — paralelo a chess.history() */
+    function extraerNAGsDePGN(pgn) {
+        const sinCabeceras = pgn.replace(/\[[^\]]*\]/g, '');
+        const sinComents   = sinCabeceras.replace(/\{[^}]*\}/g,'').replace(/\([^)]*\)/g,'');
+        const tokens = sinComents.split(/\s+/).filter(Boolean);
+        const nags = [];
+        for (const tok of tokens) {
+            if (/^\d+\.+$/.test(tok)) continue;
+            if (/^\$\d+$/.test(tok)) {
+                if (nags.length > 0) nags[nags.length - 1] = nags[nags.length - 1] || tok;
+                continue;
+            }
+            if (/^(1-0|0-1|1\/2-1\/2|\*)$/.test(tok)) continue;
+            nags.push(null);
+        }
+        return nags;
+    }
+
+    /* HTML del símbolo NAG para uso inline en texto */
+    function nagInlineHtml(nagCode) {
+        const n = NAG_MAP[nagCode];
+        if (!n) return '';
+        return `<span class="nag-inline ${n.cls}" title="${n.label}">${n.sym}</span>`;
+    }
+
+    /* Dibuja el badge NAG sobre la casilla destino del movimiento.
+       ÚNICA FUENTE DE VERDAD: solo se llama desde renderAnnotation. */
+    function mostrarNagEnTablero(uci, nagCode) {
+        limpiarNagTablero();
+        if (!uci || uci.length < 4 || !nagCode) return;
+        const nag = NAG_MAP[nagCode];
+        if (!nag) return;
+
+        const board = document.getElementById('boardAnalysis');
+        if (!board) return;
+        board.style.position = 'relative';
+
+        const toSq = uci.slice(2, 4);
+        const sq   = board.querySelector(`.square-${toSq}`);
+        if (!sq) return;
+
+        // Eliminar badge anterior si existe
+        document.getElementById('nag-board-badge')?.remove();
+
+        const badge = document.createElement('div');
+        badge.id = 'nag-board-badge';
+        badge.className = `nag-badge ${nag.cls}`;
+        badge.textContent = nag.sym;
+        badge.title = nag.label;
+        sq.style.position = 'relative';
+        sq.appendChild(badge);
+    }
+
+    function limpiarNagTablero() {
+        document.getElementById('nag-board-badge')?.remove();
+    }
+
     /* ── Panel de anotación — Sistema 3 estados ── */
     function renderAnnotation(node, explorerData) {
         const panel = document.getElementById('variant-annotation');
@@ -1883,9 +2009,23 @@
                 <button class="va-btn va-btn-discard"     onclick="vtDiscard()">🗑️ Descartar</button>
             </div>` : '';
 
+        // ── Badge NAG en tablero (ÚNICO punto de control) ──
+        // Usar NAG manual del nodo si existe; si no, calcular desde eval
+        let _nagActivo = node.nag || null;
+        if (!_nagActivo && node.parentId && node.uci && node.eval !== 0) {
+            const _padre = VT.nodeMap.get(node.parentId);
+            if (_padre && _padre.eval !== undefined) {
+                _nagActivo = nagDesdeEval((node.eval||0) - (_padre.eval||0), node.side);
+            }
+        }
+        limpiarNagTablero();
+        if (_nagActivo && node.uci) mostrarNagEnTablero(node.uci, _nagActivo);
+
+        const _nagHtml = _nagActivo ? nagInlineHtml(_nagActivo) : '';
+
         panel.innerHTML = `
             <div class="va-header">
-                <span class="va-san">${node.san === '♟' ? 'Inicio' : node.san}</span>
+                <span class="va-san">${node.san === '♟' ? 'Inicio' : node.san}${_nagHtml}</span>
                 ${evLbl}
                 <span class="va-badge va-badge-${node.type}">${node.type}</span>
             </div>
@@ -2455,32 +2595,48 @@
     }
 
     /* ── Barra de evaluación Stockfish ── */
+    /* ── Fórmula sigmoide de Lichess: sin brincos, escala natural ── */
+    function calcularEvaluacionAjedrez(evalData) {
+        if (evalData.type === 'mate') {
+            const jugadas = evalData.value;
+            if (jugadas > 0) return { porcentaje: 100, texto: `#${jugadas}` };
+            if (jugadas < 0) return { porcentaje: 0,   texto: `#${Math.abs(jugadas)}` };
+            return { porcentaje: 50, texto: '#' };
+        }
+        const peones    = evalData.value / 100;
+        const sigmoide  = 1 / (1 + Math.exp(-0.4 * peones));
+        const pct       = Math.round(sigmoide * 10000) / 100;
+        const texto     = peones > 0 ? `+${peones.toFixed(1)}` : peones < 0 ? `${peones.toFixed(1)}` : '0.0';
+        return { porcentaje: pct, texto };
+    }
+
     function actualizarBarraEval(scoreText) {
         const barWhite = document.getElementById('eval-bar-white');
         const barLabel = document.getElementById('eval-bar-label');
         if (!barWhite || !barLabel) return;
 
-        let cp = 0, label = '0.0';
+        let evalData = { type: 'cp', value: 0 };
 
-        if (scoreText && scoreText.includes('mate')) {
-            const m = parseInt(scoreText.split(' ')[1]);
-            cp    = m > 0 ? 9999 : -9999;
-            label = m > 0 ? `M+${Math.abs(m)}` : `M-${Math.abs(m)}`;
-        } else if (scoreText) {
-            cp    = parseInt(scoreText.split(' ')[1]) || 0;
-            const abs = (Math.abs(cp)/100).toFixed(2);
-            label = cp >= 0 ? `+${abs}` : `-${abs}`;
+        if (scoreText) {
+            const parts = scoreText.trim().split(/\s+/);
+            if (parts[0] === 'mate') {
+                evalData = { type: 'mate', value: parseInt(parts[1]) || 0 };
+            } else {
+                // Acepta "cp 150" o "150" o "+150"
+                const raw = parts[0] === 'cp' ? parts[1] : parts[0];
+                evalData = { type: 'cp', value: parseInt(raw) || 0 };
+            }
         }
 
-        // Escala logarítmica con atan
-        const pct = 50 + (Math.atan(cp * 0.0035) / Math.PI) * 100;
-        barWhite.style.height = `${pct}%`;
-        barLabel.textContent  = label;
-        barLabel.style.bottom = `${pct}%`;
+        const { porcentaje, texto } = calcularEvaluacionAjedrez(evalData);
+        barWhite.style.height = `${porcentaje}%`;
+        barLabel.textContent  = texto;
+        barLabel.style.bottom = `${porcentaje}%`;
 
-        // Guarda en el nodo activo del árbol
-        VT.updateEval(VT.activeId, cp);
-        // Actualiza el gráfico de evaluación
+        // Guardar eval en el nodo activo
+        VT.updateEval(VT.activeId, evalData.type === 'mate'
+            ? (evalData.value > 0 ? 9999 : -9999)
+            : evalData.value);
         renderEvalGraph();
     }
 
@@ -3203,6 +3359,7 @@ ${datosJSON}` }
         refrescarPaneles();
         actualizarTurno();
         Illuminator.clear();
+        limpiarNagTablero();
         pedirAnalisisMotor(parent.fen);
         setTimeout(() => consultarLichess(parent.fen), 80);
         VT.render();
@@ -3325,10 +3482,11 @@ ${datosJSON}` }
                 isActive   ? 'active-chip' : ''
             ].join(' ');
 
+            const _nc = node.nag ? (NAG_MAP[node.nag]?.sym || '') : '';
             html += `<span class="${cls}"
                 onclick="analysisGoToNode('${node.id}')"
-                title="${isVariant ? 'Variante' : 'Línea principal'}"
-            >${node.san}</span>`;
+                title="${isVariant ? 'Variante' : 'Línea principal'}${node.nag ? ' — ' + (NAG_MAP[node.nag]?.label||''): ''}"
+            >${node.san}${_nc ? `<sup style="font-size:9px">${_nc}</sup>` : ''}</span>`;
         });
 
         // Si el nodo activo tiene varios hijos → mostrar bifurcaciones disponibles
@@ -4723,6 +4881,9 @@ ${datosJSON}` }
     const replayChess = new Chess();
     replayChess.load(fenInicial);
 
+    // Extraer NAGs del PGN crudo antes de procesar jugadas
+    const _nagsImport = (typeof extraerNAGsDePGN === 'function') ? extraerNAGsDePGN(texto) : [];
+
     historia.forEach((mv, i) => {
         const moved = replayChess.move(mv);
         if (!moved) return;
@@ -4736,6 +4897,7 @@ ${datosJSON}` }
                 moveNum: i + 1,
                 side:    moved.color,
                 eval:    0,
+                nag:     _nagsImport[i] || null,
             }, 'main');
         }
     });
@@ -5214,9 +5376,10 @@ Explica esta apertura de ajedrez de forma técnica y estructurada:
             const data = await res.json();
             if (data.error) throw new Error(data.error.message);
             const texto = data.choices[0].message.content;
-            resDiv.innerHTML = texto.replace(/\n/g, '<br>')
+            resDiv.innerHTML = texto
+            .replace(/\n/g, '<br>')
             .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--accent)">$1</strong>')
-            .replace(/^(\d+\.)/gm, '<strong>$1</strong>');
+            .replace(/^(\d+\.)/gm, '<br><strong>$1</strong>');
         } catch(e) {
             resDiv.innerHTML = `<div style="color:#e57373">❌ ${e.message}</div>`;
         }
@@ -5293,6 +5456,7 @@ Explica esta apertura de ajedrez de forma técnica y estructurada:
     </script>
 </body>
 </html>
+
 
 
 
