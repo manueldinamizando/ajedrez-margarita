@@ -2707,76 +2707,107 @@
 
     /* ── Doble clic en píldora: ejecuta el movimiento automáticamente ── */
     function pillDblClick(uci, san, el) {
-        const from = uci.slice(0, 2);
-        const to   = uci.slice(2, 4);
-        const prom = uci.length > 4 ? uci[4] : undefined;
+    const from = uci.slice(0, 2);
+    const to   = uci.slice(2, 4);
+    const prom = uci.length > 4 ? uci[4] : undefined;
 
-        // 1. Usar el FEN guardado en el propio elemento (más fiable que fenParaPildoras global)
-        const fenBase = (el && el.dataset.fen) ? el.dataset.fen : fenParaPildoras;
-        if (fenBase) {
-            try { 
-                chessA.load(fenBase); 
-            } catch(e) {
-                console.error("Error cargando FEN en chessA:", e);
-            }
+    // 1. Usar el FEN guardado en el propio elemento (más fiable que fenParaPildoras global)
+    const fenBase = (el && el.dataset.fen) ? el.dataset.fen : fenParaPildoras;
+    if (fenBase) {
+        try { 
+            chessA.load(fenBase); 
+        } catch(e) {
+            console.error("Error cargando FEN en chessA:", e);
         }
+    }
 
-        // 2. Control del enroque y promociones
-        const piece = chessA.get(from);
+    // 2. Control del enroque y promociones
+    const piece = chessA.get(from);
+    let move = null;
+
+    // 🛡️ INTERCEPTOR MANUAL DE ENROQUES 🛡️
+    // Si la pieza es un rey y se mueve dos casillas horizontalmente desde su origen clásico
+    if (piece && piece.type === 'k' && (from === 'e1' || from === 'e8') && 
+        (to === 'g1' || to === 'c1' || to === 'g8' || to === 'c8')) {
+        
+        // Forzamos el movimiento del rey en el motor virtual
+        chessA.remove(from);
+        chessA.put({ type: 'k', color: piece.color }, to);
+        
+        // Movemos la torre correspondiente saltándonos las restricciones del FEN
+        if (to === 'g1') { chessA.remove('h1'); chessA.put({ type: 'r', color: 'w' }, 'f1'); } // Corto Blanco
+        if (to === 'c1') { chessA.remove('a1'); chessA.put({ type: 'r', color: 'w' }, 'd1'); } // Largo Blanco
+        if (to === 'g8') { chessA.remove('h8'); chessA.put({ type: 'r', color: 'b' }, 'f8'); } // Corto Negro
+        if (to === 'c8') { chessA.remove('a8'); chessA.put({ type: 'r', color: 'b' }, 'd8'); } // Largo Negro
+
+        // Forzamos el cambio de turno en el string FEN resultante
+        let fens = chessA.fen().split(' ');
+        fens[1] = piece.color === 'w' ? 'b' : 'w'; 
+        chessA.load(fens.join(' '));
+
+        // Reconstruimos el objeto move para que la UI y el árbol no se rompan
+        move = { 
+            san: san || (to === 'g1' || to === 'g8' ? 'O-O' : 'O-O-O'), 
+            color: piece.color 
+        };
+    } else {
+        // Movimiento normal si no es un enroque
         const esPromocion = prom && piece?.type === 'p' &&
             ((piece.color === 'w' && to[1] === '8') || (piece.color === 'b' && to[1] === '1'));
         const moveOpts = esPromocion ? { from, to, promotion: prom } : { from, to };
 
-        // 3. Intentar realizar el movimiento de forma segura (Cambiado a let para poder reasignar)
-        let move = chessA.move(moveOpts);
+        // 3. Intentar realizar el movimiento de forma segura
+        move = chessA.move(moveOpts);
         
         if (!move) {
             // Intentar con sloppy como fallback para notaciones raras o variantes manuales
             try {
                 move = chessA.move(uci, { sloppy: true });
             } catch(err) {}
-            
-            if (!move) {
-                terminalLog(`⚠️ Movimiento no legal: ${san} (${uci})`);
-                return;
-            }
         }
-
-        // 4. Sincroniza tablero visual
-        boardA.position(chessA.fen());
-
-        // 5. Recalcula extra desde la ruta del árbol para no perder contexto
-        _syncExtraMovesFromPath();
-        analysisExtraMoves.push(move.san);
-
-        // 6. Crea el nodo en el árbol usando la información del movimiento válido
-        const vtNode = VT.addMove({
-            san:     move.san,
-            uci:     from + to + (prom || ''),
-            fen:     chessA.fen(),
-            moveNum: combatMoveHistory.length + analysisExtraMoves.length,
-            side:    move.color,
-            eval:    0,
-        }, 'variant');
-        
-        lastVariantId = vtNode?.id ?? null;
-        if (vtNode) nodosVisitados.add(vtNode.id);
-
-        Illuminator.clear();
-        refrescarPaneles();
-        actualizarTurno();
-
-        // 7. Motor + Lichess para la nueva posición
-        if (motorA) {
-            motorA.postMessage('position fen ' + chessA.fen());
-            motorA.postMessage('go depth 14');
-        }
-        setTimeout(() => {
-            consultarLichess(chessA.fen());
-            checkTablebase(chessA.fen());
-        }, 80);
-        terminalLog('📖 Variante auto: ' + move.san);
     }
+
+    // Si no ha sido un enroque manual ni un movimiento legal normal, detenemos
+    if (!move) {
+        terminalLog(`⚠️ Movimiento no legal: ${san} (${uci})`);
+        return;
+    }
+
+    // 4. Sincroniza tablero visual
+    boardA.position(chessA.fen());
+
+    // 5. Recalcula extra desde la ruta del árbol para no perder contexto
+    _syncExtraMovesFromPath();
+    analysisExtraMoves.push(move.san);
+
+    // 6. Crea el nodo en el árbol usando la información del movimiento válido
+    const vtNode = VT.addMove({
+        san:     move.san,
+        uci:     from + to + (prom || ''),
+        fen:     chessA.fen(),
+        moveNum: combatMoveHistory.length + analysisExtraMoves.length,
+        side:    move.color,
+        eval:    0,
+    }, 'variant');
+    
+    lastVariantId = vtNode?.id ?? null;
+    if (vtNode) nodosVisitados.add(vtNode.id);
+
+    Illuminator.clear();
+    refrescarPaneles();
+    actualizarTurno();
+
+    // 7. Motor + Lichess para la nueva posición
+    if (motorA) {
+        motorA.postMessage('position fen ' + chessA.fen());
+        motorA.postMessage('go depth 14');
+    }
+    setTimeout(() => {
+        consultarLichess(chessA.fen());
+        checkTablebase(chessA.fen());
+    }, 80);
+    terminalLog('📖 Variante auto: ' + move.san);
+}
 
 /* ── Evento: nodo seleccionado (click en árbol D3) ── */
 document.addEventListener('vt:selected', e => {
@@ -5472,6 +5503,7 @@ Explica esta apertura de ajedrez de forma técnica y estructurada:
     </script>
 </body>
 </html>
+
 
 
 
