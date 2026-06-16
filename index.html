@@ -2677,12 +2677,12 @@
             else                  semaforo = '<span style="color:#9e9e9e;font-size:9px;">●</span>';
 
             return `<span class="${clases}"
-                data-uci="${m.uci}" data-idx="${i}"
+                data-uci="${m.uci}" data-idx="${i}" data-fen="${fenParaPildoras||''}"
                 onclick="pillClick('${m.uci}', ${i})"
-                ondblclick="pillDblClick('${m.uci}', '${m.san}')"
+                ondblclick="pillDblClick('${m.uci}', '${m.san}', this)"
                 onmouseenter="Illuminator.previewCandidata('${m.uci}')"
                 onmouseleave="Illuminator.clearHover()"
-                title="Doble clic para mover | ${total.toLocaleString()} partidas | ${winPct}% bl.">
+                title="Clic: ver · Doble clic: mover | ${total.toLocaleString()} partidas | ${winPct}% bl.">
                 ${semaforo} ${m.san}
                 <span style="font-size:9px;opacity:0.6;">${total > 999 ? Math.round(total/1000)+'k' : total}</span>
             </span>`;
@@ -2706,34 +2706,50 @@
     }
 
     /* ── Doble clic en píldora: ejecuta el movimiento automáticamente ── */
-    function pillDblClick(uci, san) {
+    function pillDblClick(uci, san, el) {
         const from = uci.slice(0, 2);
         const to   = uci.slice(2, 4);
-        const prom = uci[4] || undefined;
+        const prom = uci.length > 4 ? uci[4] : undefined;
 
-        // ★ FIX: Cargamos el FEN exacto desde el que se consultó Lichess
-        // para evitar desfases entre el estado de chessA y las candidatas mostradas
-        if (fenParaPildoras) chessA.load(fenParaPildoras);
-
-        // FIX enroque: solo pasar promotion si es coronación real (uci[4] existe)
-        const moveOpts = prom ? { from, to, promotion: prom } : { from, to };
-        const move = chessA.move(moveOpts);
-        if (!move) {
-            console.warn('[pillDblClick] Movimiento ilegal:', uci, 'FEN:', chessA.fen());
-            return;
+        // 1. Usar el FEN guardado en el propio elemento (más fiable que fenParaPildoras global)
+        const fenBase = (el && el.dataset.fen) ? el.dataset.fen : fenParaPildoras;
+        if (fenBase) {
+            try { 
+                chessA.load(fenBase); 
+            } catch(e) {
+                console.error("Error cargando FEN en chessA:", e);
+            }
         }
 
-        // Sincroniza tablero visual
+        // 2. Control del enroque y promociones
+        const piece = chessA.get(from);
+        const esPromocion = prom && piece?.type === 'p' &&
+            ((piece.color === 'w' && to[1] === '8') || (piece.color === 'b' && to[1] === '1'));
+        const moveOpts = esPromocion ? { from, to, promotion: prom } : { from, to };
+
+        // 3. Intentar realizar el movimiento de forma segura (Cambiado a let para poder reasignar)
+        let move = chessA.move(moveOpts);
+        
+        if (!move) {
+            // Intentar con sloppy como fallback para notaciones raras o variantes manuales
+            try {
+                move = chessA.move(uci, { sloppy: true });
+            } catch(err) {}
+            
+            if (!move) {
+                terminalLog(`⚠️ Movimiento no legal: ${san} (${uci})`);
+                return;
+            }
+        }
+
+        // 4. Sincroniza tablero visual
         boardA.position(chessA.fen());
 
-        // Actualiza el array de variante
-        const fenBase    = fenParaPildoras;
-        const extraBase  = [...analysisExtraMoves];
-        // Recalcula extra desde la ruta del árbol para no perder contexto
+        // 5. Recalcula extra desde la ruta del árbol para no perder contexto
         _syncExtraMovesFromPath();
         analysisExtraMoves.push(move.san);
 
-        // Crea el nodo en el árbol
+        // 6. Crea el nodo en el árbol usando la información del movimiento válido
         const vtNode = VT.addMove({
             san:     move.san,
             uci:     from + to + (prom || ''),
@@ -2742,6 +2758,7 @@
             side:    move.color,
             eval:    0,
         }, 'variant');
+        
         lastVariantId = vtNode?.id ?? null;
         if (vtNode) nodosVisitados.add(vtNode.id);
 
@@ -2749,7 +2766,7 @@
         refrescarPaneles();
         actualizarTurno();
 
-        // Motor + Lichess para la nueva posición
+        // 7. Motor + Lichess para la nueva posición
         if (motorA) {
             motorA.postMessage('position fen ' + chessA.fen());
             motorA.postMessage('go depth 14');
@@ -2761,22 +2778,22 @@
         terminalLog('📖 Variante auto: ' + move.san);
     }
 
-    /* ── Evento: nodo seleccionado (click en árbol D3) ── */
-    document.addEventListener('vt:selected', e => {
-        const { node } = e.detail;
-        if (!node?.fen) return;
-        chessA.load(node.fen);
-        boardA.position(node.fen);
-        _syncExtraMovesFromPath();
-        // Estado según tipo del nodo seleccionado en el árbol
-        estadoAnalisis = node.type === 'variant' ? 'variante' : 'teoria';
-        refrescarPaneles();
-        actualizarTurno();
-        Illuminator.clear();
-        renderAnnotation(node);
-        pedirAnalisisMotor(node.fen);
-        consultarLichess(node.fen);
-    });
+/* ── Evento: nodo seleccionado (click en árbol D3) ── */
+document.addEventListener('vt:selected', e => {
+    const { node } = e.detail;
+    if (!node?.fen) return;
+    chessA.load(node.fen);
+    boardA.position(node.fen);
+    _syncExtraMovesFromPath();
+    // Estado según tipo del nodo seleccionado en el árbol
+    estadoAnalisis = node.type === 'variant' ? 'variante' : 'teoria';
+    refrescarPaneles();
+    actualizarTurno();
+    Illuminator.clear();
+    renderAnnotation(node);
+    pedirAnalisisMotor(node.fen);
+    consultarLichess(node.fen);
+});
 
     /* ════════════════════════════════════════════════════════════
        SISTEMA PRINCIPAL  (tu código original, sin cambios salvo hooks)
@@ -4932,43 +4949,42 @@ ${datosJSON}` }
     }
 
     async function importarDesdeLichess() {
-        let valorInput = document.getElementById('lichess-id-input')?.value?.trim();
+        const input = document.getElementById('lichess-id-input');
+        let valorInput = input?.value?.trim();
         if (!valorInput) { terminalLog('⚠️ Introduce el ID o el enlace de la partida.'); return; }
 
-        const id = valorInput.split('/').pop();
+        // Acepta: ID puro (AbCd1234), URL completa, o URL con variantes
+        // Limpiar el ID: tomar el último segmento que tenga 8 caracteres alfanuméricos
+        let id = valorInput;
+        // Si es URL, extraer el ID de partida (8 chars alfanuméricos)
+        const matchUrl = valorInput.match(/lichess\.org\/([a-zA-Z0-9]{8})/);
+        if (matchUrl) id = matchUrl[1];
+        else id = valorInput.split('/').filter(s => /^[a-zA-Z0-9]{8}$/.test(s)).pop()
+                  || valorInput.split('/').pop().replace(/[^a-zA-Z0-9]/g,'').slice(0,8)
+                  || valorInput;
 
         terminalLog(`📡 Descargando partida ${id} de Lichess...`);
         try {
-            const res = await fetch(`https://lichess.org/game/export/${id}?clocks=false&evals=false&opening=false`, {
+            // Intentar primero con la API oficial
+            const url = `https://lichess.org/game/export/${id}?clocks=false&evals=false&opening=true&literate=false`;
+            const res = await fetch(url, {
                 headers: { 'Accept': 'application/x-chess-pgn' }
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!res.ok) {
+                if (res.status === 404) throw new Error(`Partida "${id}" no encontrada. Verifica el ID.`);
+                if (res.status === 429) throw new Error('Demasiadas peticiones. Espera un momento.');
+                throw new Error(`HTTP ${res.status}`);
+            }
             const pgn = await res.text();
-            if (document.getElementById('lichess-id-input')) document.getElementById('lichess-id-input').value = '';
+            if (!pgn || pgn.trim().length < 10) throw new Error('Respuesta vacía de Lichess.');
+            if (input) input.value = '';
             importarPGN(pgn);
         } catch(e) {
-            terminalLog('❌ Error importando de Lichess: ' + e.message);
+            terminalLog('❌ ' + e.message);
         }
     }
 
-    /* Importar desde Lichess por ID de partida */
-    async function importarDesdeLichess() {
-        const id = document.getElementById('lichess-id-input')?.value?.trim();
-        if (!id) { terminalLog('⚠️ Introduce el ID de la partida.'); return; }
-
-        terminalLog(`📡 Descargando partida ${id} de Lichess...`);
-        try {
-            const res = await fetch(`https://lichess.org/game/export/${id}?clocks=false&evals=false&opening=false`, {
-                headers: { 'Accept': 'application/x-chess-pgn' }
-            });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const pgn = await res.text();
-            if (document.getElementById('lichess-id-input')) document.getElementById('lichess-id-input').value = '';
-            importarPGN(pgn);
-        } catch(e) {
-            terminalLog('❌ Error importando de Lichess: ' + e.message);
-        }
-    }
+    // [importarDesdeLichess duplicada eliminada]
     async function cargarUltimasDeLichess() {
     const usuario = document.getElementById('lichess-user-input')?.value?.trim();
     if (!usuario) { 
@@ -5377,9 +5393,9 @@ Explica esta apertura de ajedrez de forma técnica y estructurada:
             if (data.error) throw new Error(data.error.message);
             const texto = data.choices[0].message.content;
             resDiv.innerHTML = texto
-            .replace(/\n/g, '<br>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--accent)">$1</strong>')
-            .replace(/^(\d+\.)/gm, '<br><strong>$1</strong>');
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--accent)">$1</strong>')
+    .replace(/^(\d+\.)/gm, '<br><strong>$1</strong>');
         } catch(e) {
             resDiv.innerHTML = `<div style="color:#e57373">❌ ${e.message}</div>`;
         }
@@ -5456,6 +5472,7 @@ Explica esta apertura de ajedrez de forma técnica y estructurada:
     </script>
 </body>
 </html>
+
 
 
 
