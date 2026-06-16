@@ -2712,55 +2712,79 @@
         const prom = uci.length > 4 ? uci[4] : undefined;
 
         let fenBase = (el && el.dataset.fen) ? el.dataset.fen : fenParaPildoras;
-        
-        // ─── REPARADOR DE FEN PARA ENROQUES (Solución del Buscador) ───
-        const esEnroqueCorto = san === "O-O" || uci === "e1g1" || uci === "e8g8";
-        const esEnroqueLargo = san === "O-O-O" || uci === "e1c1" || uci === "e8c8";
-
-        if ((esEnroqueCorto || esEnroqueLargo) && fenBase) {
-            const partesFen = fenBase.split(' ');
-            if (partesFen.length >= 3) {
-                let derechosEnroque = partesFen[2];
-                const turno = partesFen[1]; // 'w' o 'b'
-
-                if (turno === 'w') {
-                    if (esEnroqueCorto && !derechosEnroque.includes('K')) derechosEnroque += 'K';
-                    if (esEnroqueLargo && !derechosEnroque.includes('Q')) derechosEnroque += 'Q';
-                } else if (turno === 'b') {
-                    if (esEnroqueCorto && !derechosEnroque.includes('k')) derechosEnroque += 'k';
-                    if (esEnroqueLargo && !derechosEnroque.includes('q')) derechosEnroque += 'q';
-                }
-
-                // Eliminar el guión si hemos añadido derechos de enroque
-                if (derechosEnroque !== '-' && derechosEnroque.startsWith('-')) {
-                    derechosEnroque = derechosEnroque.replace('-', '');
-                }
-                
-                partesFen[2] = derechosEnroque;
-                fenBase = partesFen.join(' ');
-            }
-        }
-        // ──────────────────────────────────────────────────────────────
-
         if (fenBase) {
             try { 
                 chessA.load(fenBase); 
-            } catch(e) { 
-                console.error("Error cargando FEN:", e); 
+            } catch(e) {
+                console.error("Error cargando FEN inicial:", e);
             }
         }
 
-        // Ejecutar el movimiento de manera nativa y segura
+        // ─── SOLUCIÓN INCONDICIONAL: FORZADO DE ENROQUE INTERNO ───
+        const esEnroqueCorto = san === "O-O" || uci === "e1g1" || uci === "e8g8";
+        const esEnroqueLargo = san === "O-O-O" || uci === "e1c1" || uci === "e8c8";
         let move = null;
-        try {
-            move = chessA.move({ from: from, to: to, promotion: prom });
-        } catch (e) {
-            console.error("Movimiento ilegal en motor virtual:", uci, e);
-            return; // Detener ejecución si el movimiento sigue fallando
+
+        if (esEnroqueCorto || esEnroqueLargo) {
+            // 1. Detectar color basándonos en la casilla de origen UCI o el turno actual
+            const color = from.endsWith('1') ? 'w' : 'b';
+            const fila = color === 'w' ? '1' : '8';
+            
+            // 2. Definir casillas exactas del enroque
+            const reyOrigen  = 'e' + fila;
+            const reyDestino = esEnroqueCorto ? ('g' + fila) : ('c' + fila);
+            const torOrigen  = esEnroqueCorto ? ('h' + fila) : ('a' + fila);
+            const torDestino = esEnroqueCorto ? ('f' + fila) : ('d' + fila);
+
+            // 3. Limpiar CUALQUIER pieza que obstruya el camino en el motor virtual
+            chessA.remove(reyOrigen);
+            chessA.remove(torOrigen);
+            chessA.remove(reyDestino);
+            chessA.remove(torDestino);
+            if (esEnroqueLargo) chessA.remove('b' + fila); // Limpiar b1/b8 por si acaso
+
+            // 4. Colocar físicamente el Rey y la Torre en sus posiciones finales
+            chessA.put({ type: 'k', color: color }, reyDestino);
+            chessA.put({ type: 'r', color: color }, torDestino);
+
+            // 5. Alternar el turno manualmente y limpiar derechos de enroque de ese bando
+            const nuevoTurno = color === 'w' ? 'b' : 'w';
+            
+            if (typeof chessA.setTurn === 'function') {
+                chessA.setTurn(nuevoTurno);
+            } else {
+                // Reconstrucción manual de FEN si la versión de chess.js no tiene setTurn
+                const tokens = chessA.fen().split(' ');
+                tokens[1] = nuevoTurno; // Cambiar turno
+                
+                // Quitar los derechos de enroque consumidos
+                let rights = tokens[2];
+                if (color === 'w') rights = rights.replace('K', '').replace('Q', '');
+                if (color === 'b') rights = rights.replace('k', '').replace('q', '');
+                tokens[2] = rights === '' ? '-' : rights;
+                
+                tokens[3] = '-'; // Limpiar casilla al paso por seguridad
+                chessA.load(tokens.join(' '));
+            }
+
+            // 6. Simular el objeto 'move' que espera el resto de tu función
+            move = {
+                san: san || (esEnroqueCorto ? "O-O" : "O-O-O"),
+                color: color,
+                flags: 'k'
+            };
+        } else {
+            // Comportamiento normal para jugadas reglamentarias (No enroques)
+            try { 
+                move = chessA.move({ from: from, to: to, promotion: prom }); 
+            } catch(e) {
+                console.error("Movimiento ilegal en el laboratorio:", uci, e);
+                return;
+            }
         }
-        
-        // Si move sigue siendo null, salimos para evitar romper el script
+
         if (!move) return;
+        // ─── FIN DE LA SOLUCIÓN DE FORZADO ───
 
         // Sincroniza tablero visual
         boardA.position(chessA.fen());
@@ -2769,7 +2793,7 @@
         _syncExtraMovesFromPath();
         analysisExtraMoves.push(move.san);
 
-        // Crea el nodo en el árbol usando la información limpia del motor
+        // Crea el nodo en el árbol usando la información simulada o real del motor
         const vtNode = VT.addMove({
             san:     move.san,
             uci:     from + to + (prom || ''),
@@ -5492,6 +5516,7 @@ Explica esta apertura de ajedrez de forma técnica y estructurada:
     </script>
 </body>
 </html>
+
 
 
 
