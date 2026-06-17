@@ -1,0 +1,13 @@
+{
+  "name": "amai",
+  "version": "1.0.0",
+  "description": "Aplicación de escritorio AMAI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "keywords": [],
+  "author": "Manuel Reyes Fernández",
+  "license": "ISC",
+  "type": "commonjs"
+}
